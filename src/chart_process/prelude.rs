@@ -14,7 +14,6 @@ pub use super::types::{
 pub use super::{ChartEvent, ControlEvent};
 
 // Re-export traits
-pub use super::ChartProcessor;
 pub use super::parser::ChartParser;
 pub use super::player::ChartPlayer;
 

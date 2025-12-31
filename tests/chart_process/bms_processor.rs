@@ -11,12 +11,12 @@ use bms_rs::chart_process::prelude::*;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// Setup a BMS processor for testing (without calling `start_play`)
-fn setup_bms_processor_with_config<T, P, R, M>(
+/// Setup a BMS player for testing (without calling `start_play`)
+fn setup_bms_player_with_config<T, P, R, M>(
     source: &str,
     config: ParseConfig<T, P, R, M>,
     reaction_time: TimeSpan,
-) -> BmsProcessor
+) -> UniversalChartPlayer<HashMapResourceMapping>
 where
     T: KeyLayoutMapper,
     P: Prompter,
@@ -43,19 +43,26 @@ where
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    BmsProcessor::new::<T>(&bms, visible_range_per_bpm)
+    let processor = BmsProcessor::new::<T>(&bms);
+    processor.to_player(visible_range_per_bpm)
 }
 
-/// Setup a BMS processor with `AlwaysUseOlder` prompter
-fn setup_bms_processor_with_older_prompter(source: &str, reaction_time: TimeSpan) -> BmsProcessor {
+/// Setup a BMS player with `AlwaysUseOlder` prompter
+fn setup_bms_player_with_older_prompter(
+    source: &str,
+    reaction_time: TimeSpan,
+) -> UniversalChartPlayer<HashMapResourceMapping> {
     let config = default_config().prompter(AlwaysUseOlder);
-    setup_bms_processor_with_config(source, config, reaction_time)
+    setup_bms_player_with_config(source, config, reaction_time)
 }
 
-/// Setup a BMS processor with `AlwaysWarnAndUseNewer` prompter
-fn setup_bms_processor_with_newer_prompter(source: &str, reaction_time: TimeSpan) -> BmsProcessor {
+/// Setup a BMS player with `AlwaysWarnAndUseNewer` prompter
+fn setup_bms_player_with_newer_prompter(
+    source: &str,
+    reaction_time: TimeSpan,
+) -> UniversalChartPlayer<HashMapResourceMapping> {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
-    setup_bms_processor_with_config(source, config, reaction_time)
+    setup_bms_player_with_config(source, config, reaction_time)
 }
 
 #[test]
@@ -63,23 +70,23 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     // Test basic visible_events functionality using bemuse_ext.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor = setup_bms_processor_with_older_prompter(bms_source, reaction_time);
+    let mut player = setup_bms_player_with_older_prompter(bms_source, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    player.start_play(start_time);
 
     // Verify initial state
-    assert_eq!(*processor.current_bpm(), Decimal::from(120));
-    assert_eq!(*processor.current_speed(), Decimal::one());
-    assert_eq!(*processor.current_scroll(), Decimal::one());
+    assert_eq!(*player.current_bpm(), Decimal::from(120));
+    assert_eq!(*player.current_speed(), Decimal::one());
+    assert_eq!(*player.current_scroll(), Decimal::one());
 
     // Advance to first change point
     let after_first_change = start_time + TimeSpan::SECOND;
-    let _ = processor.update(after_first_change);
+    let _ = player.update(after_first_change);
 
-    let visible_window_y = processor.visible_range_per_bpm().window_y(
-        processor.current_bpm(),
-        processor.current_speed(),
-        processor.playback_ratio(),
+    let visible_window_y = player.visible_range_per_bpm().window_y(
+        player.current_bpm(),
+        player.current_speed(),
+        player.playback_ratio(),
     );
     assert!(
         visible_window_y.as_ref() > &Decimal::zero(),
@@ -88,7 +95,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     );
 
     // Check that visible_events method works normally
-    let after_change_events: Vec<_> = processor.visible_events().collect();
+    let after_change_events: Vec<_> = player.visible_events().collect();
     assert!(
         !after_change_events.is_empty(),
         "Should have visible events"
@@ -139,13 +146,13 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 fn test_bms_visible_event_activate_time_within_reaction_window() {
     let reaction = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction);
+    let mut player = setup_bms_player_with_newer_prompter(bms_source, reaction);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    player.start_play(start_time);
 
     let after = start_time + TimeSpan::SECOND;
-    let _ = processor.update(after);
-    let events: Vec<_> = processor.visible_events().collect();
+    let _ = player.update(after);
+    let events: Vec<_> = player.visible_events().collect();
     assert!(
         !events.is_empty(),
         "Should have visible events after advance"
@@ -164,25 +171,25 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     // Test BPM changes' effect on visible window using lilith_mx.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/lilith_mx.bms");
-    let mut processor = setup_bms_processor_with_older_prompter(bms_source, reaction_time);
+    let mut player = setup_bms_player_with_older_prompter(bms_source, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    player.start_play(start_time);
 
     // Initial state: BPM = 151
-    assert_eq!(*processor.current_bpm(), Decimal::from(151));
+    assert_eq!(*player.current_bpm(), Decimal::from(151));
 
     // Advance to first BPM change point
     // Note: With new playhead speed (1/240), speed is half of original (1/120)
     // So need twice the time to reach the same Y position
     let after_first_change = start_time + TimeSpan::SECOND * 2;
-    let _ = processor.update(after_first_change);
+    let _ = player.update(after_first_change);
     let bpm_75_5 = Decimal::from_str("75.5").unwrap_or_else(|err| {
         panic!("Failed to parse Decimal literal in test: {err:?}");
     });
-    assert_eq!(*processor.current_bpm(), bpm_75_5);
+    assert_eq!(*player.current_bpm(), bpm_75_5);
 
     // Get visible events after BPM change
-    let after_bpm_events: Vec<_> = processor.visible_events().collect();
+    let after_bpm_events: Vec<_> = player.visible_events().collect();
     assert!(
         !after_bpm_events.is_empty(),
         "Should still have visible events after BPM change"
@@ -200,15 +207,15 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     // Test DisplayRatio scaling when scroll value is 0.5 using bemuse_ext.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor = setup_bms_processor_with_older_prompter(bms_source, reaction_time);
+    let mut player = setup_bms_player_with_older_prompter(bms_source, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    player.start_play(start_time);
 
     // Verify initial state：Scroll = 1.0
-    assert_eq!(*processor.current_scroll(), Decimal::one());
+    assert_eq!(*player.current_scroll(), Decimal::one());
 
     // Get initial visible events and their display ratios
-    let initial_events: Vec<_> = processor.visible_events().collect();
+    let initial_events: Vec<_> = player.visible_events().collect();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
         .map(|(_, display_ratio_range)| {
@@ -222,10 +229,10 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     // Advance to first Scroll change point (still 1.0)
     let after_first_scroll = start_time + TimeSpan::SECOND;
-    let _ = processor.update(after_first_scroll);
-    assert_eq!(*processor.current_scroll(), Decimal::one());
+    let _ = player.update(after_first_scroll);
+    assert_eq!(*player.current_scroll(), Decimal::one());
 
-    let after_first_ratios: Vec<f64> = processor
+    let after_first_ratios: Vec<f64> = player
         .visible_events()
         .collect::<Vec<_>>()
         .iter()
@@ -251,13 +258,13 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     // Advance to second Scroll change point (scroll 0.5)
     let after_scroll_half = after_first_scroll + TimeSpan::SECOND * 2;
-    let _ = processor.update(after_scroll_half);
+    let _ = player.update(after_scroll_half);
     let scroll_half = Decimal::from_str("0.5").unwrap_or_else(|err| {
         panic!("Failed to parse Decimal literal in test: {err:?}");
     });
-    assert_eq!(*processor.current_scroll(), scroll_half);
+    assert_eq!(*player.current_scroll(), scroll_half);
 
-    let after_scroll_half_ratios: Vec<f64> = processor
+    let after_scroll_half_ratios: Vec<f64> = player
         .visible_events()
         .collect::<Vec<_>>()
         .iter()
@@ -322,14 +329,13 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 #[test]
 fn test_bms_triggered_event_activate_time_equals_elapsed() {
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor =
-        setup_bms_processor_with_newer_prompter(bms_source, TimeSpan::MILLISECOND * 600);
+    let mut player = setup_bms_player_with_newer_prompter(bms_source, TimeSpan::MILLISECOND * 600);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    player.start_play(start_time);
 
     let elapsed = TimeSpan::SECOND * 3;
     let now = start_time + elapsed;
-    let events: Vec<_> = processor.update(now).collect();
+    let events: Vec<_> = player.update(now).collect();
     assert!(
         !events.is_empty(),
         "Expected triggered events after {:?} elapsed",
@@ -358,15 +364,12 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
 #WAV01 test.wav
 #00111:01
 "#;
-    let mut processor =
-        setup_bms_processor_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
+    let mut player = setup_bms_player_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
     let start_time = TimeStamp::start();
-    processor.start_play(start_time);
-    let _events: Vec<_> = processor
-        .update(start_time + TimeSpan::SECOND * 2)
-        .collect();
+    player.start_play(start_time);
+    let _events: Vec<_> = player.update(start_time + TimeSpan::SECOND * 2).collect();
 
-    let events: Vec<_> = processor
+    let events: Vec<_> = player
         .events_in_time_range(
             (TimeSpan::ZERO - TimeSpan::MILLISECOND * 300)..=(TimeSpan::MILLISECOND * 300),
         )
@@ -396,11 +399,10 @@ fn test_bms_events_in_time_range_empty_before_start() {
 #WAV01 test.wav
 #00111:01
 "#;
-    let mut processor =
-        setup_bms_processor_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
+    let mut player = setup_bms_player_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
 
     assert!(
-        processor
+        player
             .events_in_time_range(
                 (TimeSpan::ZERO - TimeSpan::MILLISECOND * 100)..=(TimeSpan::MILLISECOND * 100),
             )
@@ -424,16 +426,16 @@ fn test_bms_start_play_resets_scroll_to_one() {
 #001SC:00020000
 #00111:00000000
 "#;
-    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
+    let mut player = setup_bms_player_with_newer_prompter(bms_source, reaction_time);
     let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    player.start_play(start_time);
 
     let after_scroll_change = start_time + TimeSpan::MILLISECOND * 2700;
-    let _ = processor.update(after_scroll_change).collect::<Vec<_>>();
-    assert_ne!(*processor.current_scroll(), Decimal::one());
+    let _ = player.update(after_scroll_change).collect::<Vec<_>>();
+    assert_ne!(*player.current_scroll(), Decimal::one());
 
-    processor.start_play(after_scroll_change + TimeSpan::SECOND);
-    assert_eq!(*processor.current_scroll(), Decimal::one());
+    player.start_play(after_scroll_change + TimeSpan::SECOND);
+    assert_eq!(*player.current_scroll(), Decimal::one());
 }
 
 #[test]
@@ -449,22 +451,22 @@ fn test_visible_events_duration_matches_reaction_time() {
 
 #00111:00000001
 "#;
-    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
+    let mut player = setup_bms_player_with_newer_prompter(bms_source, reaction_time);
     let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    player.start_play(start_time);
 
     // Verify standard conditions
-    assert_eq!(*processor.current_bpm(), Decimal::from(120));
-    assert_eq!(*processor.current_speed(), Decimal::one());
-    assert_eq!(*processor.playback_ratio(), Decimal::one());
+    assert_eq!(*player.current_bpm(), Decimal::from(120));
+    assert_eq!(*player.current_speed(), Decimal::one());
+    assert_eq!(*player.playback_ratio(), Decimal::one());
 
     // Calculate expected visible window Y
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let visible_window_y = visible_range.window_y(
-        processor.current_bpm(),
-        processor.current_speed(),
-        processor.playback_ratio(),
+        player.current_bpm(),
+        player.current_speed(),
+        player.playback_ratio(),
     );
 
     // Calculate time to cross window
