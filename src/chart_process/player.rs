@@ -58,7 +58,7 @@ pub trait ChartPlayer {
     ///
     /// The range is relative to the chart start time (`activate_time`).
     fn events_in_time_range(
-        &mut self,
+        &self,
         range: impl std::ops::RangeBounds<TimeSpan>,
     ) -> impl Iterator<Item = PlayheadEvent>;
 
@@ -75,9 +75,8 @@ pub trait ChartPlayer {
     ///
     /// For normal notes and events, start and end are the same.
     /// For long notes, the range represents the note's length.
-    fn visible_events(
-        &mut self,
-    ) -> impl Iterator<Item = (PlayheadEvent, RangeInclusive<DisplayRatio>)>;
+    fn visible_events(&self)
+    -> impl Iterator<Item = (PlayheadEvent, RangeInclusive<DisplayRatio>)>;
 }
 
 /// Universal chart player implementation.
@@ -196,7 +195,7 @@ impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
     }
 
     fn events_in_time_range(
-        &mut self,
+        &self,
         range: impl std::ops::RangeBounds<TimeSpan>,
     ) -> impl Iterator<Item = PlayheadEvent> {
         self.core.events_in_time_range(range).into_iter()
@@ -209,7 +208,7 @@ impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
     }
 
     fn visible_events(
-        &mut self,
+        &self,
     ) -> impl Iterator<Item = (PlayheadEvent, RangeInclusive<DisplayRatio>)> {
         self.core.compute_visible_events().into_iter()
     }
@@ -218,8 +217,10 @@ impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bms::prelude::{Key, NoteKind, PlayerSide};
+    use crate::chart_process::core::{ChartEventId, PlayheadEvent};
     use crate::chart_process::{
-        AllEventsIndex,
+        AllEventsIndex, ChartEvent,
         base_bpm::{BaseBpm, VisibleRangePerBpm},
         resource::HashMapResourceMapping,
     };
@@ -296,5 +297,253 @@ mod tests {
             bmp_files.get(&BmpId::new(0)),
             Some(&std::path::Path::new("img1.bmp"))
         );
+    }
+
+    #[test]
+    fn test_universal_chart_player_update() {
+        use gametime::{TimeSpan, TimeStamp};
+
+        let wav_map = HashMap::new();
+        let bmp_map = HashMap::new();
+        let resources = HashMapResourceMapping::new(wav_map, bmp_map);
+
+        let all_events = AllEventsIndex::new(BTreeMap::new());
+        let flow_events_by_y = BTreeMap::new();
+        let init_bpm = Decimal::from(120);
+        let base_bpm = BaseBpm::new(Decimal::from(120));
+        let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+        let mut player = UniversalChartPlayer::new(
+            all_events,
+            flow_events_by_y,
+            init_bpm,
+            visible_range_per_bpm,
+            resources,
+        );
+
+        let now = TimeStamp::now();
+
+        // 测试未开始播放时 update 不产生事件
+        let events_before_start: Vec<_> = player.update(now).collect();
+        assert_eq!(events_before_start.len(), 0);
+
+        // 开始播放
+        player.start_play(now);
+        assert_eq!(player.started_at(), Some(now));
+
+        // 推进时间
+        let after_1s = now + TimeSpan::SECOND;
+        let events: Vec<_> = player.update(after_1s).collect();
+        // 没有事件，所以应该是空的
+        assert_eq!(events.len(), 0);
+    }
+
+    #[test]
+    fn test_universal_chart_player_events_in_time_range() {
+        use gametime::TimeStamp;
+
+        let wav_map = HashMap::new();
+        let bmp_map = HashMap::new();
+        let resources = HashMapResourceMapping::new(wav_map, bmp_map);
+
+        let mut events_by_y = BTreeMap::new();
+        events_by_y.insert(
+            YCoordinate::new(Decimal::from(100)),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(0),
+                YCoordinate::new(Decimal::from(100)),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: Key::Key(1),
+                    kind: NoteKind::Visible,
+                    wav_id: None,
+                    length: None,
+                    continue_play: None,
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+        events_by_y.insert(
+            YCoordinate::new(Decimal::from(200)),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(1),
+                YCoordinate::new(Decimal::from(200)),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: Key::Key(2),
+                    kind: NoteKind::Visible,
+                    wav_id: None,
+                    length: None,
+                    continue_play: None,
+                },
+                TimeSpan::SECOND,
+            )],
+        );
+        events_by_y.insert(
+            YCoordinate::new(Decimal::from(300)),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(2),
+                YCoordinate::new(Decimal::from(300)),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: Key::Key(3),
+                    kind: NoteKind::Visible,
+                    wav_id: None,
+                    length: None,
+                    continue_play: None,
+                },
+                TimeSpan::SECOND * 2,
+            )],
+        );
+
+        let all_events = AllEventsIndex::new(events_by_y);
+        let flow_events_by_y = BTreeMap::new();
+        let init_bpm = Decimal::from(120);
+        let base_bpm = BaseBpm::new(Decimal::from(120));
+        let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+        let mut player = UniversalChartPlayer::new(
+            all_events,
+            flow_events_by_y,
+            init_bpm,
+            visible_range_per_bpm,
+            resources,
+        );
+
+        // 需要先调用 start_play
+        player.start_play(TimeStamp::now());
+
+        // 查询 [0.5s, 1.5s] 范围内的事件
+        let events: Vec<_> = player
+            .events_in_time_range(TimeSpan::MILLISECOND * 500..=TimeSpan::MILLISECOND * 1500)
+            .collect();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].activate_time(), &TimeSpan::SECOND);
+
+        // 查询 [0s, 2.5s] 范围内的事件
+        let events2: Vec<_> = player
+            .events_in_time_range(TimeSpan::ZERO..=TimeSpan::MILLISECOND * 2500)
+            .collect();
+        assert_eq!(events2.len(), 3);
+    }
+
+    #[test]
+    fn test_universal_chart_player_post_events() {
+        use crate::chart_process::ControlEvent;
+
+        let wav_map = HashMap::new();
+        let bmp_map = HashMap::new();
+        let resources = HashMapResourceMapping::new(wav_map, bmp_map);
+
+        let all_events = AllEventsIndex::new(BTreeMap::new());
+        let flow_events_by_y = BTreeMap::new();
+        let init_bpm = Decimal::from(120);
+        let base_bpm = BaseBpm::new(Decimal::from(120));
+        let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+        let mut player = UniversalChartPlayer::new(
+            all_events,
+            flow_events_by_y,
+            init_bpm,
+            visible_range_per_bpm,
+            resources,
+        );
+
+        // 验证初始状态
+        assert_eq!(player.playback_ratio(), &Decimal::one());
+
+        // 发送播放比例控制事件
+        let new_ratio = Decimal::from(2);
+        player.post_events(
+            [ControlEvent::SetPlaybackRatio {
+                ratio: new_ratio.clone(),
+            }]
+            .into_iter(),
+        );
+        assert_eq!(player.playback_ratio(), &new_ratio);
+
+        // 发送可见范围控制事件
+        let new_range = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND * 2);
+        player.post_events(
+            [ControlEvent::SetVisibleRangePerBpm {
+                visible_range_per_bpm: new_range.clone(),
+            }]
+            .into_iter(),
+        );
+        assert_eq!(player.visible_range_per_bpm(), &new_range);
+    }
+
+    #[test]
+    fn test_universal_chart_player_visible_events() {
+        use gametime::{TimeSpan, TimeStamp};
+
+        let wav_map = HashMap::new();
+        let bmp_map = HashMap::new();
+        let resources = HashMapResourceMapping::new(wav_map, bmp_map);
+
+        let all_events = AllEventsIndex::new(BTreeMap::new());
+        let flow_events_by_y = BTreeMap::new();
+        let init_bpm = Decimal::from(120);
+        let base_bpm = BaseBpm::new(Decimal::from(120));
+        let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+        let mut player = UniversalChartPlayer::new(
+            all_events,
+            flow_events_by_y,
+            init_bpm,
+            visible_range_per_bpm,
+            resources,
+        );
+
+        let start_time = TimeStamp::now();
+        player.start_play(start_time);
+
+        // 推进时间
+        let after_1s = start_time + TimeSpan::SECOND;
+        let _ = player.update(after_1s).count();
+
+        // 获取可见事件（应该为空）
+        let visible_events: Vec<_> = player.visible_events().collect();
+
+        // 没有事件，所以应该是空的
+        assert_eq!(visible_events.len(), 0);
+    }
+
+    #[test]
+    fn test_universal_chart_player_start_play() {
+        use gametime::{TimeSpan, TimeStamp};
+
+        let wav_map = HashMap::new();
+        let bmp_map = HashMap::new();
+        let resources = HashMapResourceMapping::new(wav_map, bmp_map);
+
+        let all_events = AllEventsIndex::new(BTreeMap::new());
+        let flow_events_by_y = BTreeMap::new();
+        let init_bpm = Decimal::from(120);
+        let base_bpm = BaseBpm::new(Decimal::from(120));
+        let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+        let mut player = UniversalChartPlayer::new(
+            all_events,
+            flow_events_by_y,
+            init_bpm,
+            visible_range_per_bpm,
+            resources,
+        );
+
+        // 验证未开始播放
+        assert_eq!(player.started_at(), None);
+
+        // 开始播放
+        let start_time = TimeStamp::now();
+        player.start_play(start_time);
+
+        // 验证已开始播放
+        assert_eq!(player.started_at(), Some(start_time));
+
+        // 再次调用 start_play 应该更新启动时间
+        let new_start_time = start_time + TimeSpan::SECOND;
+        player.start_play(new_start_time);
+        assert_eq!(player.started_at(), Some(new_start_time));
     }
 }

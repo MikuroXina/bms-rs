@@ -399,7 +399,7 @@ fn test_bms_events_in_time_range_empty_before_start() {
 #WAV01 test.wav
 #00111:01
 "#;
-    let mut player = setup_bms_player_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
+    let player = setup_bms_player_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
 
     assert!(
         player
