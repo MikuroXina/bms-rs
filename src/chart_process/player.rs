@@ -334,16 +334,16 @@ mod tests {
 
         let now = TimeStamp::now();
 
-        // 测试未开始播放时 update 不产生事件
+        // Test that update doesn't produce events when playback hasn't started
         assert_eq!(player.update(now).count(), 0);
 
-        // 开始播放
+        // Start playback
         player.start_play(now);
         assert_eq!(player.started_at(), Some(now));
 
-        // 推进时间
+        // Advance time
         let after_1s = now + TimeSpan::SECOND;
-        // 没有事件，所以应该是空的
+        // No events, so it should be empty
         assert_eq!(player.update(after_1s).count(), 0);
     }
 
@@ -419,17 +419,17 @@ mod tests {
             resources,
         );
 
-        // 需要先调用 start_play
+        // Need to call start_play first
         player.start_play(TimeStamp::now());
 
-        // 查询 [0.5s, 1.5s] 范围内的事件
+        // Query events in range [0.5s, 1.5s]
         let events: Vec<_> = player
             .events_in_time_range(TimeSpan::MILLISECOND * 500..=TimeSpan::MILLISECOND * 1500)
             .collect();
         assert_eq!(events.len(), 1);
         assert_eq!(events.first().unwrap().activate_time(), &TimeSpan::SECOND);
 
-        // 查询 [0s, 2.5s] 范围内的事件
+        // Query events in range [0s, 2.5s]
         let count = player
             .events_in_time_range(TimeSpan::ZERO..=TimeSpan::MILLISECOND * 2500)
             .count();
@@ -458,10 +458,10 @@ mod tests {
             resources,
         );
 
-        // 验证初始状态
+        // Verify initial state
         assert_eq!(player.playback_ratio(), &Decimal::one());
 
-        // 发送播放比例控制事件
+        // Send playback ratio control event
         let new_ratio = Decimal::from(2);
         player.post_events(
             [ControlEvent::SetPlaybackRatio {
@@ -471,7 +471,7 @@ mod tests {
         );
         assert_eq!(player.playback_ratio(), &new_ratio);
 
-        // 发送可见范围控制事件
+        // Send visible range control event
         let new_range = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND * 2);
         player.post_events(
             [ControlEvent::SetVisibleRangePerBpm {
@@ -507,12 +507,12 @@ mod tests {
         let start_time = TimeStamp::now();
         player.start_play(start_time);
 
-        // 推进时间
+        // Advance time
         let after_1s = start_time + TimeSpan::SECOND;
         let _ = player.update(after_1s).count();
 
-        // 获取可见事件（应该为空）
-        // 没有事件，所以应该是空的
+        // Get visible events (should be empty)
+        // No events, so it should be empty
         assert_eq!(player.visible_events().count(), 0);
     }
 
@@ -538,17 +538,17 @@ mod tests {
             resources,
         );
 
-        // 验证未开始播放
+        // Verify playback hasn't started
         assert_eq!(player.started_at(), None);
 
-        // 开始播放
+        // Start playback
         let start_time = TimeStamp::now();
         player.start_play(start_time);
 
-        // 验证已开始播放
+        // Verify playback has started
         assert_eq!(player.started_at(), Some(start_time));
 
-        // 再次调用 start_play 应该更新启动时间
+        // Calling start_play again should update the start time
         let new_start_time = start_time + TimeSpan::SECOND;
         player.start_play(new_start_time);
         assert_eq!(player.started_at(), Some(new_start_time));
