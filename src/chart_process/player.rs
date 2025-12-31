@@ -252,8 +252,8 @@ impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chart_process::resource::HashMapResourceMapping;
-    use crate::chart_process::types::{AllEventsIndex, BaseBpm};
+    use crate::chart_process::types::AllEventsIndex;
+    use crate::chart_process::{base_bpm::BaseBpm, resource::HashMapResourceMapping};
     use num::One;
     use std::collections::{BTreeMap, HashMap};
 

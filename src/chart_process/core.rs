@@ -436,7 +436,7 @@ impl ProcessorCore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chart_process::types::BaseBpm;
+    use crate::chart_process::base_bpm::BaseBpm;
 
     #[test]
     fn test_velocity_caching() {

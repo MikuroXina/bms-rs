@@ -19,6 +19,9 @@ use crate::chart_process::core::FlowEvent;
 use crate::chart_process::resource::ResourceMapping;
 use crate::chart_process::types::{AllEventsIndex, BmpId, VisibleRangePerBpm, WavId, YCoordinate};
 
+// BaseBpm logic
+pub mod base_bpm;
+
 // Core processor logic
 pub mod core;
 
@@ -66,7 +69,6 @@ pub mod player;
 pub mod bms_processor;
 
 // BMSON processor implementation
-#[cfg(feature = "bmson")]
 pub mod bmson_processor;
 
 // Prelude module
