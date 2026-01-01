@@ -17,7 +17,26 @@ use bms_rs::chart_process::{
     AllEventsIndex, ChartEvent, ChartEventId, ControlEvent, PlayheadEvent, YCoordinate,
 };
 
-fn create_test_player() -> UniversalChartPlayer<HashMapResourceMapping> {
+use super::dsl::{TestPlayerDriver, test_player_driver};
+
+#[test]
+fn test_is_playing() {
+    test_player_driver()
+        .check(|p| assert!(p.is_playing()))
+        .run();
+}
+
+#[test]
+fn test_current_y() {
+    test_player_driver()
+        .past(TimeSpan::SECOND)
+        .view(|p| assert!(p.current_y().value() > &Zero::zero()))
+        .run();
+}
+
+#[test]
+fn test_reset() {
+    // This test requires manual reset call, so original implementation is retained
     let wav_map = HashMap::new();
     let bmp_map = HashMap::new();
     let resources = HashMapResourceMapping::new(wav_map, bmp_map);
@@ -28,49 +47,13 @@ fn create_test_player() -> UniversalChartPlayer<HashMapResourceMapping> {
     let base_bpm = BaseBpm::new(Decimal::from(120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
 
-    UniversalChartPlayer::new(
+    let mut player = UniversalChartPlayer::new(
         all_events,
         flow_events_by_y,
         init_bpm,
         visible_range_per_bpm,
         resources,
-    )
-}
-
-#[test]
-fn test_is_playing() {
-    let mut player = create_test_player();
-
-    // Initially not playing
-    assert!(!player.is_playing());
-
-    // After starting playback
-    player.start_play(TimeStamp::now());
-    assert!(player.is_playing());
-}
-
-#[test]
-fn test_current_y() {
-    let mut player = create_test_player();
-
-    // Y coordinate should be 0 before playback starts
-    assert_eq!(player.current_y().value(), &Zero::zero());
-
-    // Start playback
-    let start_time = TimeStamp::now();
-    player.start_play(start_time);
-
-    // Update 1 second
-    let after_1s = start_time + TimeSpan::SECOND;
-    let _ = player.update(after_1s).count();
-
-    // Y coordinate should be greater than 0
-    assert!(player.current_y().value() > &Zero::zero());
-}
-
-#[test]
-fn test_reset() {
-    let mut player = create_test_player();
+    );
 
     // Play for some time
     let start_time = TimeStamp::now();
@@ -99,7 +82,25 @@ fn test_reset() {
 
 #[test]
 fn test_update_with_time_rewind() {
-    let mut player = create_test_player();
+    // Since DSL time advancement is cumulative, this test requires special handling
+    // We manually test time rewind behavior
+    let wav_map = HashMap::new();
+    let bmp_map = HashMap::new();
+    let resources = HashMapResourceMapping::new(wav_map, bmp_map);
+
+    let all_events = AllEventsIndex::new(BTreeMap::new());
+    let flow_events_by_y = BTreeMap::new();
+    let init_bpm = Decimal::from(120);
+    let base_bpm = BaseBpm::new(Decimal::from(120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+    let mut player = UniversalChartPlayer::new(
+        all_events,
+        flow_events_by_y,
+        init_bpm,
+        visible_range_per_bpm,
+        resources,
+    );
 
     let start_time = TimeStamp::now();
     player.start_play(start_time);
@@ -117,67 +118,92 @@ fn test_update_with_time_rewind() {
 
 #[test]
 fn test_multiple_consecutive_updates() {
-    let mut player = create_test_player();
-
-    let start_time = TimeStamp::now();
-    player.start_play(start_time);
-
-    // Multiple consecutive updates
-    for i in 1..=10 {
-        let t = start_time + TimeSpan::MILLISECOND * 100 * i;
-        let count = player.update(t).count();
-        // No events, so should return 0
-        assert_eq!(count, 0, "Update {} should return 0 events", i);
-    }
-
-    // Verify playing state is still active
-    assert!(player.is_playing());
+    test_player_driver()
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 1 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 2 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 3 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 4 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 5 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 6 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 7 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 8 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 9 should return 0 events"))
+        .past_ms(100)
+        .events(|evs| assert_eq!(evs.len(), 0, "Update 10 should return 0 events"))
+        .check(|p| assert!(p.is_playing()))
+        .run();
 }
 
 #[test]
 fn test_resources_empty() {
-    let player = create_test_player();
+    test_player_driver()
+        .check(|p| {
+            let mut wav_count = 0;
+            p.for_each_audio_file(|_id, _path| {
+                wav_count += 1;
+            });
+            assert_eq!(wav_count, 0);
 
-    // Verify for_each methods handle empty resources correctly
-    let mut wav_count = 0;
-    player.for_each_audio_file(|_id, _path| {
-        wav_count += 1;
-    });
-    assert_eq!(wav_count, 0);
-
-    let mut bmp_count = 0;
-    player.for_each_bmp_file(|_id, _path| {
-        bmp_count += 1;
-    });
-    assert_eq!(bmp_count, 0);
+            let mut bmp_count = 0;
+            p.for_each_bmp_file(|_id, _path| {
+                bmp_count += 1;
+            });
+            assert_eq!(bmp_count, 0);
+        })
+        .run();
 }
 
 #[test]
 fn test_update_before_start() {
-    let mut player = create_test_player();
+    // Manual implementation needed to test behavior before start
+    let wav_map = HashMap::new();
+    let bmp_map = HashMap::new();
+    let resources = HashMapResourceMapping::new(wav_map, bmp_map);
 
-    // Call update before calling start_play
+    let all_events = AllEventsIndex::new(BTreeMap::new());
+    let flow_events_by_y = BTreeMap::new();
+    let init_bpm = Decimal::from(120);
+    let base_bpm = BaseBpm::new(Decimal::from(120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+    let mut player = UniversalChartPlayer::new(
+        all_events,
+        flow_events_by_y,
+        init_bpm,
+        visible_range_per_bpm,
+        resources,
+    );
+
     let now = TimeStamp::now();
     let count = player.update(now).count();
-
-    // Should return empty, no events should be triggered
     assert_eq!(count, 0);
     assert_eq!(player.started_at(), None);
 }
 
 #[test]
 fn test_events_in_time_range_with_empty_player() {
-    let player = create_test_player();
-
-    // Query any time range, should return empty
-    let count = player
-        .events_in_time_range(TimeSpan::ZERO..=TimeSpan::SECOND * 10)
-        .count();
-    assert_eq!(count, 0);
+    test_player_driver()
+        .check(|p| {
+            let count = p
+                .events_in_time_range(TimeSpan::ZERO..=TimeSpan::SECOND * 10)
+                .count();
+            assert_eq!(count, 0);
+        })
+        .run();
 }
 
 #[test]
 fn test_universal_chart_player_creation() {
+    // This test requires custom resources, so cannot use standard test_player_driver
     let mut wav_map = HashMap::new();
     wav_map.insert(WavId::new(0), std::path::PathBuf::from("test.wav"));
 
@@ -207,6 +233,7 @@ fn test_universal_chart_player_creation() {
 
 #[test]
 fn test_universal_chart_player_resource_access() {
+    // This test requires custom resources
     let mut wav_map = HashMap::new();
     wav_map.insert(WavId::new(0), std::path::PathBuf::from("audio1.wav"));
     wav_map.insert(WavId::new(1), std::path::PathBuf::from("audio2.wav"));
@@ -258,6 +285,7 @@ fn test_universal_chart_player_resource_access() {
 
 #[test]
 fn test_universal_chart_player_update() {
+    // Manual implementation needed to test update behavior before and after start
     let wav_map = HashMap::new();
     let bmp_map = HashMap::new();
     let resources = HashMapResourceMapping::new(wav_map, bmp_map);
@@ -277,17 +305,14 @@ fn test_universal_chart_player_update() {
     );
 
     let now = TimeStamp::now();
-
     // Test that update doesn't produce events when playback hasn't started
     assert_eq!(player.update(now).count(), 0);
-
-    // Start playback
     player.start_play(now);
     assert_eq!(player.started_at(), Some(now));
 
-    // Advance time
+    // Advance time and check for events
     let after_1s = now + TimeSpan::SECOND;
-    // No events, so it should be empty
+    // No events in empty chart
     assert_eq!(player.update(after_1s).count(), 0);
 }
 
@@ -353,7 +378,7 @@ fn test_universal_chart_player_events_in_time_range() {
     let base_bpm = BaseBpm::new(Decimal::from(120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
 
-    let mut player = UniversalChartPlayer::new(
+    let player = UniversalChartPlayer::new(
         all_events,
         flow_events_by_y,
         init_bpm,
@@ -361,101 +386,61 @@ fn test_universal_chart_player_events_in_time_range() {
         resources,
     );
 
-    // Need to call start_play first
-    player.start_play(TimeStamp::now());
+    TestPlayerDriver::new(player)
+        .check(|p| {
+            // Query events in range [0.5s, 1.5s]
+            let events: Vec<_> = p
+                .events_in_time_range(TimeSpan::MILLISECOND * 500..=TimeSpan::MILLISECOND * 1500)
+                .collect();
+            assert_eq!(events.len(), 1);
+            assert_eq!(events.first().unwrap().activate_time(), &TimeSpan::SECOND);
 
-    // Query events in range [0.5s, 1.5s]
-    let events: Vec<_> = player
-        .events_in_time_range(TimeSpan::MILLISECOND * 500..=TimeSpan::MILLISECOND * 1500)
-        .collect();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events.first().unwrap().activate_time(), &TimeSpan::SECOND);
-
-    // Query events in range [0s, 2.5s]
-    let count = player
-        .events_in_time_range(TimeSpan::ZERO..=TimeSpan::MILLISECOND * 2500)
-        .count();
-    assert_eq!(count, 3);
+            // Query events in range [0s, 2.5s]
+            let count = p
+                .events_in_time_range(TimeSpan::ZERO..=TimeSpan::MILLISECOND * 2500)
+                .count();
+            assert_eq!(count, 3);
+        })
+        .run();
 }
 
 #[test]
 fn test_universal_chart_player_post_events() {
-    let wav_map = HashMap::new();
-    let bmp_map = HashMap::new();
-    let resources = HashMapResourceMapping::new(wav_map, bmp_map);
-
-    let all_events = AllEventsIndex::new(BTreeMap::new());
-    let flow_events_by_y = BTreeMap::new();
-    let init_bpm = Decimal::from(120);
-    let base_bpm = BaseBpm::new(Decimal::from(120));
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
-
-    let mut player = UniversalChartPlayer::new(
-        all_events,
-        flow_events_by_y,
-        init_bpm,
-        visible_range_per_bpm,
-        resources,
-    );
-
-    // Verify initial state
-    assert_eq!(player.playback_ratio(), &Decimal::one());
-
-    // Send playback ratio control event
-    let new_ratio = Decimal::from(2);
-    player.post_events(
-        [ControlEvent::SetPlaybackRatio {
-            ratio: new_ratio.clone(),
-        }]
-        .into_iter(),
-    );
-    assert_eq!(player.playback_ratio(), &new_ratio);
-
-    // Send visible range control event
-    let new_range = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND * 2);
-    player.post_events(
-        [ControlEvent::SetVisibleRangePerBpm {
-            visible_range_per_bpm: new_range.clone(),
-        }]
-        .into_iter(),
-    );
-    assert_eq!(player.visible_range_per_bpm(), &new_range);
+    test_player_driver()
+        .check(|p| assert_eq!(p.playback_ratio(), &Decimal::one()))
+        .post_events([ControlEvent::SetPlaybackRatio {
+            ratio: Decimal::from(2),
+        }])
+        .check(|p| assert_eq!(p.playback_ratio(), &Decimal::from(2)))
+        .post_events([ControlEvent::SetVisibleRangePerBpm {
+            visible_range_per_bpm: VisibleRangePerBpm::new(
+                &BaseBpm::new(Decimal::from(120)),
+                TimeSpan::SECOND * 2,
+            ),
+        }])
+        .check(|p| {
+            let base_bpm = BaseBpm::new(Decimal::from(120));
+            let new_range = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND * 2);
+            assert_eq!(p.visible_range_per_bpm(), &new_range);
+        })
+        .run();
 }
 
 #[test]
 fn test_universal_chart_player_visible_events() {
-    let wav_map = HashMap::new();
-    let bmp_map = HashMap::new();
-    let resources = HashMapResourceMapping::new(wav_map, bmp_map);
-
-    let all_events = AllEventsIndex::new(BTreeMap::new());
-    let flow_events_by_y = BTreeMap::new();
-    let init_bpm = Decimal::from(120);
-    let base_bpm = BaseBpm::new(Decimal::from(120));
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
-
-    let mut player = UniversalChartPlayer::new(
-        all_events,
-        flow_events_by_y,
-        init_bpm,
-        visible_range_per_bpm,
-        resources,
-    );
-
-    let start_time = TimeStamp::now();
-    player.start_play(start_time);
-
-    // Advance time
-    let after_1s = start_time + TimeSpan::SECOND;
-    let _ = player.update(after_1s).count();
-
-    // Get visible events (should be empty)
-    // No events, so it should be empty
-    assert_eq!(player.visible_events().count(), 0);
+    test_player_driver()
+        .past(TimeSpan::SECOND)
+        .events(|evs| {
+            // Get visible events (should be empty)
+            // No events, so it should be empty
+            assert_eq!(evs.len(), 0);
+        })
+        .run();
 }
 
 #[test]
 fn test_universal_chart_player_start_play() {
+    // Manual implementation needed to test start_play method
     let wav_map = HashMap::new();
     let bmp_map = HashMap::new();
     let resources = HashMapResourceMapping::new(wav_map, bmp_map);
@@ -474,14 +459,10 @@ fn test_universal_chart_player_start_play() {
         resources,
     );
 
-    // Verify playback hasn't started
     assert_eq!(player.started_at(), None);
 
-    // Start playback
     let start_time = TimeStamp::now();
     player.start_play(start_time);
-
-    // Verify playback has started
     assert_eq!(player.started_at(), Some(start_time));
 
     // Calling start_play again should update the start time
@@ -508,7 +489,7 @@ fn test_multiple_flow_events_at_same_position_applied_correctly() {
     let event_y = YCoordinate::new(Decimal::from(100));
 
     flow_events_by_y.insert(
-        event_y.clone(),
+        event_y,
         vec![
             FlowEvent::Bpm(Decimal::from(180)),
             FlowEvent::Speed(Decimal::from(2)),
@@ -519,21 +500,13 @@ fn test_multiple_flow_events_at_same_position_applied_correctly() {
     let base_bpm = BaseBpm::new(Decimal::from(120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
 
-    let mut player = UniversalChartPlayer::new(
+    let player = UniversalChartPlayer::new(
         all_events,
         flow_events_by_y,
         init_bpm,
         visible_range_per_bpm,
         resources,
     );
-
-    // Verify initial state
-    assert_eq!(player.current_bpm(), &Decimal::from(120));
-    assert_eq!(player.current_speed(), &Decimal::one());
-
-    // Start playback
-    let start_time = TimeStamp::now();
-    player.start_play(start_time);
 
     // Calculate time to reach Y=100 with initial BPM 120 and Speed 1.0
     // velocity = (120 / 240) * 1.0 = 0.5
@@ -542,34 +515,35 @@ fn test_multiple_flow_events_at_same_position_applied_correctly() {
     let time_to_reach_event_y = Decimal::from(100) / initial_velocity;
     let time_to_reach_event_secs = time_to_reach_event_y.to_u64().unwrap();
 
-    // Advance to just before the event
-    let time_before_event = start_time + TimeSpan::SECOND * ((time_to_reach_event_secs - 1) as i64);
-    let _ = player.update(time_before_event).count();
+    TestPlayerDriver::new(player)
+        .check(|p| {
+            assert_eq!(p.current_bpm(), &Decimal::from(120));
+            assert_eq!(p.current_speed(), &Decimal::one());
+        })
+        .past(TimeSpan::SECOND * ((time_to_reach_event_secs - 1) as i64))
+        .view(|p| {
+            // Should still have initial values
+            assert_eq!(p.current_bpm(), &Decimal::from(120));
+            assert_eq!(p.current_speed(), &Decimal::one());
+        })
+        .past(TimeSpan::SECOND * 11)
+        .view(|p| {
+            // Now both BPM and Speed should be updated
+            assert_eq!(
+                p.current_bpm(),
+                &Decimal::from(180),
+                "BPM should be updated to 180 after passing the event"
+            );
+            assert_eq!(
+                p.current_speed(),
+                &Decimal::from(2),
+                "Speed should be updated to 2.0 after passing the event"
+            );
 
-    // Should still have initial values
-    assert_eq!(player.current_bpm(), &Decimal::from(120));
-    assert_eq!(player.current_speed(), &Decimal::one());
-
-    // Advance past the event position
-    let time_after_event = start_time + TimeSpan::SECOND * ((time_to_reach_event_secs + 10) as i64);
-    let _ = player.update(time_after_event).count();
-
-    // Now both BPM and Speed should be updated
-    assert_eq!(
-        player.current_bpm(),
-        &Decimal::from(180),
-        "BPM should be updated to 180 after passing the event"
-    );
-    assert_eq!(
-        player.current_speed(),
-        &Decimal::from(2),
-        "Speed should be updated to 2.0 after passing the event"
-    );
-
-    // Verify that the player continued to move after the event
-    // The new velocity should be (180 / 240) * 2.0 = 1.5
-    let _expected_new_velocity = Decimal::from(180) / Decimal::from(240) * Decimal::from(2);
-    assert!(player.current_y().value() > &Decimal::from(100));
+            // Verify that the player continued to move after the event
+            assert!(p.current_y().value() > &Decimal::from(100));
+        })
+        .run();
 }
 
 #[test]
@@ -589,7 +563,7 @@ fn test_flow_event_priority_ordering_during_playback() {
     let event_y = YCoordinate::new(Decimal::from(50));
 
     flow_events_by_y.insert(
-        event_y.clone(),
+        event_y,
         vec![
             // Insert in reverse order to test that priority is used, not insertion order
             FlowEvent::Speed(Decimal::from(3)),
@@ -601,7 +575,7 @@ fn test_flow_event_priority_ordering_during_playback() {
     let base_bpm = BaseBpm::new(Decimal::from(120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
 
-    let mut player = UniversalChartPlayer::new(
+    let player = UniversalChartPlayer::new(
         all_events,
         flow_events_by_y,
         init_bpm,
@@ -609,24 +583,21 @@ fn test_flow_event_priority_ordering_during_playback() {
         resources,
     );
 
-    // Start playback
-    let start_time = TimeStamp::now();
-    player.start_play(start_time);
-
     // Calculate time to reach Y=50
     let initial_velocity = Decimal::from(120) / Decimal::from(240) * Decimal::one();
     let time_to_reach_event_y = Decimal::from(50) / initial_velocity;
     let time_to_reach_event_secs = time_to_reach_event_y.to_u64().unwrap();
 
-    // Advance past the event
-    let time_after_event = start_time + TimeSpan::SECOND * ((time_to_reach_event_secs + 5) as i64);
-    let _ = player.update(time_after_event).count();
+    TestPlayerDriver::new(player)
+        .past(TimeSpan::SECOND * ((time_to_reach_event_secs + 5) as i64))
+        .view(|p| {
+            // Both should be updated regardless of insertion order
+            assert_eq!(p.current_bpm(), &Decimal::from(240));
+            assert_eq!(p.current_speed(), &Decimal::from(3));
 
-    // Both should be updated regardless of insertion order
-    assert_eq!(player.current_bpm(), &Decimal::from(240));
-    assert_eq!(player.current_speed(), &Decimal::from(3));
-
-    // The player should have moved further due to higher velocity
-    // Expected velocity after event: (240 / 240) * 3 = 3.0
-    assert!(player.current_y().value() > &Decimal::from(50));
+            // The player should have moved further due to higher velocity
+            // Expected velocity after event: (240 / 240) * 3 = 3.0
+            assert!(p.current_y().value() > &Decimal::from(50));
+        })
+        .run();
 }

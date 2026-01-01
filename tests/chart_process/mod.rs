@@ -2,4 +2,5 @@
 
 pub mod bms_processor;
 pub mod bmson_processor;
+pub mod dsl;
 pub mod player;
