@@ -2,5 +2,6 @@
 
 pub mod bms_processor;
 pub mod bmson_processor;
+pub mod correctness_guarantees;
 pub mod dsl;
 pub mod player;
