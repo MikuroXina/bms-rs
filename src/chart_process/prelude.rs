@@ -3,18 +3,37 @@
 //! This module provides re-exports of commonly used types and traits from the `chart_process` module,
 //! allowing users to import all needed items in one go.
 
-// Re-export types
-pub use super::types::{
-    BaseBpm, BaseBpmGenerator, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio,
-    ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator, VisibleRangePerBpm,
-    WavId, YCoordinate,
+// Re-export types from resource module
+pub use super::resource::{BmpId, WavId};
+
+// Re-export types from parent module
+pub use super::{
+    AllEventsIndex, ChartEventId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, YCoordinate,
+};
+
+// Re-export base BPM logic
+pub use super::base_bpm::{
+    BaseBpm, BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator,
+    StartBpmGenerator, VisibleRangePerBpm,
 };
 
 // Re-export event types
 pub use super::{ChartEvent, ControlEvent};
 
-// Re-export trait
+// Re-export traits
 pub use super::ChartProcessor;
+
+// Re-export resource mapping
+pub use super::resource::{HashMapResourceMapping, NameBasedResourceMapping, ResourceMapping};
+
+// Re-export Y calculator
+pub use super::y_calculator::{BmsYCalculator, create_bmson_y_calculator};
+
+// Re-export processor types
+pub use super::EventParseOutput;
+
+// Re-export player types
+pub use super::player::UniversalChartPlayer;
 
 // Re-export common types from bms module
 pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};

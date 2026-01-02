@@ -6,27 +6,63 @@
 //! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 
-use std::{collections::HashMap, ops::RangeBounds, path::Path};
+use std::collections::BTreeMap;
 
-use gametime::{TimeSpan, TimeStamp};
+use gametime::TimeSpan;
 
+use self::resource::{BmpId, ResourceMapping, WavId};
 use crate::bms::prelude::SwBgaEvent;
 use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
-use crate::chart_process::types::{
-    BmpId, DisplayRatio, PlayheadEvent, VisibleRangePerBpm, WavId, YCoordinate,
-};
+use crate::chart_process::player::FlowEvent;
 
+// BaseBpm logic
+pub mod base_bpm;
+
+// Resource mapping module
+pub mod resource;
+
+// Y coordinate calculator module
+pub mod y_calculator;
+
+/// Output of chart processing.
+///
+/// Contains all the information needed for chart playback.
+pub struct EventParseOutput<R: ResourceMapping> {
+    /// All events with their positions and activation times
+    pub all_events: AllEventsIndex,
+
+    /// Flow events (BPM/Speed/Scroll changes) indexed by Y coordinate
+    pub flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+
+    /// Initial BPM
+    pub init_bpm: Decimal,
+
+    /// Resource mapping
+    pub resources: R,
+}
+
+/// Chart processor trait.
+///
+/// Defines the interface for processing different chart formats
+/// into a unified `EventParseOutput`.
+pub trait ChartProcessor<R: ResourceMapping> {
+    /// Process the chart and generate event list.
+    ///
+    /// Returns an `EventParseOutput` containing all events and metadata.
+    fn process(&self) -> EventParseOutput<R>;
+}
+
+// Chart player module
+pub mod player;
+
+// BMS processor implementation
 pub mod bms_processor;
+
+// BMSON processor implementation
 pub mod bmson_processor;
-
-// Core processor logic
-pub mod core;
-
-// Type definition module
-pub mod types;
 
 // Prelude module
 pub mod prelude;
@@ -176,7 +212,7 @@ pub enum ControlEvent {
     /// This replaces the old `SetDefaultVisibleYLength` event.
     SetVisibleRangePerBpm {
         /// Visible range per BPM (y coordinate units per BPM, >0)
-        visible_range_per_bpm: VisibleRangePerBpm,
+        visible_range_per_bpm: base_bpm::VisibleRangePerBpm,
     },
     /// Set: playback ratio
     ///
@@ -188,58 +224,600 @@ pub enum ControlEvent {
     },
 }
 
-/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)`.
-pub trait ChartProcessor {
-    /// Read: audio file resources (id to path mapping).
-    fn audio_files(&self) -> HashMap<WavId, &Path>;
-    /// Read: BGA/BMP image resources (id to path mapping).
-    fn bmp_files(&self) -> HashMap<BmpId, &Path>;
+use std::cmp::Ordering;
+use std::ops::{Bound, Range, RangeBounds};
 
-    /// Read: visible range per BPM (controls the relationship between BPM and visible Y range).
-    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm;
+use num::{One, Zero};
 
-    /// Read: current BPM (changes with events).
-    fn current_bpm(&self) -> &Decimal;
-    /// Read: current Speed factor (changes with events).
-    fn current_speed(&self) -> &Decimal;
-    /// Read: current Scroll factor (changes with events).
-    fn current_scroll(&self) -> &Decimal;
-    /// Read: current playback ratio (default 1).
-    fn playback_ratio(&self) -> &Decimal;
+/// Y coordinate wrapper type, using arbitrary precision decimal numbers.
+///
+/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct YCoordinate(pub Decimal);
 
-    /// Notify: start playback, record starting absolute time.
-    fn start_play(&mut self, now: TimeStamp);
+impl AsRef<Decimal> for YCoordinate {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
 
-    /// Get: playback start time.
+impl YCoordinate {
+    /// Create a new `YCoordinate`
+    #[must_use]
+    pub const fn new(value: Decimal) -> Self {
+        Self(value)
+    }
+
+    /// Returns a reference to the contained value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
+    }
+
+    /// Creates a zero of Y coordinate.
+    #[must_use]
+    pub fn zero() -> Self {
+        Self(Decimal::zero())
+    }
+}
+
+impl From<Decimal> for YCoordinate {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<YCoordinate> for Decimal {
+    fn from(value: YCoordinate) -> Self {
+        value.0
+    }
+}
+
+impl From<f64> for YCoordinate {
+    fn from(value: f64) -> Self {
+        Self(Decimal::from(value))
+    }
+}
+
+impl std::ops::Add for YCoordinate {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl std::ops::Add for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 + &rhs.0)
+    }
+}
+
+impl std::ops::Sub for YCoordinate {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl std::ops::Sub for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 - &rhs.0)
+    }
+}
+
+impl std::ops::Mul for YCoordinate {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(self.0 * rhs.0)
+    }
+}
+
+impl std::ops::Div for YCoordinate {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self(self.0 / rhs.0)
+    }
+}
+
+impl std::ops::Div for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 / &rhs.0)
+    }
+}
+
+impl Zero for YCoordinate {
+    fn zero() -> Self {
+        Self(Decimal::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+/// Display ratio wrapper type, representing the actual position of a note in the display area.
+///
+/// 0 is the judgment line, 1 is the position where the note generally starts to appear.
+/// The value of this type is only affected by: current Y, Y visible range, and current Speed, Scroll values.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
+pub struct DisplayRatio(pub Decimal);
+
+impl AsRef<Decimal> for DisplayRatio {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
+
+impl DisplayRatio {
+    /// Create a new `DisplayRatio`
+    #[must_use]
+    pub const fn new(value: Decimal) -> Self {
+        Self(value)
+    }
+
+    /// Returns a reference to the contained value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
+    }
+
+    /// Create a `DisplayRatio` representing the judgment line (value 0)
+    #[must_use]
+    pub fn at_judgment_line() -> Self {
+        Self(Decimal::zero())
+    }
+
+    /// Create a `DisplayRatio` representing the position where note starts to appear (value 1)
+    #[must_use]
+    pub fn at_appearance() -> Self {
+        Self(Decimal::one())
+    }
+}
+
+impl From<Decimal> for DisplayRatio {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<DisplayRatio> for Decimal {
+    fn from(value: DisplayRatio) -> Self {
+        value.0
+    }
+}
+
+impl From<f64> for DisplayRatio {
+    fn from(value: f64) -> Self {
+        Self(Decimal::from(value))
+    }
+}
+
+/// Indexed collection of all chart events.
+///
+/// Provides efficient lookup of events by Y coordinate or time.
+#[derive(Debug, Clone)]
+pub struct AllEventsIndex {
+    events: Vec<PlayheadEvent>,
+    by_y: BTreeMap<YCoordinate, Range<usize>>,
+    by_time: BTreeMap<TimeSpan, Vec<usize>>,
+}
+
+impl AllEventsIndex {
+    /// Create a new event index from a map of Y coordinates to events.
     ///
-    /// Returns `Some(Instant)` if `start_play` has been called and playback is active,
-    /// otherwise returns `None`.
-    fn started_at(&self) -> Option<TimeStamp>;
+    /// # Arguments
+    /// * `map` - Events indexed by their Y coordinate
+    #[must_use]
+    pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
+        let mut events: Vec<PlayheadEvent> = Vec::new();
+        let mut by_y: BTreeMap<YCoordinate, Range<usize>> = BTreeMap::new();
 
-    /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
-    fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent>;
+        for (y_coord, y_events) in map {
+            let start = events.len();
+            events.extend(y_events);
+            let end = events.len();
+            by_y.insert(y_coord, start..end);
+        }
 
-    /// Query: events in a time window centered at current moment.
+        let mut by_time: BTreeMap<TimeSpan, Vec<usize>> = BTreeMap::new();
+        for (idx, ev) in events.iter().enumerate() {
+            by_time.entry(ev.activate_time).or_default().push(idx);
+        }
+        for indices in by_time.values_mut() {
+            indices.sort_by(|&a, &b| {
+                let Some(a_ev) = events.get(a) else {
+                    return Ordering::Equal;
+                };
+                let Some(b_ev) = events.get(b) else {
+                    return Ordering::Equal;
+                };
+                a_ev.position
+                    .cmp(&b_ev.position)
+                    .then_with(|| a_ev.id.cmp(&b_ev.id))
+            });
+        }
+
+        Self {
+            events,
+            by_y,
+            by_time,
+        }
+    }
+
+    /// Get all events within a Y coordinate range.
     ///
-    /// The window is `range + now`, where `now` is the current playhead time since [`start_play`]
-    /// (scaled by [`playback_ratio`]) and `range` is a `TimeSpan` offset range.
-    fn events_in_time_range(
-        &mut self,
-        range: impl RangeBounds<TimeSpan>,
-    ) -> impl Iterator<Item = PlayheadEvent>;
+    /// # Arguments
+    /// * `range` - The Y coordinate range to query
+    #[must_use]
+    pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<YCoordinate>,
+    {
+        self.by_y
+            .range(range)
+            .flat_map(|(_, indices)| self.events.get(indices.clone()).into_iter().flatten())
+            .cloned()
+            .collect()
+    }
 
-    /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.
+    /// Get all events within a time range.
     ///
-    /// These events are used to dynamically adjust player configuration parameters. Chart playback related events (such as notes, BGM, etc.)
-    /// are returned by the [`update`] method, not posted through this method.
-    fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
+    /// # Arguments
+    /// * `range` - The time range to query
+    pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<TimeSpan>,
+    {
+        // To avoid panic when `start > end` or the range is empty.
+        let mut start_bound = range.start_bound().cloned();
+        let mut end_bound = range.end_bound().cloned();
 
-    /// Query: all events in current visible area (preload logic).
+        let start_value = match &start_bound {
+            Bound::Unbounded => None,
+            Bound::Included(v) | Bound::Excluded(v) => Some(v),
+        };
+        let end_value = match &end_bound {
+            Bound::Unbounded => None,
+            Bound::Included(v) | Bound::Excluded(v) => Some(v),
+        };
+        if let (Some(start), Some(end)) = (start_value, end_value)
+            && start > end
+        {
+            std::mem::swap(&mut start_bound, &mut end_bound);
+        }
+
+        self.by_time
+            .range((start_bound, end_bound))
+            .flat_map(|(_, indices)| indices.iter().copied())
+            .filter_map(|idx| self.events.get(idx).cloned())
+            .collect()
+    }
+
+    /// Get all events within a time range offset from a center time.
     ///
-    /// Returns a range of display positions for each event:
-    /// - For normal notes: `start()` and `end()` are the same position
-    /// - For long notes: `start()` is the note head position, `end()` is the note tail position
-    fn visible_events(
-        &mut self,
-    ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)>;
+    /// # Arguments
+    /// * `center` - The center time point
+    /// * `range` - The offset range from the center
+    pub fn events_in_time_range_offset_from<R>(
+        &self,
+        center: TimeSpan,
+        range: R,
+    ) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<TimeSpan>,
+    {
+        let start_bound = match range.start_bound() {
+            Bound::Included(offset) => Bound::Included(center + *offset),
+            Bound::Excluded(offset) => Bound::Excluded(center + *offset),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        let end_bound = match range.end_bound() {
+            Bound::Included(offset) => Bound::Included(center + *offset),
+            Bound::Excluded(offset) => Bound::Excluded(center + *offset),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        self.events_in_time_range((start_bound, end_bound))
+    }
+}
+
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
+
+/// Identifier type which is unique over all chart events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ChartEventId(pub usize);
+
+impl AsRef<usize> for ChartEventId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
+impl ChartEventId {
+    /// Create a new `ChartEventId`
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
+        Self(id)
+    }
+
+    /// Returns the contained id value.
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
+impl From<usize> for ChartEventId {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ChartEventId> for usize {
+    fn from(id: ChartEventId) -> Self {
+        id.0
+    }
+}
+
+/// Generator for sequential `ChartEventId`s
+#[derive(Debug, Clone, Default)]
+pub struct ChartEventIdGenerator {
+    next: usize,
+}
+
+impl ChartEventIdGenerator {
+    /// Create a new generator starting from `start`
+    #[must_use]
+    pub const fn new(start: usize) -> Self {
+        Self { next: start }
+    }
+
+    /// Allocate and return the next `ChartEventId`
+    #[must_use]
+    pub const fn next_id(&mut self) -> ChartEventId {
+        let id = ChartEventId(self.next);
+        self.next += 1;
+        id
+    }
+
+    /// Return the next `ChartEventId` that will be used
+    #[must_use]
+    pub const fn peek_next(&self) -> ChartEventId {
+        ChartEventId::new(self.next)
+    }
+}
+
+/// Timeline event and position wrapper type.
+///
+/// Represents an event in chart playback and its position on the timeline.
+#[derive(Debug, Clone)]
+pub struct PlayheadEvent {
+    /// Event identifier
+    pub id: ChartEventId,
+    /// Event position on timeline (y coordinate)
+    pub position: YCoordinate,
+    /// Chart event
+    pub event: ChartEvent,
+    /// Activate time since chart playback started
+    pub activate_time: TimeSpan,
+}
+
+impl PlayheadEvent {
+    /// Create a new `ChartEventWithPosition`
+    #[must_use]
+    pub const fn new(
+        id: ChartEventId,
+        position: YCoordinate,
+        event: ChartEvent,
+        activate_time: TimeSpan,
+    ) -> Self {
+        Self {
+            position,
+            event,
+            id,
+            activate_time,
+        }
+    }
+
+    /// Get event identifier
+    #[must_use]
+    pub const fn id(&self) -> ChartEventId {
+        self.id
+    }
+
+    /// Get event position
+    #[must_use]
+    pub const fn position(&self) -> &YCoordinate {
+        &self.position
+    }
+
+    /// Get chart event
+    #[must_use]
+    pub const fn event(&self) -> &ChartEvent {
+        &self.event
+    }
+
+    /// Get activate time
+    #[must_use]
+    pub const fn activate_time(&self) -> &TimeSpan {
+        &self.activate_time
+    }
+}
+
+impl PartialEq for PlayheadEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for PlayheadEvent {}
+
+impl std::hash::Hash for PlayheadEvent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{
+        AllEventsIndex, ChartEvent, TimeSpan, YCoordinate, {ChartEventId, PlayheadEvent},
+    };
+
+    fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
+        let y_coord = YCoordinate::from(y);
+        PlayheadEvent::new(
+            ChartEventId::new(id),
+            y_coord,
+            ChartEvent::BarLine,
+            TimeSpan::SECOND * time_secs as i64,
+        )
+    }
+
+    #[test]
+    fn events_in_y_range_uses_btreemap_order_and_preserves_group_order() {
+        let y0 = YCoordinate::from(0.0);
+        let y1 = YCoordinate::from(1.0);
+
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            y0.clone(),
+            vec![
+                mk_event(2, 0.0, 1),
+                mk_event(1, 0.0, 1),
+                mk_event(3, 0.0, 2),
+            ],
+        );
+        map.insert(y1.clone(), vec![mk_event(4, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((std::ops::Bound::Included(y0), std::ops::Bound::Included(y1)))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![2, 1, 3, 4]);
+    }
+
+    #[test]
+    fn events_in_time_range_respects_bounds_and_orders_within_same_time() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(0.0),
+            vec![mk_event(2, 0.0, 1), mk_event(1, 0.0, 1)],
+        );
+        map.insert(YCoordinate::from(1.0), vec![mk_event(3, 1.0, 2)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range(TimeSpan::SECOND..TimeSpan::SECOND * 2)
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1, 2]);
+    }
+
+    #[test]
+    fn events_in_time_range_swaps_reversed_bounds() {
+        use std::ops::Bound::{Included, Unbounded};
+
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 1)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 2)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range((Included(TimeSpan::SECOND * 2), Included(TimeSpan::SECOND)))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1, 2]);
+
+        let got_ids_unbounded: Vec<usize> = idx
+            .events_in_time_range((Unbounded, Included(TimeSpan::SECOND)))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids_unbounded, vec![1]);
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_returns_empty_when_end_is_negative() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        assert!(
+            idx.events_in_time_range_offset_from(
+                TimeSpan::MILLISECOND * 100,
+                ..=(TimeSpan::ZERO - TimeSpan::MILLISECOND * 200),
+            )
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .next()
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_excludes_zero_when_end_is_excluded() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        assert!(
+            idx.events_in_time_range_offset_from(TimeSpan::ZERO, ..TimeSpan::ZERO)
+                .into_iter()
+                .map(|ev| ev.id.value())
+                .next()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_clamps_negative_start_to_zero() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range_offset_from(
+                TimeSpan::MILLISECOND * 100,
+                (TimeSpan::ZERO - TimeSpan::MILLISECOND * 200)..=TimeSpan::ZERO,
+            )
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1]);
+    }
 }
