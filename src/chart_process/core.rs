@@ -187,6 +187,22 @@ impl ProcessorCore {
             .and_then(|(y, events)| events.first().cloned().map(|evt| (y.clone(), evt)))
     }
 
+    /// Get the next flow event Y position after the given Y (exclusive).
+    #[must_use]
+    fn next_flow_event_y_after(&self, y_from_exclusive: &YCoordinate) -> Option<YCoordinate> {
+        use std::ops::Bound::{Excluded, Unbounded};
+        self.flow_events_by_y
+            .range((Excluded(y_from_exclusive), Unbounded))
+            .next()
+            .map(|(y, _)| y.clone())
+    }
+
+    /// Get all flow events at the given Y position.
+    #[must_use]
+    fn flow_events_at(&self, y: &YCoordinate) -> &[FlowEvent] {
+        self.flow_events_by_y.get(y).map_or(&[], Vec::as_slice)
+    }
+
     /// Advance time to `now`, performing segmented integration.
     ///
     /// This is the core time progression algorithm, shared between BMS and BMSON.
@@ -206,9 +222,9 @@ impl ProcessorCore {
         // Advance in segments until time slice is used up
         loop {
             let cur_y_now = cur_y.clone();
-            let next_event = self.next_flow_event_after(&cur_y_now);
+            let next_event_y = self.next_flow_event_y_after(&cur_y_now);
 
-            if next_event.is_none()
+            if next_event_y.is_none()
                 || cur_vel <= Decimal::zero()
                 || remaining_time <= TimeSpan::ZERO
             {
@@ -221,7 +237,7 @@ impl ProcessorCore {
                 break;
             }
 
-            let Some((event_y, evt)) = next_event else {
+            let Some(event_y) = next_event_y else {
                 cur_y = cur_y_now
                     + YCoordinate::new(
                         cur_vel * Decimal::from(remaining_time.as_nanos().max(0))
@@ -232,7 +248,11 @@ impl ProcessorCore {
 
             if event_y <= cur_y_now {
                 // Defense: avoid infinite loop if event position doesn't advance
-                evt.apply_to(self);
+                // Apply all events at this Y position
+                let events = self.flow_events_at(&event_y).to_vec();
+                for evt in events {
+                    evt.apply_to(self);
+                }
                 cur_vel = self.calculate_velocity(speed);
                 cur_y = cur_y_now;
                 continue;
@@ -250,9 +270,13 @@ impl ProcessorCore {
 
                 if time_to_event <= remaining_time {
                     // First advance to event point
-                    cur_y = event_y;
+                    cur_y = event_y.clone();
                     remaining_time -= time_to_event;
-                    evt.apply_to(self);
+                    // Apply all events at this Y position
+                    let events = self.flow_events_at(&event_y).to_vec();
+                    for evt in events {
+                        evt.apply_to(self);
+                    }
                     cur_vel = self.calculate_velocity(speed);
                     continue;
                 }
@@ -462,5 +486,61 @@ mod tests {
 
         // (11 - 10) / 2 = 0.5
         assert!((ratio.value().to_f64().unwrap() - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_multiple_flow_events_same_y_all_triggered() {
+        use gametime::{TimeSpan, TimeStamp};
+        use std::time::Duration;
+
+        // Setup: Create flow events at the same Y position
+        let y_event = YCoordinate::from(100.0);
+
+        let mut flow_events_by_y = BTreeMap::new();
+        flow_events_by_y.insert(
+            y_event,
+            vec![
+                FlowEvent::Bpm(Decimal::from(180)),
+                FlowEvent::Scroll(Decimal::from(1.5)),
+            ],
+        );
+
+        let mut core = ProcessorCore::new(
+            Decimal::from(120), // init_bpm
+            VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
+            AllEventsIndex::new(std::collections::BTreeMap::new()),
+            flow_events_by_y,
+        );
+
+        // Start playback
+        let start_time = TimeStamp::now();
+        core.start_play(start_time);
+
+        // Initial state
+        assert_eq!(core.current_bpm, Decimal::from(120));
+        assert_eq!(core.current_scroll, Decimal::one());
+
+        // Advance past the event Y position
+        // Calculate time needed: distance / velocity
+        // velocity = (bpm / 240) * speed * playback_ratio = (120 / 240) * 1 * 1 = 0.5
+        // time = distance / velocity = 100 / 0.5 = 200 seconds
+        let advance_time = start_time + TimeSpan::from_duration(Duration::from_secs_f64(200.0));
+        let speed = Decimal::one();
+
+        core.step_to(advance_time, &speed);
+
+        // Verify that both events were applied
+        // BPM should be updated to 180
+        assert_eq!(
+            core.current_bpm,
+            Decimal::from(180),
+            "BPM change event should be applied"
+        );
+        // Scroll should be updated to 1.5
+        assert_eq!(
+            core.current_scroll,
+            Decimal::from(1.5),
+            "Scroll change event should be applied"
+        );
     }
 }
