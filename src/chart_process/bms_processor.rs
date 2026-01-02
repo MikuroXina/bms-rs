@@ -33,6 +33,17 @@ pub struct BmsProcessor {
     current_speed: Decimal,
 }
 
+/// Convert STOP duration from 192nd-note units to beats (measure units).
+///
+/// In 4/4 time signature:
+/// - 192nd-note represents 1/192 of a whole note
+/// - One measure (4/4) = 4 beats = 192/48 beats
+/// - Therefore: 1 unit of 192nd-note = 1/48 beat
+/// - Formula: beats = `192nd_note_value` / 48
+fn convert_stop_duration_to_beats(duration_192nd: &Decimal) -> Decimal {
+    duration_192nd.clone() / Decimal::from(48)
+}
+
 impl BmsProcessor {
     /// Create processor with visible range per BPM configuration
     #[must_use]
@@ -347,7 +358,7 @@ impl AllEventsIndex {
         for stop in bms.stop.stops.values() {
             let y = y_memo.get_y(stop.time);
             let event = ChartEvent::Stop {
-                duration: stop.duration.clone(),
+                duration: convert_stop_duration_to_beats(&stop.duration),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
