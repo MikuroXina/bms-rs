@@ -541,12 +541,11 @@ fn precompute_activate_times(
         }
         let delta_y = curr.clone() - prev.clone();
         let delta_y_value = delta_y.value();
-        let delta_nanos = if cur_bpm > Decimal::zero() {
-            let numerator = delta_y_value * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
-            (numerator / cur_bpm).round().to_u64().unwrap_or(0)
-        } else {
-            0
-        };
+        let delta_nanos = (delta_y_value * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
+            / cur_bpm)
+            .round()
+            .to_u64()
+            .unwrap_or(0);
         total_nanos = total_nanos.saturating_add(delta_nanos);
         while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
             if sy >= &curr {
@@ -558,13 +557,12 @@ fn precompute_activate_times(
                     .next_back()
                     .map(|(_, b)| b.clone())
                     .unwrap_or_else(|| init_bpm.clone());
-                let dur_nanos = if bpm_at_stop > Decimal::zero() {
-                    let numerator =
-                        dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
-                    (numerator / bpm_at_stop).round().to_u64().unwrap_or(0)
-                } else {
-                    0
-                };
+                let dur_nanos =
+                    (dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
+                        / bpm_at_stop)
+                        .round()
+                        .to_u64()
+                        .unwrap_or(0);
                 total_nanos = total_nanos.saturating_add(dur_nanos);
             }
             stop_idx += 1;
