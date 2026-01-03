@@ -339,13 +339,13 @@ impl AllEventsIndex {
                 .next_back()
                 .map(|(_, b)| b.clone())
                 .unwrap_or_else(|| init_bpm.clone());
-            if bpm_at_stop > Decimal::zero() {
+            {
                 let stop_y_len = pulses_to_y(stop_pulses);
-                let numerator =
-                    stop_y_len.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
-                (numerator / bpm_at_stop).round().to_u64().unwrap_or(0)
-            } else {
-                0
+                (stop_y_len.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
+                    / bpm_at_stop)
+                    .round()
+                    .to_u64()
+                    .unwrap_or(0)
             }
         };
         let mut stop_idx = 0usize;
@@ -354,12 +354,11 @@ impl AllEventsIndex {
                 continue;
             }
             let delta_y = Decimal::from(&curr - &prev);
-            let delta_nanos = if cur_bpm > Decimal::zero() {
-                let numerator = &delta_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
-                (numerator / cur_bpm).round().to_u64().unwrap_or(0)
-            } else {
-                0
-            };
+            let delta_nanos = (&delta_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
+                / cur_bpm)
+                .round()
+                .to_u64()
+                .unwrap_or(0);
             total_nanos = total_nanos.saturating_add(delta_nanos);
             while let Some((sy, stop_pulses)) = stop_list.get(stop_idx) {
                 if sy > &curr {
