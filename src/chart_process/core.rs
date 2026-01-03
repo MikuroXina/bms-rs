@@ -25,26 +25,6 @@ pub enum FlowEvent {
     Scroll(Decimal),
 }
 
-impl FlowEvent {
-    /// Apply this flow event to the processor core.
-    pub fn apply_to(&self, core: &mut ProcessorCore) {
-        match self {
-            FlowEvent::Bpm(bpm) => {
-                core.current_bpm = bpm.clone();
-                core.mark_velocity_dirty();
-            }
-            FlowEvent::Speed(_s) => {
-                // Speed is format-specific (BMS only)
-                // Handled by the concrete processor implementation
-            }
-            FlowEvent::Scroll(s) => {
-                core.current_scroll = s.clone();
-                // Scroll doesn't affect velocity
-            }
-        }
-    }
-}
-
 /// Shared core processor logic.
 ///
 /// This struct contains all the common state and logic shared between
@@ -197,10 +177,33 @@ impl ProcessorCore {
             .map(|(y, _)| y.clone())
     }
 
-    /// Get all flow events at the given Y position.
-    #[must_use]
-    fn flow_events_at(&self, y: &YCoordinate) -> &[FlowEvent] {
-        self.flow_events_by_y.get(y).map_or(&[], Vec::as_slice)
+    /// Apply all flow events at the given Y position.
+    fn apply_flow_events_at(&mut self, y: &YCoordinate) {
+        // Remove events from the map to take ownership, avoiding borrow conflicts
+        if let Some(events) = self.flow_events_by_y.remove(y) {
+            for event in events {
+                self.apply_flow_event(event);
+            }
+            // Note: events are not re-inserted since they've been applied
+        }
+    }
+
+    /// Apply a flow event to this processor core.
+    fn apply_flow_event(&mut self, event: FlowEvent) {
+        match event {
+            FlowEvent::Bpm(bpm) => {
+                self.current_bpm = bpm;
+                self.mark_velocity_dirty();
+            }
+            FlowEvent::Speed(_s) => {
+                // Speed is format-specific (BMS only)
+                // Handled by the concrete processor implementation
+            }
+            FlowEvent::Scroll(s) => {
+                self.current_scroll = s;
+                // Scroll doesn't affect velocity
+            }
+        }
     }
 
     /// Advance time to `now`, performing segmented integration.
@@ -249,10 +252,7 @@ impl ProcessorCore {
             if event_y <= cur_y_now {
                 // Defense: avoid infinite loop if event position doesn't advance
                 // Apply all events at this Y position
-                let events = self.flow_events_at(&event_y).to_vec();
-                for evt in events {
-                    evt.apply_to(self);
-                }
+                self.apply_flow_events_at(&event_y);
                 cur_vel = self.calculate_velocity(speed);
                 cur_y = cur_y_now;
                 continue;
@@ -273,10 +273,7 @@ impl ProcessorCore {
                     cur_y = event_y.clone();
                     remaining_time -= time_to_event;
                     // Apply all events at this Y position
-                    let events = self.flow_events_at(&event_y).to_vec();
-                    for evt in events {
-                        evt.apply_to(self);
-                    }
+                    self.apply_flow_events_at(&event_y);
                     cur_vel = self.calculate_velocity(speed);
                     continue;
                 }
@@ -464,7 +461,7 @@ mod tests {
 
         // Apply BPM change
         let event = FlowEvent::Bpm(Decimal::from(180));
-        event.apply_to(&mut core);
+        core.apply_flow_event(event);
 
         assert_eq!(core.current_bpm, Decimal::from(180));
         assert!(core.velocity_dirty);
