@@ -12,7 +12,7 @@ use bms_rs::chart_process::prelude::*;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// Setup a BMSON processor for testing (without calling `start_play`)
-fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> BmsonProcessor {
+fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> ChartPlayer {
     let output = parse_bmson(json);
     let Some(bmson) = output.bmson else {
         panic!(
@@ -28,7 +28,8 @@ fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> BmsonProcessor 
         );
     };
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    BmsonProcessor::new(&bmson, visible_range_per_bpm)
+    let chart = BmsonProcessor::parse(&bmson, ());
+    ChartPlayer::new(chart, visible_range_per_bpm)
 }
 
 #[test]
@@ -172,7 +173,7 @@ fn test_bmson_start_play_resets_scroll_to_one() {
     processor.start_play(start_time);
 
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
-    let _ = processor.update(after_scroll).collect::<Vec<_>>();
+    let _ = processor.update(after_scroll);
     assert_ne!(*processor.current_scroll(), Decimal::one());
 
     processor.start_play(after_scroll + TimeSpan::SECOND);
@@ -204,15 +205,11 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
     let mut processor = setup_bmson_processor(json, TimeSpan::MILLISECOND * 600);
     let start_time = TimeStamp::start();
     processor.start_play(start_time);
-    let _events: Vec<_> = processor
-        .update(start_time + TimeSpan::SECOND * 2)
-        .collect();
+    let _events = processor.update(start_time + TimeSpan::SECOND * 2);
 
-    let events: Vec<_> = processor
-        .events_in_time_range(
-            (TimeSpan::ZERO - TimeSpan::MILLISECOND * 300)..=(TimeSpan::MILLISECOND * 300),
-        )
-        .collect();
+    let events = processor.events_in_time_range(
+        (TimeSpan::ZERO - TimeSpan::MILLISECOND * 300)..=(TimeSpan::MILLISECOND * 300),
+    );
     assert!(
         events
             .iter()
@@ -536,7 +533,7 @@ fn test_bmson_visible_event_activate_time_prediction() {
     processor.start_play(start_time);
 
     let _ = processor.update(start_time);
-    let events: Vec<_> = processor.visible_events().collect();
+    let events = processor.visible_events();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -581,7 +578,7 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
-    let events: Vec<_> = processor.visible_events().collect();
+    let events = processor.visible_events();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -626,7 +623,7 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
-    let events: Vec<_> = processor.visible_events().collect();
+    let events = processor.visible_events();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;

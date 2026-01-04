@@ -1,14 +1,15 @@
 //! Type definition module
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::{Bound, Range, RangeBounds};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use num::{One, ToPrimitive, Zero};
 
-use super::TimeSpan;
-
+pub use super::TimeSpan;
+pub use super::core::FlowEvent;
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
@@ -686,8 +687,9 @@ impl std::hash::Hash for PlayheadEvent {
     }
 }
 
+/// Index for all chart events, organized by Y coordinate and time.
 #[derive(Debug, Clone)]
-pub(crate) struct AllEventsIndex {
+pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
@@ -802,6 +804,32 @@ impl AllEventsIndex {
         };
         self.events_in_time_range((start_bound, end_bound))
     }
+}
+
+/// Resource file mapping for parsed charts.
+#[derive(Debug, Clone)]
+pub struct ChartResources {
+    /// WAV ID -> file path mapping.
+    pub wav_files: HashMap<WavId, PathBuf>,
+    /// BMP ID -> file path mapping.
+    pub bmp_files: HashMap<BmpId, PathBuf>,
+}
+
+/// Parsed chart data containing all precomputed information.
+///
+/// This structure is immutable and can be used to create multiple player instances.
+#[derive(Debug, Clone)]
+pub struct ParsedChart {
+    /// Resource file mapping.
+    pub resources: ChartResources,
+    /// Event index (by Y coordinate and time).
+    pub events: AllEventsIndex,
+    /// Flow event mapping (affects playback speed).
+    pub flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+    /// Initial BPM.
+    pub init_bpm: Decimal,
+    /// Initial Speed (BMS-specific, BMSON defaults to 1.0).
+    pub init_speed: Decimal,
 }
 
 #[cfg(test)]
