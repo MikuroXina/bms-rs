@@ -154,8 +154,12 @@ impl BmsProcessor {
     }
 }
 
+/// Y coordinate memoization for efficient position calculation.
+///
+/// This structure caches Y coordinate calculations by track, accounting for
+/// section length changes and speed modifications.
 #[derive(Debug)]
-pub(crate) struct YMemo {
+pub struct YMemo {
     /// Y coordinates memoization by track, which modified its length
     y_by_track: BTreeMap<Track, Decimal>,
     speed_changes: BTreeMap<ObjTime, SpeedObj>,
@@ -512,6 +516,22 @@ pub fn precompute_activate_times(
     AllEventsIndex::new(new_map)
 }
 
+/// Generate a static chart event for a BMS note object.
+///
+/// This function converts a BMS `WavObj` into a `ChartEvent` with all necessary
+/// information, including note type, lane assignment, and long note duration.
+///
+/// # Type Parameters
+/// - `T`: Key layout mapper (e.g., `Beat5`, `Beat7`, `Beat10`)
+///
+/// # Parameters
+/// - `bms`: The parsed BMS chart data
+/// - `y_memo`: Y coordinate memoization for position calculation
+/// - `obj`: The note object to convert
+///
+/// # Returns
+/// - `ChartEvent::Note` for playable notes
+/// - `ChartEvent::Bgm` for BGM/background audio
 #[must_use]
 pub fn event_for_note_static<T: KeyLayoutMapper>(
     bms: &Bms,

@@ -696,6 +696,16 @@ pub struct AllEventsIndex {
 }
 
 impl AllEventsIndex {
+    /// Create a new event index from a map of events grouped by Y coordinate.
+    ///
+    /// This constructor flattens the input map into a single vector of events
+    /// while maintaining indices for efficient Y-coordinate-based lookups.
+    ///
+    /// # Parameters
+    /// - `map`: Events organized by their Y coordinates
+    ///
+    /// # Returns
+    /// A new `AllEventsIndex` with optimized lookup structures
     #[must_use]
     pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
         let mut events: Vec<PlayheadEvent> = Vec::new();
@@ -733,16 +743,34 @@ impl AllEventsIndex {
         }
     }
 
+    /// Get a reference to all events in chronological order.
+    ///
+    /// # Returns
+    /// A slice of all events stored in this index
     #[must_use]
     pub const fn as_events(&self) -> &Vec<PlayheadEvent> {
         &self.events
     }
 
+    /// Get a reference to the Y-coordinate-based index.
+    ///
+    /// # Returns
+    /// A map from Y coordinates to ranges in the events vector
     #[must_use]
     pub const fn as_by_y(&self) -> &BTreeMap<YCoordinate, Range<usize>> {
         &self.by_y
     }
 
+    /// Retrieve all events within a specified Y coordinate range.
+    ///
+    /// This method efficiently collects events whose Y coordinates fall within
+    /// the given range bounds.
+    ///
+    /// # Parameters
+    /// - `range`: The Y coordinate range to query
+    ///
+    /// # Returns
+    /// A vector of events within the specified range
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
@@ -755,6 +783,16 @@ impl AllEventsIndex {
             .collect()
     }
 
+    /// Retrieve all events within a specified time range.
+    ///
+    /// This method queries events by their activation time, collecting all
+    /// events that fall within the given time bounds.
+    ///
+    /// # Parameters
+    /// - `range`: The time range to query
+    ///
+    /// # Returns
+    /// A vector of events within the specified time range
     pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
         R: RangeBounds<TimeSpan>,
@@ -784,6 +822,23 @@ impl AllEventsIndex {
             .collect()
     }
 
+    /// Retrieve events within a time range relative to a center point.
+    ///
+    /// This method allows querying events relative to a specific time point,
+    /// useful for looking ahead or behind a current playback position.
+    ///
+    /// # Parameters
+    /// - `center`: The center time point for the range
+    /// - `range`: The offset range from the center point (e.g., `-1.0s..=1.0s`)
+    ///
+    /// # Returns
+    /// A vector of events within the offset-adjusted time range
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Get events from 1 second before to 1 second after time t
+    /// let events = index.events_in_time_range_offset_from(t, -1.0s..=1.0s);
+    /// ```
     pub fn events_in_time_range_offset_from<R>(
         &self,
         center: TimeSpan,
