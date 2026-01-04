@@ -1,0 +1,22 @@
+name: Cargo Deny
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/Cargo.lock"
+      - "**/Cargo.toml"
+      - "**/deny.toml"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/Cargo.lock"
+      - "**/Cargo.toml"
+      - "**/deny.toml"
+
+jobs:
+  cargo-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "No dependencies updated"
