@@ -9,8 +9,18 @@ use std::time::Duration;
 use num::{One, ToPrimitive, Zero};
 
 pub use super::TimeSpan;
-pub use super::core::FlowEvent;
 use crate::bms::prelude::Bms;
+
+/// Flow events that affect playback speed/scroll.
+#[derive(Debug, Clone)]
+pub enum FlowEvent {
+    /// BPM change event.
+    Bpm(Decimal),
+    /// Speed factor change event (BMS only).
+    Speed(Decimal),
+    /// Scroll factor change event.
+    Scroll(Decimal),
+}
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};

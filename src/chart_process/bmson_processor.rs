@@ -11,10 +11,9 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
 use crate::chart_process::ChartEvent;
-use crate::chart_process::core::FlowEvent;
 use crate::chart_process::types::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, PlayheadEvent,
-    TimeSpan, WavId, YCoordinate,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, FlowEvent, ParsedChart,
+    PlayheadEvent, TimeSpan, WavId, YCoordinate,
 };
 use crate::{bms::Decimal, util::StrExtension};
 

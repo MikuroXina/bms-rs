@@ -10,10 +10,9 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::chart_process::ChartEvent;
-use crate::chart_process::core::FlowEvent;
 use crate::chart_process::types::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, PlayheadEvent,
-    TimeSpan, VisibleRangePerBpm, WavId, YCoordinate,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, FlowEvent, ParsedChart,
+    PlayheadEvent, TimeSpan, VisibleRangePerBpm, WavId, YCoordinate,
 };
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;

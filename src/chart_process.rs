@@ -18,9 +18,6 @@ use crate::chart_process::types::{BmpId, VisibleRangePerBpm, WavId, YCoordinate}
 pub mod bms_processor;
 pub mod bmson_processor;
 
-// Core processor logic
-pub mod core;
-
 // Type definition module
 pub mod types;
 
