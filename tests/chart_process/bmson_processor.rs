@@ -28,7 +28,7 @@ fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> ChartPlayer {
         );
     };
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsonProcessor::parse(&bmson, ());
+    let chart = BmsonProcessor::parse(&bmson);
     ChartPlayer::new(chart, visible_range_per_bpm)
 }
 

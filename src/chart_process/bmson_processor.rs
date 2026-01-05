@@ -28,7 +28,7 @@ pub struct BmsonProcessor;
 impl BmsonProcessor {
     /// Parse BMSON file and return a `ParsedChart` containing all precomputed data.
     #[must_use]
-    pub fn parse(bmson: &Bmson<'_>, _visible_range_per_bpm: ()) -> ParsedChart {
+    pub fn parse(bmson: &Bmson<'_>) -> ParsedChart {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
         let pulses_denom = Decimal::from(4 * bmson.info.resolution.get());
         let pulses_to_y =
