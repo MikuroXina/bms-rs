@@ -93,16 +93,13 @@ impl BmsProcessor {
         // Precompute activate times
         let all_events = precompute_activate_times(bms, &all_events, &y_memo);
 
-        ParsedChart {
-            resources: ChartResources {
-                wav_files,
-                bmp_files,
-            },
-            events: all_events,
-            flow_events: flow_events_by_y,
+        ParsedChart::new(
+            ChartResources::new(wav_files, bmp_files),
+            all_events,
+            flow_events_by_y,
             init_bpm,
-            init_speed: Decimal::one(),
-        }
+            Decimal::one(),
+        )
     }
 
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)

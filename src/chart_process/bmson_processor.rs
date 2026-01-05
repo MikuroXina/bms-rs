@@ -114,16 +114,13 @@ impl BmsonProcessor {
             .map(|(name, id)| (id, PathBuf::from(name)))
             .collect();
 
-        ParsedChart {
-            resources: ChartResources {
-                wav_files,
-                bmp_files,
-            },
-            events: all_events,
-            flow_events: flow_events_by_y,
+        ParsedChart::new(
+            ChartResources::new(wav_files, bmp_files),
+            all_events,
+            flow_events_by_y,
             init_bpm,
-            init_speed: Decimal::one(), // BMSON doesn't have Speed concept, default to 1.0
-        }
+            Decimal::one(), // BMSON doesn't have Speed concept, default to 1.0
+        )
     }
 }
 

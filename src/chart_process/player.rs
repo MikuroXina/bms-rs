@@ -3,7 +3,7 @@
 //! Unified player for parsed charts, managing playback state and event processing.
 
 use std::collections::{BTreeMap, HashMap};
-use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -11,7 +11,8 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
 use crate::chart_process::types::{
-    AllEventsIndex, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, WavId, YCoordinate,
+    AllEventsIndex, BmpId, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, WavId,
+    YCoordinate,
 };
 use crate::chart_process::{ChartEvent, ControlEvent};
 
@@ -143,24 +144,14 @@ impl ChartPlayer {
 
     /// Get audio file resources (id to path mapping).
     #[must_use]
-    pub fn audio_files(&self) -> HashMap<WavId, &Path> {
-        self.chart
-            .resources
-            .wav_files
-            .iter()
-            .map(|(id, path)| (*id, path.as_path()))
-            .collect()
+    pub const fn audio_files(&self) -> &HashMap<WavId, PathBuf> {
+        self.chart.resources().wav_files()
     }
 
     /// Get BGA/BMP image resources (id to path mapping).
     #[must_use]
-    pub fn bmp_files(&self) -> HashMap<crate::chart_process::types::BmpId, &Path> {
-        self.chart
-            .resources
-            .bmp_files
-            .iter()
-            .map(|(id, path)| (*id, path.as_path()))
-            .collect()
+    pub const fn bmp_files(&self) -> &HashMap<BmpId, PathBuf> {
+        self.chart.resources().bmp_files()
     }
 
     /// Get current BPM.
@@ -516,21 +507,20 @@ impl ChartPlayer {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
-    use crate::chart_process::types::BaseBpm;
+    use crate::chart_process::types::{BaseBpm, ChartResources, ParsedChart};
 
     #[test]
     fn test_velocity_caching() {
-        let chart = crate::chart_process::types::ParsedChart {
-            resources: crate::chart_process::types::ChartResources {
-                wav_files: HashMap::new(),
-                bmp_files: HashMap::new(),
-            },
-            events: AllEventsIndex::new(std::collections::BTreeMap::new()),
-            flow_events: std::collections::BTreeMap::new(),
-            init_bpm: Decimal::from(120),
-            init_speed: Decimal::one(),
-        };
+        let chart = ParsedChart::new(
+            ChartResources::new(HashMap::new(), HashMap::new()),
+            AllEventsIndex::new(BTreeMap::new()),
+            BTreeMap::new(),
+            Decimal::from(120),
+            Decimal::one(),
+        );
 
         let mut player = ChartPlayer::new(
             chart,
@@ -563,16 +553,13 @@ mod tests {
             ],
         );
 
-        let chart = crate::chart_process::types::ParsedChart {
-            resources: crate::chart_process::types::ChartResources {
-                wav_files: HashMap::new(),
-                bmp_files: HashMap::new(),
-            },
-            events: AllEventsIndex::new(std::collections::BTreeMap::new()),
-            flow_events: flow_events_by_y,
-            init_bpm: Decimal::from(120),
-            init_speed: Decimal::one(),
-        };
+        let chart = ParsedChart::new(
+            ChartResources::new(HashMap::new(), HashMap::new()),
+            AllEventsIndex::new(BTreeMap::new()),
+            flow_events_by_y,
+            Decimal::from(120),
+            Decimal::one(),
+        );
 
         let mut player = ChartPlayer::new(
             chart,
@@ -624,16 +611,13 @@ mod tests {
             ],
         );
 
-        let chart = crate::chart_process::types::ParsedChart {
-            resources: crate::chart_process::types::ChartResources {
-                wav_files: HashMap::new(),
-                bmp_files: HashMap::new(),
-            },
-            events: AllEventsIndex::new(std::collections::BTreeMap::new()),
-            flow_events: flow_events_by_y,
-            init_bpm: Decimal::from(120),
-            init_speed: Decimal::one(),
-        };
+        let chart = ParsedChart::new(
+            ChartResources::new(HashMap::new(), HashMap::new()),
+            AllEventsIndex::new(BTreeMap::new()),
+            flow_events_by_y,
+            Decimal::from(120),
+            Decimal::one(),
+        );
 
         let mut player = ChartPlayer::new(
             chart,

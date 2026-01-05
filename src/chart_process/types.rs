@@ -875,9 +875,35 @@ impl AllEventsIndex {
 #[derive(Debug, Clone)]
 pub struct ChartResources {
     /// WAV ID -> file path mapping.
-    pub wav_files: HashMap<WavId, PathBuf>,
+    pub(crate) wav_files: HashMap<WavId, PathBuf>,
     /// BMP ID -> file path mapping.
-    pub bmp_files: HashMap<BmpId, PathBuf>,
+    pub(crate) bmp_files: HashMap<BmpId, PathBuf>,
+}
+
+impl ChartResources {
+    /// Get WAV file mapping.
+    #[must_use]
+    pub const fn wav_files(&self) -> &HashMap<WavId, PathBuf> {
+        &self.wav_files
+    }
+
+    /// Get BMP file mapping.
+    #[must_use]
+    pub const fn bmp_files(&self) -> &HashMap<BmpId, PathBuf> {
+        &self.bmp_files
+    }
+
+    /// Create a new `ChartResources` (internal API).
+    #[must_use]
+    pub(crate) const fn new(
+        wav_files: HashMap<WavId, PathBuf>,
+        bmp_files: HashMap<BmpId, PathBuf>,
+    ) -> Self {
+        Self {
+            wav_files,
+            bmp_files,
+        }
+    }
 }
 
 /// Parsed chart data containing all precomputed information.
@@ -886,15 +912,65 @@ pub struct ChartResources {
 #[derive(Debug, Clone)]
 pub struct ParsedChart {
     /// Resource file mapping.
-    pub resources: ChartResources,
+    pub(crate) resources: ChartResources,
     /// Event index (by Y coordinate and time).
-    pub events: AllEventsIndex,
+    pub(crate) events: AllEventsIndex,
     /// Flow event mapping (affects playback speed).
-    pub flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+    pub(crate) flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
     /// Initial BPM.
-    pub init_bpm: Decimal,
+    pub(crate) init_bpm: Decimal,
     /// Initial Speed (BMS-specific, BMSON defaults to 1.0).
-    pub init_speed: Decimal,
+    pub(crate) init_speed: Decimal,
+}
+
+impl ParsedChart {
+    /// Get resource file mapping.
+    #[must_use]
+    pub const fn resources(&self) -> &ChartResources {
+        &self.resources
+    }
+
+    /// Get event index.
+    #[must_use]
+    pub const fn events(&self) -> &AllEventsIndex {
+        &self.events
+    }
+
+    /// Get flow event mapping.
+    #[must_use]
+    pub const fn flow_events(&self) -> &BTreeMap<YCoordinate, Vec<FlowEvent>> {
+        &self.flow_events
+    }
+
+    /// Get initial BPM.
+    #[must_use]
+    pub const fn init_bpm(&self) -> &Decimal {
+        &self.init_bpm
+    }
+
+    /// Get initial Speed.
+    #[must_use]
+    pub const fn init_speed(&self) -> &Decimal {
+        &self.init_speed
+    }
+
+    /// Create a new `ParsedChart` (internal API).
+    #[must_use]
+    pub(crate) const fn new(
+        resources: ChartResources,
+        events: AllEventsIndex,
+        flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+        init_bpm: Decimal,
+        init_speed: Decimal,
+    ) -> Self {
+        Self {
+            resources,
+            events,
+            flow_events,
+            init_bpm,
+            init_speed,
+        }
+    }
 }
 
 #[cfg(test)]
