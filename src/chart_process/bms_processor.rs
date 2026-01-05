@@ -12,7 +12,7 @@ use crate::bms::prelude::*;
 use crate::chart_process::ChartEvent;
 use crate::chart_process::types::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, FlowEvent, ParsedChart,
-    PlayheadEvent, TimeSpan, VisibleRangePerBpm, WavId, YCoordinate,
+    PlayheadEvent, TimeSpan, WavId, YCoordinate,
 };
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
@@ -38,10 +38,7 @@ fn convert_stop_duration_to_beats(duration_192nd: &Decimal) -> Decimal {
 impl BmsProcessor {
     /// Parse BMS file and return a `ParsedChart` containing all precomputed data.
     #[must_use]
-    pub fn parse<T: KeyLayoutMapper>(
-        bms: &Bms,
-        _visible_range_per_bpm: VisibleRangePerBpm,
-    ) -> ParsedChart {
+    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> ParsedChart {
         // Pre-calculate the Y coordinate by tracks
         let y_memo = YMemo::new(bms);
 

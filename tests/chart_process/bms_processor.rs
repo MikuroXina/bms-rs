@@ -43,7 +43,7 @@ where
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<T>(&bms, visible_range_per_bpm.clone());
+    let chart = BmsProcessor::parse::<T>(&bms);
     ChartPlayer::new(chart, visible_range_per_bpm)
 }
 
