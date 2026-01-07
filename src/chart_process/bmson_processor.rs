@@ -3,41 +3,32 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
-    path::Path,
-    sync::OnceLock,
+    path::PathBuf,
 };
 
-use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
-use crate::chart_process::core::{FlowEvent, ProcessorCore};
+use crate::chart_process::ChartEvent;
 use crate::chart_process::types::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleRangePerBpm,
-    WavId, YCoordinate,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, FlowEvent, ParsedChart,
+    PlayheadEvent, TimeSpan, WavId, YCoordinate,
 };
-use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
 use crate::{bms::Decimal, util::StrExtension};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// `ChartProcessor` of Bmson files.
-pub struct BmsonProcessor {
-    // Resource ID mappings
-    /// Audio filename to `WavId` mapping
-    audio_name_to_id: HashMap<String, WavId>,
-    /// Image filename to `BmpId` mapping
-    bmp_name_to_id: HashMap<String, BmpId>,
-
-    /// Core processor logic
-    core: ProcessorCore,
-}
+/// BMSON format parser.
+///
+/// This struct serves as a namespace for BMSON parsing functions.
+/// It parses BMSON files and returns a `ParsedChart` containing all precomputed data.
+pub struct BmsonProcessor;
 
 impl BmsonProcessor {
-    /// Create BMSON processor with visible range per BPM configuration.
+    /// Parse BMSON file and return a `ParsedChart` containing all precomputed data.
     #[must_use]
-    pub fn new(bmson: &Bmson<'_>, visible_range_per_bpm: VisibleRangePerBpm) -> Self {
+    pub fn parse(bmson: &Bmson<'_>) -> ParsedChart {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
         let pulses_denom = Decimal::from(4 * bmson.info.resolution.get());
         let pulses_to_y =
@@ -113,112 +104,23 @@ impl BmsonProcessor {
         let all_events =
             AllEventsIndex::precompute_events(bmson, &audio_name_to_id, &bmp_name_to_id);
 
-        let core = ProcessorCore::new(
-            init_bpm,
-            visible_range_per_bpm,
+        // Build resource maps
+        let wav_files: HashMap<WavId, PathBuf> = audio_name_to_id
+            .into_iter()
+            .map(|(name, id)| (id, PathBuf::from(name)))
+            .collect();
+        let bmp_files: HashMap<BmpId, PathBuf> = bmp_name_to_id
+            .into_iter()
+            .map(|(name, id)| (id, PathBuf::from(name)))
+            .collect();
+
+        ParsedChart::new(
+            ChartResources::new(wav_files, bmp_files),
             all_events,
             flow_events_by_y,
-        );
-
-        Self {
-            audio_name_to_id,
-            bmp_name_to_id,
-            core,
-        }
-    }
-}
-
-impl ChartProcessor for BmsonProcessor {
-    fn audio_files(&self) -> HashMap<WavId, &Path> {
-        // Note: Audio file paths in BMSON are relative to the chart file, here returning virtual paths
-        // When actually used, these paths need to be resolved based on the chart file location
-        self.audio_name_to_id
-            .iter()
-            .map(|(name, id)| (*id, Path::new(name)))
-            .collect()
-    }
-
-    fn bmp_files(&self) -> HashMap<BmpId, &Path> {
-        // Note: Image file paths in BMSON are relative to the chart file, here returning virtual paths
-        // When actually used, these paths need to be resolved based on the chart file location
-        self.bmp_name_to_id
-            .iter()
-            .map(|(name, id)| (*id, Path::new(name)))
-            .collect()
-    }
-
-    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
-        &self.core.visible_range_per_bpm
-    }
-
-    fn current_bpm(&self) -> &Decimal {
-        &self.core.current_bpm
-    }
-
-    fn current_speed(&self) -> &Decimal {
-        // BMSON doesn't have current_speed, use 1.0
-        static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
-        DECIMAL_ONE.get_or_init(Decimal::one)
-    }
-
-    fn current_scroll(&self) -> &Decimal {
-        &self.core.current_scroll
-    }
-
-    fn playback_ratio(&self) -> &Decimal {
-        &self.core.playback_ratio
-    }
-
-    fn start_play(&mut self, now: TimeStamp) {
-        self.core.start_play(now);
-    }
-
-    fn started_at(&self) -> Option<TimeStamp> {
-        self.core.started_at()
-    }
-
-    fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
-        let prev_y = self.core.progressed_y().clone();
-        static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
-        let speed = DECIMAL_ONE.get_or_init(Decimal::one);
-        self.core.step_to(now, speed);
-        let cur_y = self.core.progressed_y();
-
-        // Calculate preload range: current y + visible y range
-        let visible_y_length = self.core.visible_window_y(speed);
-        let preload_end_y = cur_y + &visible_y_length;
-
-        use std::ops::Bound::{Excluded, Included};
-
-        // Collect events triggered at current moment
-        let triggered_events = self
-            .core
-            .events_in_y_range((Excluded(&prev_y), Included(cur_y)));
-
-        self.core.update_preloaded_events(&preload_end_y);
-
-        triggered_events.into_iter()
-    }
-
-    fn events_in_time_range(
-        &mut self,
-        range: impl std::ops::RangeBounds<TimeSpan>,
-    ) -> impl Iterator<Item = PlayheadEvent> {
-        self.core.events_in_time_range(range).into_iter()
-    }
-
-    fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
-        for evt in events {
-            self.core.handle_control_event(evt);
-        }
-    }
-
-    fn visible_events(
-        &mut self,
-    ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
-        static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
-        let speed = DECIMAL_ONE.get_or_init(Decimal::one);
-        self.core.compute_visible_events(speed).into_iter()
+            init_bpm,
+            Decimal::one(), // BMSON doesn't have Speed concept, default to 1.0
+        )
     }
 }
 

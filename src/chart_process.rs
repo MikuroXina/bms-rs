@@ -6,27 +6,23 @@
 //! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 
-use std::{collections::HashMap, ops::RangeBounds, path::Path};
-
-use gametime::{TimeSpan, TimeStamp};
+pub use gametime::TimeSpan;
 
 use crate::bms::prelude::SwBgaEvent;
 use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
-use crate::chart_process::types::{
-    BmpId, DisplayRatio, PlayheadEvent, VisibleRangePerBpm, WavId, YCoordinate,
-};
+use crate::chart_process::types::{BmpId, VisibleRangePerBpm, WavId, YCoordinate};
 
 pub mod bms_processor;
 pub mod bmson_processor;
 
-// Core processor logic
-pub mod core;
-
 // Type definition module
 pub mod types;
+
+// Player module
+pub mod player;
 
 // Prelude module
 pub mod prelude;
@@ -186,60 +182,4 @@ pub enum ControlEvent {
         /// Playback ratio (>= 0)
         ratio: Decimal,
     },
-}
-
-/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)`.
-pub trait ChartProcessor {
-    /// Read: audio file resources (id to path mapping).
-    fn audio_files(&self) -> HashMap<WavId, &Path>;
-    /// Read: BGA/BMP image resources (id to path mapping).
-    fn bmp_files(&self) -> HashMap<BmpId, &Path>;
-
-    /// Read: visible range per BPM (controls the relationship between BPM and visible Y range).
-    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm;
-
-    /// Read: current BPM (changes with events).
-    fn current_bpm(&self) -> &Decimal;
-    /// Read: current Speed factor (changes with events).
-    fn current_speed(&self) -> &Decimal;
-    /// Read: current Scroll factor (changes with events).
-    fn current_scroll(&self) -> &Decimal;
-    /// Read: current playback ratio (default 1).
-    fn playback_ratio(&self) -> &Decimal;
-
-    /// Notify: start playback, record starting absolute time.
-    fn start_play(&mut self, now: TimeStamp);
-
-    /// Get: playback start time.
-    ///
-    /// Returns `Some(Instant)` if `start_play` has been called and playback is active,
-    /// otherwise returns `None`.
-    fn started_at(&self) -> Option<TimeStamp>;
-
-    /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
-    fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent>;
-
-    /// Query: events in a time window centered at current moment.
-    ///
-    /// The window is `range + now`, where `now` is the current playhead time since [`start_play`]
-    /// (scaled by [`playback_ratio`]) and `range` is a `TimeSpan` offset range.
-    fn events_in_time_range(
-        &mut self,
-        range: impl RangeBounds<TimeSpan>,
-    ) -> impl Iterator<Item = PlayheadEvent>;
-
-    /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.
-    ///
-    /// These events are used to dynamically adjust player configuration parameters. Chart playback related events (such as notes, BGM, etc.)
-    /// are returned by the [`update`] method, not posted through this method.
-    fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
-
-    /// Query: all events in current visible area (preload logic).
-    ///
-    /// Returns a range of display positions for each event:
-    /// - For normal notes: `start()` and `end()` are the same position
-    /// - For long notes: `start()` is the note head position, `end()` is the note tail position
-    fn visible_events(
-        &mut self,
-    ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)>;
 }

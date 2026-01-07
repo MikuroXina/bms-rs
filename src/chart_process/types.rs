@@ -1,15 +1,26 @@
 //! Type definition module
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::{Bound, Range, RangeBounds};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use num::{One, ToPrimitive, Zero};
 
-use super::TimeSpan;
-
+pub use super::TimeSpan;
 use crate::bms::prelude::Bms;
+
+/// Flow events that affect playback speed/scroll.
+#[derive(Debug, Clone)]
+pub enum FlowEvent {
+    /// BPM change event.
+    Bpm(Decimal),
+    /// Speed factor change event (BMS only).
+    Speed(Decimal),
+    /// Scroll factor change event.
+    Scroll(Decimal),
+}
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
@@ -686,14 +697,25 @@ impl std::hash::Hash for PlayheadEvent {
     }
 }
 
+/// Index for all chart events, organized by Y coordinate and time.
 #[derive(Debug, Clone)]
-pub(crate) struct AllEventsIndex {
+pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
 }
 
 impl AllEventsIndex {
+    /// Create a new event index from a map of events grouped by Y coordinate.
+    ///
+    /// This constructor flattens the input map into a single vector of events
+    /// while maintaining indices for efficient Y-coordinate-based lookups.
+    ///
+    /// # Parameters
+    /// - `map`: Events organized by their Y coordinates
+    ///
+    /// # Returns
+    /// A new `AllEventsIndex` with optimized lookup structures
     #[must_use]
     pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
         let mut events: Vec<PlayheadEvent> = Vec::new();
@@ -731,16 +753,34 @@ impl AllEventsIndex {
         }
     }
 
+    /// Get a reference to all events in chronological order.
+    ///
+    /// # Returns
+    /// A slice of all events stored in this index
     #[must_use]
     pub const fn as_events(&self) -> &Vec<PlayheadEvent> {
         &self.events
     }
 
+    /// Get a reference to the Y-coordinate-based index.
+    ///
+    /// # Returns
+    /// A map from Y coordinates to ranges in the events vector
     #[must_use]
     pub const fn as_by_y(&self) -> &BTreeMap<YCoordinate, Range<usize>> {
         &self.by_y
     }
 
+    /// Retrieve all events within a specified Y coordinate range.
+    ///
+    /// This method efficiently collects events whose Y coordinates fall within
+    /// the given range bounds.
+    ///
+    /// # Parameters
+    /// - `range`: The Y coordinate range to query
+    ///
+    /// # Returns
+    /// A vector of events within the specified range
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
@@ -753,6 +793,16 @@ impl AllEventsIndex {
             .collect()
     }
 
+    /// Retrieve all events within a specified time range.
+    ///
+    /// This method queries events by their activation time, collecting all
+    /// events that fall within the given time bounds.
+    ///
+    /// # Parameters
+    /// - `range`: The time range to query
+    ///
+    /// # Returns
+    /// A vector of events within the specified time range
     pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
         R: RangeBounds<TimeSpan>,
@@ -782,6 +832,23 @@ impl AllEventsIndex {
             .collect()
     }
 
+    /// Retrieve events within a time range relative to a center point.
+    ///
+    /// This method allows querying events relative to a specific time point,
+    /// useful for looking ahead or behind a current playback position.
+    ///
+    /// # Parameters
+    /// - `center`: The center time point for the range
+    /// - `range`: The offset range from the center point (e.g., `-1.0s..=1.0s`)
+    ///
+    /// # Returns
+    /// A vector of events within the offset-adjusted time range
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Get events from 1 second before to 1 second after time t
+    /// let events = index.events_in_time_range_offset_from(t, -1.0s..=1.0s);
+    /// ```
     pub fn events_in_time_range_offset_from<R>(
         &self,
         center: TimeSpan,
@@ -801,6 +868,108 @@ impl AllEventsIndex {
             Bound::Unbounded => Bound::Unbounded,
         };
         self.events_in_time_range((start_bound, end_bound))
+    }
+}
+
+/// Resource file mapping for parsed charts.
+#[derive(Debug, Clone)]
+pub struct ChartResources {
+    /// WAV ID -> file path mapping.
+    pub(crate) wav_files: HashMap<WavId, PathBuf>,
+    /// BMP ID -> file path mapping.
+    pub(crate) bmp_files: HashMap<BmpId, PathBuf>,
+}
+
+impl ChartResources {
+    /// Get WAV file mapping.
+    #[must_use]
+    pub const fn wav_files(&self) -> &HashMap<WavId, PathBuf> {
+        &self.wav_files
+    }
+
+    /// Get BMP file mapping.
+    #[must_use]
+    pub const fn bmp_files(&self) -> &HashMap<BmpId, PathBuf> {
+        &self.bmp_files
+    }
+
+    /// Create a new `ChartResources` (internal API).
+    #[must_use]
+    pub(crate) const fn new(
+        wav_files: HashMap<WavId, PathBuf>,
+        bmp_files: HashMap<BmpId, PathBuf>,
+    ) -> Self {
+        Self {
+            wav_files,
+            bmp_files,
+        }
+    }
+}
+
+/// Parsed chart data containing all precomputed information.
+///
+/// This structure is immutable and can be used to create multiple player instances.
+#[derive(Debug, Clone)]
+pub struct ParsedChart {
+    /// Resource file mapping.
+    pub(crate) resources: ChartResources,
+    /// Event index (by Y coordinate and time).
+    pub(crate) events: AllEventsIndex,
+    /// Flow event mapping (affects playback speed).
+    pub(crate) flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+    /// Initial BPM.
+    pub(crate) init_bpm: Decimal,
+    /// Initial Speed (BMS-specific, BMSON defaults to 1.0).
+    pub(crate) init_speed: Decimal,
+}
+
+impl ParsedChart {
+    /// Get resource file mapping.
+    #[must_use]
+    pub const fn resources(&self) -> &ChartResources {
+        &self.resources
+    }
+
+    /// Get event index.
+    #[must_use]
+    pub const fn events(&self) -> &AllEventsIndex {
+        &self.events
+    }
+
+    /// Get flow event mapping.
+    #[must_use]
+    pub const fn flow_events(&self) -> &BTreeMap<YCoordinate, Vec<FlowEvent>> {
+        &self.flow_events
+    }
+
+    /// Get initial BPM.
+    #[must_use]
+    pub const fn init_bpm(&self) -> &Decimal {
+        &self.init_bpm
+    }
+
+    /// Get initial Speed.
+    #[must_use]
+    pub const fn init_speed(&self) -> &Decimal {
+        &self.init_speed
+    }
+
+    /// Create a new `ParsedChart` (internal API).
+    #[must_use]
+    pub(crate) const fn new(
+        resources: ChartResources,
+        events: AllEventsIndex,
+        flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+        init_bpm: Decimal,
+        init_speed: Decimal,
+    ) -> Self {
+        Self {
+            resources,
+            events,
+            flow_events,
+            init_bpm,
+            init_speed,
+        }
     }
 }
 

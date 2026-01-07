@@ -16,7 +16,7 @@ fn setup_bms_processor_with_config<T, P, R, M>(
     source: &str,
     config: ParseConfig<T, P, R, M>,
     reaction_time: TimeSpan,
-) -> BmsProcessor
+) -> ChartPlayer
 where
     T: KeyLayoutMapper,
     P: Prompter,
@@ -43,17 +43,18 @@ where
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    BmsProcessor::new::<T>(&bms, visible_range_per_bpm)
+    let chart = BmsProcessor::parse::<T>(&bms);
+    ChartPlayer::new(chart, visible_range_per_bpm)
 }
 
 /// Setup a BMS processor with `AlwaysUseOlder` prompter
-fn setup_bms_processor_with_older_prompter(source: &str, reaction_time: TimeSpan) -> BmsProcessor {
+fn setup_bms_processor_with_older_prompter(source: &str, reaction_time: TimeSpan) -> ChartPlayer {
     let config = default_config().prompter(AlwaysUseOlder);
     setup_bms_processor_with_config(source, config, reaction_time)
 }
 
 /// Setup a BMS processor with `AlwaysWarnAndUseNewer` prompter
-fn setup_bms_processor_with_newer_prompter(source: &str, reaction_time: TimeSpan) -> BmsProcessor {
+fn setup_bms_processor_with_newer_prompter(source: &str, reaction_time: TimeSpan) -> ChartPlayer {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     setup_bms_processor_with_config(source, config, reaction_time)
 }
@@ -88,7 +89,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     );
 
     // Check that visible_events method works normally
-    let after_change_events: Vec<_> = processor.visible_events().collect();
+    let after_change_events = processor.visible_events();
     assert!(
         !after_change_events.is_empty(),
         "Should have visible events"
@@ -145,7 +146,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
 
     let after = start_time + TimeSpan::SECOND;
     let _ = processor.update(after);
-    let events: Vec<_> = processor.visible_events().collect();
+    let events = processor.visible_events();
     assert!(
         !events.is_empty(),
         "Should have visible events after advance"
@@ -182,7 +183,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     assert_eq!(*processor.current_bpm(), bpm_75_5);
 
     // Get visible events after BPM change
-    let after_bpm_events: Vec<_> = processor.visible_events().collect();
+    let after_bpm_events = processor.visible_events();
     assert!(
         !after_bpm_events.is_empty(),
         "Should still have visible events after BPM change"
@@ -208,7 +209,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     assert_eq!(*processor.current_scroll(), Decimal::one());
 
     // Get initial visible events and their display ratios
-    let initial_events: Vec<_> = processor.visible_events().collect();
+    let initial_events = processor.visible_events();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
         .map(|(_, display_ratio_range)| {
@@ -227,7 +228,6 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     let after_first_ratios: Vec<f64> = processor
         .visible_events()
-        .collect::<Vec<_>>()
         .iter()
         .map(|(_, display_ratio_range)| {
             display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0)
@@ -259,7 +259,6 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     let after_scroll_half_ratios: Vec<f64> = processor
         .visible_events()
-        .collect::<Vec<_>>()
         .iter()
         .map(|(_, display_ratio_range)| {
             display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0)
@@ -329,7 +328,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
 
     let elapsed = TimeSpan::SECOND * 3;
     let now = start_time + elapsed;
-    let events: Vec<_> = processor.update(now).collect();
+    let events = processor.update(now);
     assert!(
         !events.is_empty(),
         "Expected triggered events after {:?} elapsed",
@@ -362,15 +361,11 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
         setup_bms_processor_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
     let start_time = TimeStamp::start();
     processor.start_play(start_time);
-    let _events: Vec<_> = processor
-        .update(start_time + TimeSpan::SECOND * 2)
-        .collect();
+    let _events = processor.update(start_time + TimeSpan::SECOND * 2);
 
-    let events: Vec<_> = processor
-        .events_in_time_range(
-            (TimeSpan::ZERO - TimeSpan::MILLISECOND * 300)..=(TimeSpan::MILLISECOND * 300),
-        )
-        .collect();
+    let events = processor.events_in_time_range(
+        (TimeSpan::ZERO - TimeSpan::MILLISECOND * 300)..=(TimeSpan::MILLISECOND * 300),
+    );
     assert!(
         events
             .iter()
@@ -396,16 +391,14 @@ fn test_bms_events_in_time_range_empty_before_start() {
 #WAV01 test.wav
 #00111:01
 "#;
-    let mut processor =
-        setup_bms_processor_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
+    let processor = setup_bms_processor_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
 
     assert!(
         processor
             .events_in_time_range(
                 (TimeSpan::ZERO - TimeSpan::MILLISECOND * 100)..=(TimeSpan::MILLISECOND * 100),
             )
-            .next()
-            .is_none()
+            .is_empty()
     );
 }
 
@@ -429,7 +422,7 @@ fn test_bms_start_play_resets_scroll_to_one() {
     processor.start_play(start_time);
 
     let after_scroll_change = start_time + TimeSpan::MILLISECOND * 2700;
-    let _ = processor.update(after_scroll_change).collect::<Vec<_>>();
+    let _ = processor.update(after_scroll_change);
     assert_ne!(*processor.current_scroll(), Decimal::one());
 
     processor.start_play(after_scroll_change + TimeSpan::SECOND);
@@ -504,11 +497,11 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     // Advance past the first BPM and Scroll change point
     // The bemuse_ext.bms file has BPM and Scroll changes at specific positions
     let after_changes = start_time + TimeSpan::from_duration(Duration::from_millis(1000));
-    let _ = processor.update(after_changes).collect::<Vec<_>>();
+    let _ = processor.update(after_changes);
 
     // Verify that visible events computation still works after flow events
     assert!(
-        processor.visible_events().next().is_some(),
+        !processor.visible_events().is_empty(),
         "Should have visible events after flow events are triggered"
     );
 

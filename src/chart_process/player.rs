@@ -1,7 +1,9 @@
-//! Core processor logic shared between BMS and BMSON processors.
+//! Chart Player Module.
+//!
+//! Unified player for parsed charts, managing playback state and event processing.
 
-use std::collections::BTreeMap;
-use std::ops::RangeInclusive;
+use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -9,35 +11,24 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
 use crate::chart_process::types::{
-    AllEventsIndex, DisplayRatio, PlayheadEvent, VisibleRangePerBpm, YCoordinate,
+    AllEventsIndex, BmpId, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, WavId,
+    YCoordinate,
 };
+use crate::chart_process::{ChartEvent, ControlEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// Flow events that affect playback speed/scroll.
-#[derive(Debug, Clone)]
-pub enum FlowEvent {
-    /// BPM change event.
-    Bpm(Decimal),
-    /// Speed factor change event (BMS only).
-    Speed(Decimal),
-    /// Scroll factor change event.
-    Scroll(Decimal),
-}
-
-/// Shared core processor logic.
+/// Unified chart player.
 ///
-/// This struct contains all the common state and logic shared between
-/// `BmsProcessor` and `BmsonProcessor`, including:
-/// - Playback state management
-/// - Time progression (`step_to`)
-/// - Velocity calculation with caching
-/// - Visible events computation
-pub struct ProcessorCore {
+/// This player takes a parsed chart and manages all playback state and event processing.
+pub struct ChartPlayer {
+    // Parsed chart data
+    chart: crate::chart_process::types::ParsedChart,
+
     // Playback state
-    pub(crate) started_at: Option<TimeStamp>,
-    pub(crate) last_poll_at: Option<TimeStamp>,
-    pub(crate) progressed_y: YCoordinate,
+    started_at: Option<TimeStamp>,
+    last_poll_at: Option<TimeStamp>,
+    progressed_y: YCoordinate,
 
     // Flow parameters
     pub(crate) current_bpm: Decimal,
@@ -56,18 +47,25 @@ pub struct ProcessorCore {
     // Flow event indexing
     pub(crate) flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
     pub(crate) init_bpm: Decimal,
+
+    // Current Speed factor (updated during playback).
+    current_speed: Decimal,
 }
 
-impl ProcessorCore {
-    /// Create a new processor core.
+impl ChartPlayer {
+    /// Create a new player from a parsed chart.
     #[must_use]
-    pub(crate) fn new(
-        init_bpm: Decimal,
+    pub fn new(
+        mut chart: crate::chart_process::types::ParsedChart,
         visible_range_per_bpm: VisibleRangePerBpm,
-        all_events: AllEventsIndex,
-        flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
     ) -> Self {
+        // Extract flow_events and events from chart (take ownership)
+        let flow_events = std::mem::take(&mut chart.flow_events);
+        let all_events = chart.events.clone();
+        let init_bpm = chart.init_bpm.clone();
+
         Self {
+            chart,
             started_at: None,
             last_poll_at: None,
             progressed_y: YCoordinate::zero(),
@@ -79,10 +77,13 @@ impl ProcessorCore {
             velocity_dirty: true,
             preloaded_events: Vec::new(),
             all_events,
-            flow_events_by_y,
+            flow_events_by_y: flow_events,
             init_bpm,
+            current_speed: Decimal::one(),
         }
     }
+
+    // ===== Playback Control =====
 
     /// Start playback at the given time.
     pub fn start_play(&mut self, now: TimeStamp) {
@@ -92,10 +93,98 @@ impl ProcessorCore {
         self.preloaded_events.clear();
         self.current_bpm = self.init_bpm.clone();
         self.current_scroll = Decimal::one();
+        self.current_speed = self.chart.init_speed.clone();
         self.mark_velocity_dirty();
     }
 
-    /// Get the playback start time.
+    /// Update playback to the given time, return triggered events.
+    pub fn update(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
+        let prev_y = self.progressed_y.clone();
+        let speed = self.current_speed.clone();
+        self.step_to(now, &speed);
+        let cur_y = self.progressed_y.clone();
+
+        // Calculate preload range: current y + visible y range
+        let visible_y_length = self.visible_window_y(&self.current_speed);
+        let preload_end_y = &cur_y + &visible_y_length;
+
+        use std::ops::Bound::{Excluded, Included};
+
+        // Collect events triggered at current moment
+        let mut triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(&cur_y)));
+
+        self.update_preloaded_events(&preload_end_y);
+
+        // Apply Speed changes
+        for event in &triggered_events {
+            if let ChartEvent::SpeedChange { factor } = event.event() {
+                self.current_speed = factor.clone();
+            }
+        }
+
+        // Sort to maintain stable order
+        triggered_events.sort_by(|a, b| {
+            a.position()
+                .value()
+                .partial_cmp(b.position().value())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        triggered_events
+    }
+
+    /// Post control events to the player.
+    pub fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
+        for evt in events {
+            self.handle_control_event(evt);
+        }
+    }
+
+    // ===== State Query =====
+
+    /// Get audio file resources (id to path mapping).
+    #[must_use]
+    pub const fn audio_files(&self) -> &HashMap<WavId, PathBuf> {
+        self.chart.resources().wav_files()
+    }
+
+    /// Get BGA/BMP image resources (id to path mapping).
+    #[must_use]
+    pub const fn bmp_files(&self) -> &HashMap<BmpId, PathBuf> {
+        self.chart.resources().bmp_files()
+    }
+
+    /// Get current BPM.
+    #[must_use]
+    pub const fn current_bpm(&self) -> &Decimal {
+        &self.current_bpm
+    }
+
+    /// Get current Speed factor.
+    #[must_use]
+    pub const fn current_speed(&self) -> &Decimal {
+        &self.current_speed
+    }
+
+    /// Get current Scroll factor.
+    #[must_use]
+    pub const fn current_scroll(&self) -> &Decimal {
+        &self.current_scroll
+    }
+
+    /// Get current playback ratio.
+    #[must_use]
+    pub const fn playback_ratio(&self) -> &Decimal {
+        &self.playback_ratio
+    }
+
+    /// Get visible range per BPM.
+    #[must_use]
+    pub const fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
+        &self.visible_range_per_bpm
+    }
+
+    /// Get playback start time.
     #[must_use]
     pub const fn started_at(&self) -> Option<TimeStamp> {
         self.started_at
@@ -107,16 +196,77 @@ impl ProcessorCore {
         self.last_poll_at
     }
 
-    /// Set the last poll time.
-    pub const fn set_last_poll_at(&mut self, time: TimeStamp) {
-        self.last_poll_at = Some(time);
-    }
-
     /// Get the current Y position.
     #[must_use]
     pub const fn progressed_y(&self) -> &YCoordinate {
         &self.progressed_y
     }
+
+    // ===== Visible Events =====
+
+    /// Get all events in current visible area (with display positions).
+    pub fn visible_events(
+        &mut self,
+    ) -> Vec<(PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
+        let current_y = &self.progressed_y;
+        let visible_window_y = self.visible_window_y(&self.current_speed);
+        let scroll_factor = &self.current_scroll;
+
+        self.preloaded_events
+            .iter()
+            .map(|event_with_pos| {
+                let event_y = event_with_pos.position();
+                let start_display_ratio = Self::compute_display_ratio(
+                    event_y,
+                    current_y,
+                    &visible_window_y,
+                    scroll_factor,
+                );
+
+                // Calculate end position for long notes
+                let end_display_ratio = if let ChartEvent::Note {
+                    length: Some(length),
+                    ..
+                } = event_with_pos.event()
+                {
+                    let end_y = event_y.clone() + length.clone();
+                    Self::compute_display_ratio(&end_y, current_y, &visible_window_y, scroll_factor)
+                } else {
+                    // Normal notes and other events: start and end are the same
+                    start_display_ratio.clone()
+                };
+
+                (
+                    event_with_pos.clone(),
+                    start_display_ratio..=end_display_ratio,
+                )
+            })
+            .collect()
+    }
+
+    /// Query events in a time window.
+    pub fn events_in_time_range(
+        &self,
+        range: impl std::ops::RangeBounds<TimeSpan>,
+    ) -> Vec<PlayheadEvent> {
+        self.started_at.map_or_else(Vec::new, |started| {
+            let last = self.last_poll_at.unwrap_or(started);
+            // Calculate center time: elapsed time scaled by playback ratio
+            let elapsed = last
+                .checked_elapsed_since(started)
+                .unwrap_or(TimeSpan::ZERO);
+            let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
+            let elapsed_nanos = Decimal::from(elapsed_nanos);
+            let center_nanos = (&elapsed_nanos * &self.playback_ratio)
+                .to_u64()
+                .unwrap_or(0);
+            let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
+            self.all_events
+                .events_in_time_range_offset_from(center, range)
+        })
+    }
+
+    // ===== Internal Core Methods =====
 
     /// Calculate velocity with caching.
     ///
@@ -188,7 +338,7 @@ impl ProcessorCore {
         }
     }
 
-    /// Apply a flow event to this processor core.
+    /// Apply a flow event to this player.
     fn apply_flow_event(&mut self, event: FlowEvent) {
         match event {
             FlowEvent::Bpm(bpm) => {
@@ -197,7 +347,7 @@ impl ProcessorCore {
             }
             FlowEvent::Speed(_s) => {
                 // Speed is format-specific (BMS only)
-                // Handled by the concrete processor implementation
+                // Handled in update() method
             }
             FlowEvent::Scroll(s) => {
                 self.current_scroll = s;
@@ -209,7 +359,7 @@ impl ProcessorCore {
     /// Advance time to `now`, performing segmented integration.
     ///
     /// This is the core time progression algorithm, shared between BMS and BMSON.
-    pub fn step_to(&mut self, now: TimeStamp, speed: &Decimal) {
+    fn step_to(&mut self, now: TimeStamp, speed: &Decimal) {
         let Some(started) = self.started_at else {
             return;
         };
@@ -339,80 +489,15 @@ impl ProcessorCore {
         }
     }
 
-    /// Compute visible events with their display ratios.
-    #[must_use]
-    pub fn compute_visible_events(
-        &self,
-        speed: &Decimal,
-    ) -> Vec<(PlayheadEvent, RangeInclusive<DisplayRatio>)> {
-        let current_y = &self.progressed_y;
-        let visible_window_y = self.visible_window_y(speed);
-        let scroll_factor = &self.current_scroll;
-
-        self.preloaded_events
-            .iter()
-            .map(|event_with_pos| {
-                let event_y = event_with_pos.position();
-                let start_display_ratio = Self::compute_display_ratio(
-                    event_y,
-                    current_y,
-                    &visible_window_y,
-                    scroll_factor,
-                );
-
-                // Calculate end position for long notes
-                let end_display_ratio = if let crate::chart_process::ChartEvent::Note {
-                    length: Some(length),
-                    ..
-                } = event_with_pos.event()
-                {
-                    let end_y = event_y.clone() + length.clone();
-                    Self::compute_display_ratio(&end_y, current_y, &visible_window_y, scroll_factor)
-                } else {
-                    // Normal notes and other events: start and end are the same
-                    start_display_ratio.clone()
-                };
-
-                (
-                    event_with_pos.clone(),
-                    start_display_ratio..=end_display_ratio,
-                )
-            })
-            .collect()
-    }
-
-    /// Query events in a time range centered at current moment.
-    #[must_use]
-    pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
-    where
-        R: std::ops::RangeBounds<TimeSpan>,
-    {
-        self.started_at.map_or_else(Vec::new, |started| {
-            let last = self.last_poll_at.unwrap_or(started);
-            // Calculate center time: elapsed time scaled by playback ratio
-            let elapsed = last
-                .checked_elapsed_since(started)
-                .unwrap_or(TimeSpan::ZERO);
-            let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
-            let elapsed_nanos = Decimal::from(elapsed_nanos);
-            let center_nanos = (&elapsed_nanos * &self.playback_ratio)
-                .to_u64()
-                .unwrap_or(0);
-            let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
-            self.all_events
-                .events_in_time_range_offset_from(center, range)
-        })
-    }
-
     /// Handle control events.
-    pub fn handle_control_event(&mut self, event: crate::chart_process::ControlEvent) {
+    pub fn handle_control_event(&mut self, event: ControlEvent) {
         match event {
-            crate::chart_process::ControlEvent::SetVisibleRangePerBpm {
+            ControlEvent::SetVisibleRangePerBpm {
                 visible_range_per_bpm,
             } => {
                 self.visible_range_per_bpm = visible_range_per_bpm;
             }
-            crate::chart_process::ControlEvent::SetPlaybackRatio { ratio } => {
+            ControlEvent::SetPlaybackRatio { ratio } => {
                 self.playback_ratio = ratio;
                 self.mark_velocity_dirty();
             }
@@ -422,47 +507,74 @@ impl ProcessorCore {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
-    use crate::chart_process::types::BaseBpm;
+    use crate::chart_process::types::{BaseBpm, ChartResources, ParsedChart};
 
     #[test]
     fn test_velocity_caching() {
-        let mut core = ProcessorCore::new(
+        let chart = ParsedChart::new(
+            ChartResources::new(HashMap::new(), HashMap::new()),
+            AllEventsIndex::new(BTreeMap::new()),
+            BTreeMap::new(),
             Decimal::from(120),
+            Decimal::one(),
+        );
+
+        let mut player = ChartPlayer::new(
+            chart,
             VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
-            AllEventsIndex::new(std::collections::BTreeMap::new()),
-            std::collections::BTreeMap::new(),
         );
 
         let speed = Decimal::one();
 
         // First call computes velocity
-        let v1 = core.calculate_velocity(&speed);
+        let v1 = player.calculate_velocity(&speed);
         assert!(v1 > Decimal::zero());
 
         // Second call should use cache
-        let v2 = core.calculate_velocity(&speed);
+        let v2 = player.calculate_velocity(&speed);
         assert_eq!(v1, v2);
     }
 
     #[test]
     fn test_flow_event_application() {
-        let mut core = ProcessorCore::new(
-            Decimal::from(120),
-            VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
-            AllEventsIndex::new(std::collections::BTreeMap::new()),
-            std::collections::BTreeMap::new(),
+        use std::collections::BTreeMap;
+
+        let y_event = YCoordinate::from(100.0);
+
+        let mut flow_events_by_y = BTreeMap::new();
+        flow_events_by_y.insert(
+            y_event,
+            vec![
+                FlowEvent::Bpm(Decimal::from(180)),
+                FlowEvent::Scroll(Decimal::from(1.5)),
+            ],
         );
 
-        let initial_bpm = core.current_bpm.clone();
-        assert_eq!(initial_bpm, Decimal::from(120));
+        let chart = ParsedChart::new(
+            ChartResources::new(HashMap::new(), HashMap::new()),
+            AllEventsIndex::new(BTreeMap::new()),
+            flow_events_by_y,
+            Decimal::from(120),
+            Decimal::one(),
+        );
+
+        let mut player = ChartPlayer::new(
+            chart,
+            VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
+        );
+
+        // Initial state
+        assert_eq!(player.current_bpm, Decimal::from(120));
+        assert_eq!(player.current_scroll, Decimal::one());
 
         // Apply BPM change
-        let event = FlowEvent::Bpm(Decimal::from(180));
-        core.apply_flow_event(event);
+        player.apply_flow_event(FlowEvent::Bpm(Decimal::from(180)));
 
-        assert_eq!(core.current_bpm, Decimal::from(180));
-        assert!(core.velocity_dirty);
+        assert_eq!(player.current_bpm, Decimal::from(180));
+        assert!(player.velocity_dirty);
     }
 
     #[test]
@@ -472,7 +584,7 @@ mod tests {
         let visible_window_y = YCoordinate::from(2.0);
         let scroll_factor = Decimal::one();
 
-        let ratio = ProcessorCore::compute_display_ratio(
+        let ratio = ChartPlayer::compute_display_ratio(
             &event_y,
             &current_y,
             &visible_window_y,
@@ -485,8 +597,7 @@ mod tests {
 
     #[test]
     fn test_multiple_flow_events_same_y_all_triggered() {
-        use gametime::{TimeSpan, TimeStamp};
-        use std::time::Duration;
+        use std::collections::BTreeMap;
 
         // Setup: Create flow events at the same Y position
         let y_event = YCoordinate::from(100.0);
@@ -500,20 +611,26 @@ mod tests {
             ],
         );
 
-        let mut core = ProcessorCore::new(
-            Decimal::from(120), // init_bpm
-            VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
-            AllEventsIndex::new(std::collections::BTreeMap::new()),
+        let chart = ParsedChart::new(
+            ChartResources::new(HashMap::new(), HashMap::new()),
+            AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
+            Decimal::from(120),
+            Decimal::one(),
+        );
+
+        let mut player = ChartPlayer::new(
+            chart,
+            VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
         );
 
         // Start playback
         let start_time = TimeStamp::now();
-        core.start_play(start_time);
+        player.start_play(start_time);
 
         // Initial state
-        assert_eq!(core.current_bpm, Decimal::from(120));
-        assert_eq!(core.current_scroll, Decimal::one());
+        assert_eq!(player.current_bpm, Decimal::from(120));
+        assert_eq!(player.current_scroll, Decimal::one());
 
         // Advance past the event Y position
         // Calculate time needed: distance / velocity
@@ -522,18 +639,18 @@ mod tests {
         let advance_time = start_time + TimeSpan::from_duration(Duration::from_secs_f64(200.0));
         let speed = Decimal::one();
 
-        core.step_to(advance_time, &speed);
+        player.step_to(advance_time, &speed);
 
         // Verify that both events were applied
         // BPM should be updated to 180
         assert_eq!(
-            core.current_bpm,
+            player.current_bpm,
             Decimal::from(180),
             "BPM change event should be applied"
         );
         // Scroll should be updated to 1.5
         assert_eq!(
-            core.current_scroll,
+            player.current_scroll,
             Decimal::from(1.5),
             "Scroll change event should be applied"
         );

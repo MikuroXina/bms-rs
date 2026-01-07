@@ -2,36 +2,26 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
-use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
-use crate::chart_process::core::{FlowEvent, ProcessorCore};
+use crate::chart_process::ChartEvent;
 use crate::chart_process::types::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleRangePerBpm,
-    WavId, YCoordinate,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, FlowEvent, ParsedChart,
+    PlayheadEvent, TimeSpan, WavId, YCoordinate,
 };
-use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// `ChartProcessor` of Bms files.
-pub struct BmsProcessor {
-    /// Precomputed WAV id to path mapping
-    wav_paths: HashMap<WavId, PathBuf>,
-    /// Precomputed BMP id to path mapping
-    bmp_paths: HashMap<BmpId, PathBuf>,
-
-    /// Core processor logic
-    core: ProcessorCore,
-
-    /// Current speed factor (BMS-specific)
-    current_speed: Decimal,
-}
+/// BMS format parser.
+///
+/// This struct serves as a namespace for BMS parsing functions.
+/// It parses BMS files and returns a `ParsedChart` containing all precomputed data.
+pub struct BmsProcessor;
 
 /// Convert STOP duration from 192nd-note units to beats (measure units).
 ///
@@ -40,14 +30,15 @@ pub struct BmsProcessor {
 /// - One measure (4/4) = 4 beats = 192/48 beats
 /// - Therefore: 1 unit of 192nd-note = 1/48 beat
 /// - Formula: beats = `192nd_note_value` / 48
+#[must_use]
 fn convert_stop_duration_to_beats(duration_192nd: &Decimal) -> Decimal {
     duration_192nd.clone() / Decimal::from(48)
 }
 
 impl BmsProcessor {
-    /// Create processor with visible range per BPM configuration
+    /// Parse BMS file and return a `ParsedChart` containing all precomputed data.
     #[must_use]
-    pub fn new<T: KeyLayoutMapper>(bms: &Bms, visible_range_per_bpm: VisibleRangePerBpm) -> Self {
+    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> ParsedChart {
         // Pre-calculate the Y coordinate by tracks
         let y_memo = YMemo::new(bms);
 
@@ -62,20 +53,20 @@ impl BmsProcessor {
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
         // Precompute resource maps
-        let wav_paths: HashMap<WavId, PathBuf> = bms
+        let wav_files: HashMap<WavId, PathBuf> = bms
             .wav
             .wav_files
             .iter()
             .map(|(obj_id, path)| (WavId::from(obj_id.as_u16() as usize), path.clone()))
             .collect();
-        let bmp_paths: HashMap<BmpId, PathBuf> = bms
+        let bmp_files: HashMap<BmpId, PathBuf> = bms
             .bmp
             .bmp_files
             .iter()
             .map(|(obj_id, bmp)| (BmpId::from(obj_id.as_u16() as usize), bmp.file.clone()))
             .collect();
 
-        // Pre-index flow events by y for fast next_flow_event_after
+        // Pre-index flow events by y
         let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         for change in bms.bpm.bpm_changes.values() {
             let y = y_memo.get_y(change.time);
@@ -99,23 +90,20 @@ impl BmsProcessor {
                 .push(FlowEvent::Speed(change.factor.clone()));
         }
 
-        let core = ProcessorCore::new(
-            init_bpm,
-            visible_range_per_bpm,
+        // Precompute activate times
+        let all_events = precompute_activate_times(bms, &all_events, &y_memo);
+
+        ParsedChart::new(
+            ChartResources::new(wav_files, bmp_files),
             all_events,
             flow_events_by_y,
-        );
-
-        Self {
-            wav_paths,
-            bmp_paths,
-            core,
-            current_speed: Decimal::one(),
-        }
+            init_bpm,
+            Decimal::one(),
+        )
     }
 
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
-    fn generate_barlines_for_bms(
+    pub fn generate_barlines_for_bms(
         bms: &Bms,
         y_memo: &YMemo,
         events_map: &mut BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
@@ -159,103 +147,12 @@ impl BmsProcessor {
     }
 }
 
-impl ChartProcessor for BmsProcessor {
-    fn audio_files(&self) -> HashMap<WavId, &Path> {
-        self.wav_paths
-            .iter()
-            .map(|(id, path)| (*id, path.as_path()))
-            .collect()
-    }
-
-    fn bmp_files(&self) -> HashMap<BmpId, &Path> {
-        self.bmp_paths
-            .iter()
-            .map(|(id, path)| (*id, path.as_path()))
-            .collect()
-    }
-
-    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
-        &self.core.visible_range_per_bpm
-    }
-
-    fn current_bpm(&self) -> &Decimal {
-        &self.core.current_bpm
-    }
-
-    fn current_speed(&self) -> &Decimal {
-        &self.current_speed
-    }
-
-    fn current_scroll(&self) -> &Decimal {
-        &self.core.current_scroll
-    }
-
-    fn playback_ratio(&self) -> &Decimal {
-        &self.core.playback_ratio
-    }
-
-    fn start_play(&mut self, now: TimeStamp) {
-        self.core.start_play(now);
-        self.current_speed = Decimal::one();
-    }
-
-    fn started_at(&self) -> Option<TimeStamp> {
-        self.core.started_at()
-    }
-
-    fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
-        let prev_y = self.core.progressed_y().clone();
-        self.core.step_to(now, &self.current_speed);
-        let cur_y = self.core.progressed_y();
-
-        // Calculate preload range: current y + visible y range
-        let visible_y_length = self.core.visible_window_y(&self.current_speed);
-        let preload_end_y = cur_y + &visible_y_length;
-
-        use std::ops::Bound::{Excluded, Included};
-
-        // Collect events triggered at current moment
-        let mut triggered_events = self
-            .core
-            .events_in_y_range((Excluded(&prev_y), Included(cur_y)));
-
-        self.core.update_preloaded_events(&preload_end_y);
-
-        // Sort to maintain stable order if needed (BTreeMap range is ordered by y)
-        triggered_events.sort_by(|a, b| {
-            a.position()
-                .value()
-                .partial_cmp(b.position().value())
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        triggered_events.into_iter()
-    }
-
-    fn events_in_time_range(
-        &mut self,
-        range: impl std::ops::RangeBounds<TimeSpan>,
-    ) -> impl Iterator<Item = PlayheadEvent> {
-        self.core.events_in_time_range(range).into_iter()
-    }
-
-    fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
-        for evt in events {
-            self.core.handle_control_event(evt);
-        }
-    }
-
-    fn visible_events(
-        &mut self,
-    ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
-        self.core
-            .compute_visible_events(&self.current_speed)
-            .into_iter()
-    }
-}
-
+/// Y coordinate memoization for efficient position calculation.
+///
+/// This structure caches Y coordinate calculations by track, accounting for
+/// section length changes and speed modifications.
 #[derive(Debug)]
-struct YMemo {
+pub struct YMemo {
     /// Y coordinates memoization by track, which modified its length
     y_by_track: BTreeMap<Track, Decimal>,
     speed_changes: BTreeMap<ObjTime, SpeedObj>,
@@ -308,7 +205,8 @@ impl YMemo {
 impl AllEventsIndex {
     /// Precompute all events, store grouped by Y coordinate
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
-    fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms, y_memo: &YMemo) -> Self {
+    #[must_use]
+    pub fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms, y_memo: &YMemo) -> Self {
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
@@ -495,7 +393,8 @@ impl AllEventsIndex {
 }
 
 /// Precompute absolute `activate_time` for all events based on BPM segmentation and Stops.
-fn precompute_activate_times(
+#[must_use]
+pub fn precompute_activate_times(
     bms: &Bms,
     all_events: &AllEventsIndex,
     y_memo: &YMemo,
@@ -610,8 +509,24 @@ fn precompute_activate_times(
     AllEventsIndex::new(new_map)
 }
 
+/// Generate a static chart event for a BMS note object.
+///
+/// This function converts a BMS `WavObj` into a `ChartEvent` with all necessary
+/// information, including note type, lane assignment, and long note duration.
+///
+/// # Type Parameters
+/// - `T`: Key layout mapper (e.g., `Beat5`, `Beat7`, `Beat10`)
+///
+/// # Parameters
+/// - `bms`: The parsed BMS chart data
+/// - `y_memo`: Y coordinate memoization for position calculation
+/// - `obj`: The note object to convert
+///
+/// # Returns
+/// - `ChartEvent::Note` for playable notes
+/// - `ChartEvent::Bgm` for BGM/background audio
 #[must_use]
-fn event_for_note_static<T: KeyLayoutMapper>(
+pub fn event_for_note_static<T: KeyLayoutMapper>(
     bms: &Bms,
     y_memo: &YMemo,
     obj: &WavObj,
