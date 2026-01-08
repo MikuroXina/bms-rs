@@ -7,7 +7,7 @@
 pub use super::types::{
     BaseBpm, BaseBpmGenerator, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources,
     DisplayRatio, FlowEvent, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, ParsedChart,
-    StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
+    PlaybackState, StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
 };
 
 // Re-export event types

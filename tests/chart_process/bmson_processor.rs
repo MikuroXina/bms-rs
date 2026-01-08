@@ -75,7 +75,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
 
     // Find the note and assert continue_play duration
     let mut found = false;
-    for (ev, _) in processor.visible_events() {
+    for (ev, _) in processor.visible_events().unwrap() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -124,7 +124,7 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     let _ = processor.update(start_time + TimeSpan::MILLISECOND * 100);
 
     let mut got_any_ratio = false;
-    for (ev, ratio_range) in processor.visible_events() {
+    for (ev, ratio_range) in processor.visible_events().unwrap() {
         if matches!(ev.event(), ChartEvent::Note { .. }) {
             let ratio = ratio_range.start().value().to_f64().unwrap_or(0.0);
             // Expected value after precision fix: 0.8333... (5/6)
@@ -174,10 +174,16 @@ fn test_bmson_start_play_resets_scroll_to_one() {
 
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
     let _ = processor.update(after_scroll);
-    assert_ne!(*processor.current_scroll(), Decimal::one());
+    assert_ne!(
+        *processor.playback_state().unwrap().current_scroll(),
+        Decimal::one()
+    );
 
     processor.start_play(after_scroll + TimeSpan::SECOND);
-    assert_eq!(*processor.current_scroll(), Decimal::one());
+    assert_eq!(
+        *processor.playback_state().unwrap().current_scroll(),
+        Decimal::one()
+    );
 }
 
 #[test]
@@ -273,7 +279,7 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     let _ = processor.update(t);
 
     let mut found = false;
-    for (ev, _) in processor.visible_events() {
+    for (ev, _) in processor.visible_events().unwrap() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -336,7 +342,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     let mut some_count = 0;
     let mut none_count = 0;
     let mut durations = Vec::new();
-    for (ev, _) in processor.visible_events() {
+    for (ev, _) in processor.visible_events().unwrap() {
         if let ChartEvent::Note { continue_play, .. } = ev.event() {
             match continue_play {
                 Some(d) => {
@@ -416,7 +422,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let _ = processor.update(t);
 
     let mut found = false;
-    for (ev, _) in processor.visible_events() {
+    for (ev, _) in processor.visible_events().unwrap() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -477,7 +483,7 @@ fn test_bmson_continue_independent_across_sound_channels() {
 
     let mut durations = Vec::new();
     let mut none_count = 0;
-    for (ev, _) in processor.visible_events() {
+    for (ev, _) in processor.visible_events().unwrap() {
         if let ChartEvent::Note { continue_play, .. } = ev.event() {
             match continue_play {
                 Some(d) => durations.push(d.as_secs_f64()),
@@ -533,7 +539,7 @@ fn test_bmson_visible_event_activate_time_prediction() {
     processor.start_play(start_time);
 
     let _ = processor.update(start_time);
-    let events = processor.visible_events();
+    let events = processor.visible_events().unwrap();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -578,7 +584,7 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
-    let events = processor.visible_events();
+    let events = processor.visible_events().unwrap();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -623,7 +629,7 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
-    let events = processor.visible_events();
+    let events = processor.visible_events().unwrap();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -669,16 +675,22 @@ fn test_bmson_visible_events_duration_matches_reaction_time() {
     processor.start_play(start_time);
 
     // Verify standard conditions
-    assert_eq!(*processor.current_bpm(), Decimal::from(120));
-    assert_eq!(*processor.playback_ratio(), Decimal::one());
+    assert_eq!(
+        *processor.playback_state().unwrap().current_bpm(),
+        Decimal::from(120)
+    );
+    assert_eq!(
+        *processor.playback_state().unwrap().playback_ratio(),
+        Decimal::one()
+    );
 
     // Calculate expected visible window Y
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let visible_window_y = visible_range.window_y(
-        processor.current_bpm(),
+        processor.playback_state().unwrap().current_bpm(),
         &Decimal::one(), // BMSON has no current_speed
-        processor.playback_ratio(),
+        processor.playback_state().unwrap().playback_ratio(),
     );
 
     // Calculate time to cross window
@@ -729,8 +741,11 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
 
-    let visible_window_y_ratio_1 =
-        visible_range.window_y(processor.current_bpm(), &Decimal::one(), &Decimal::one());
+    let visible_window_y_ratio_1 = visible_range.window_y(
+        processor.playback_state().unwrap().current_bpm(),
+        &Decimal::one(),
+        &Decimal::one(),
+    );
 
     // Set playback_ratio to 0.5
     processor.post_events(std::iter::once(ControlEvent::SetPlaybackRatio {
@@ -738,13 +753,16 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
     }));
 
     // Verify playback_ratio changed
-    assert_eq!(*processor.playback_ratio(), Decimal::from(0.5));
+    assert_eq!(
+        *processor.playback_state().unwrap().playback_ratio(),
+        Decimal::from(0.5)
+    );
 
     // Get new visible_window_y (playback_ratio = 0.5)
     let visible_window_y_ratio_0_5 = visible_range.window_y(
-        processor.current_bpm(),
+        processor.playback_state().unwrap().current_bpm(),
         &Decimal::one(),
-        processor.playback_ratio(),
+        processor.playback_state().unwrap().playback_ratio(),
     );
 
     // Verify: visible_window_y should halve when playback_ratio halves
