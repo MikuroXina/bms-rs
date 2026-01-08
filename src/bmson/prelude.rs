@@ -20,10 +20,8 @@ pub use super::bms_to_bmson::{BmsToBmsonOutput, BmsToBmsonWarning};
 pub use super::bmson_to_bms::{BmsonToBmsOutput, BmsonToBmsWarning};
 
 // Re-export utility types
-pub use super::{
-    fin_f64::{FinF64, TryFromFloatError},
-    pulse::{PulseConverter, PulseNumber},
-};
+pub use super::pulse::{PulseConverter, PulseNumber};
+pub use strict_num_extended::FinF64;
 
 // Re-export parsing functions and types
 pub use super::{BmsonParseError, BmsonParseOutput, parse_bmson};

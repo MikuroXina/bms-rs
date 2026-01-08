@@ -28,7 +28,6 @@
 
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
-pub mod fin_f64;
 pub mod parse;
 pub mod prelude;
 pub mod pulse;
@@ -49,13 +48,14 @@ use crate::bms::command::LnMode;
 use crate::diagnostics::{ToAriadne, build_report};
 
 use self::{
-    fin_f64::FinF64,
     parse::{
         Error as JsonError, Recovered as JsonRecovered, Warning as JsonWarning, parser,
         split_chumsky_errors,
     },
     pulse::PulseNumber,
 };
+
+use strict_num_extended::FinF64;
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

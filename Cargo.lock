@@ -48,6 +48,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "strict-num-extended",
  "thiserror",
 ]
 
@@ -430,6 +431,27 @@ dependencies = [
  "libc",
  "psm",
  "windows-sys",
+]
+
+[[package]]
+name = "strict-num-extended"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86e6769e4b18751f33577ec3df7f97f3f6c7705a2f7f677e09e85f1faeab7585"
+dependencies = [
+ "serde",
+ "strict-num-extended-macros",
+]
+
+[[package]]
+name = "strict-num-extended-macros"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf1ba78723c2ab66fba2a7c3f637a94c4aec5ce00a288334a36f5e97c97e2771"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
