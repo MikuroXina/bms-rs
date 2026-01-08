@@ -97,12 +97,9 @@ impl ChartPlayer {
     /// Update playback to the given time, return triggered events.
     ///
     /// Returns empty vec if playback has not started.
-    pub fn update(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
+    pub fn update(&mut self, now: TimeStamp) -> Option<Vec<PlayheadEvent>> {
         // Early return if not started
-        let state = match self.playback_state.as_ref() {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
+        let state = self.playback_state.as_ref()?;
 
         let prev_y = state.progressed_y.clone();
         let speed = state.current_speed.clone();
@@ -142,7 +139,7 @@ impl ChartPlayer {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        triggered_events
+        Some(triggered_events)
     }
 
     /// Post control events to the player.

@@ -69,20 +69,20 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     processor.start_play(start_time);
 
     // Verify initial state
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_bpm(), Decimal::from(120));
-    assert_eq!(*state.current_speed(), Decimal::one());
-    assert_eq!(*state.current_scroll(), Decimal::one());
+    let initial_state = processor.playback_state().unwrap();
+    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
+    assert_eq!(*initial_state.current_speed(), Decimal::one());
+    assert_eq!(*initial_state.current_scroll(), Decimal::one());
 
     // Advance to first change point
     let after_first_change = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_change);
 
-    let state = processor.playback_state().unwrap();
+    let current_state = processor.playback_state().unwrap();
     let visible_window_y = processor.visible_range_per_bpm().window_y(
-        state.current_bpm(),
-        state.current_speed(),
-        state.playback_ratio(),
+        current_state.current_bpm(),
+        current_state.current_speed(),
+        current_state.playback_ratio(),
     );
     assert!(
         visible_window_y.as_ref() > &Decimal::zero(),
@@ -172,8 +172,8 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     processor.start_play(start_time);
 
     // Initial state: BPM = 151
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_bpm(), Decimal::from(151));
+    let initial_state = processor.playback_state().unwrap();
+    assert_eq!(*initial_state.current_bpm(), Decimal::from(151));
 
     // Advance to first BPM change point
     // Note: With new playhead speed (1/240), speed is half of original (1/120)
@@ -183,8 +183,8 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let bpm_75_5 = Decimal::from_str("75.5").unwrap_or_else(|err| {
         panic!("Failed to parse Decimal literal in test: {err:?}");
     });
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_bpm(), bpm_75_5);
+    let changed_state = processor.playback_state().unwrap();
+    assert_eq!(*changed_state.current_bpm(), bpm_75_5);
 
     // Get visible events after BPM change
     let after_bpm_events = processor.visible_events().unwrap();
@@ -210,8 +210,8 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     processor.start_play(start_time);
 
     // Verify initial state：Scroll = 1.0
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_scroll(), Decimal::one());
+    let initial_state = processor.playback_state().unwrap();
+    assert_eq!(*initial_state.current_scroll(), Decimal::one());
 
     // Get initial visible events and their display ratios
     let initial_events = processor.visible_events().unwrap();
@@ -229,8 +229,8 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     // Advance to first Scroll change point (still 1.0)
     let after_first_scroll = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_scroll);
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_scroll(), Decimal::one());
+    let first_scroll_state = processor.playback_state().unwrap();
+    assert_eq!(*first_scroll_state.current_scroll(), Decimal::one());
 
     let after_first_ratios: Vec<f64> = processor
         .visible_events()
@@ -262,8 +262,8 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let scroll_half = Decimal::from_str("0.5").unwrap_or_else(|err| {
         panic!("Failed to parse Decimal literal in test: {err:?}");
     });
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_scroll(), scroll_half);
+    let half_scroll_state = processor.playback_state().unwrap();
+    assert_eq!(*half_scroll_state.current_scroll(), scroll_half);
 
     let after_scroll_half_ratios: Vec<f64> = processor
         .visible_events()
@@ -337,7 +337,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
 
     let elapsed = TimeSpan::SECOND * 3;
     let now = start_time + elapsed;
-    let events = processor.update(now);
+    let events = processor.update(now).unwrap();
     assert!(
         !events.is_empty(),
         "Expected triggered events after {:?} elapsed",
@@ -432,12 +432,12 @@ fn test_bms_start_play_resets_scroll_to_one() {
 
     let after_scroll_change = start_time + TimeSpan::MILLISECOND * 2700;
     let _ = processor.update(after_scroll_change);
-    let state = processor.playback_state().unwrap();
-    assert_ne!(*state.current_scroll(), Decimal::one());
+    let changed_state = processor.playback_state().unwrap();
+    assert_ne!(*changed_state.current_scroll(), Decimal::one());
 
     processor.start_play(after_scroll_change + TimeSpan::SECOND);
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_scroll(), Decimal::one());
+    let reset_state = processor.playback_state().unwrap();
+    assert_eq!(*reset_state.current_scroll(), Decimal::one());
 }
 
 #[test]
@@ -458,19 +458,19 @@ fn test_visible_events_duration_matches_reaction_time() {
     processor.start_play(start_time);
 
     // Verify standard conditions
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_bpm(), Decimal::from(120));
-    assert_eq!(*state.current_speed(), Decimal::one());
-    assert_eq!(*state.playback_ratio(), Decimal::one());
+    let initial_state = processor.playback_state().unwrap();
+    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
+    assert_eq!(*initial_state.current_speed(), Decimal::one());
+    assert_eq!(*initial_state.playback_ratio(), Decimal::one());
 
     // Calculate expected visible window Y
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let state = processor.playback_state().unwrap();
+    let current_state = processor.playback_state().unwrap();
     let visible_window_y = visible_range.window_y(
-        state.current_bpm(),
-        state.current_speed(),
-        state.playback_ratio(),
+        current_state.current_bpm(),
+        current_state.current_speed(),
+        current_state.playback_ratio(),
     );
 
     // Calculate time to cross window
@@ -504,9 +504,9 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     processor.start_play(start_time);
 
     // Verify initial state
-    let state = processor.playback_state().unwrap();
-    assert_eq!(*state.current_bpm(), Decimal::from(120));
-    assert_eq!(*state.current_scroll(), Decimal::one());
+    let initial_state = processor.playback_state().unwrap();
+    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
+    assert_eq!(*initial_state.current_scroll(), Decimal::one());
 
     // Advance past the first BPM and Scroll change point
     // The bemuse_ext.bms file has BPM and Scroll changes at specific positions
@@ -521,13 +521,13 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 
     // Verify that BPM and/or Scroll have potentially changed
     // We just check that the state is valid (not necessarily changed in this specific file)
-    let state = processor.playback_state().unwrap();
+    let current_state = processor.playback_state().unwrap();
     assert!(
-        *state.current_bpm() > Decimal::zero(),
+        *current_state.current_bpm() > Decimal::zero(),
         "BPM should be valid"
     );
     assert!(
-        *state.current_scroll() > Decimal::zero(),
+        *current_state.current_scroll() > Decimal::zero(),
         "Scroll should be valid"
     );
 
