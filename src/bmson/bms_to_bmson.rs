@@ -13,10 +13,11 @@ use crate::{
     bms::prelude::*,
     bmson::{
         BarLine, Bga, BgaEvent, BgaHeader, BgaId, Bmson, BmsonInfo, BpmEvent, KeyChannel, KeyEvent,
-        MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent, fin_f64::FinF64,
-        pulse::PulseConverter,
+        MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent, pulse::PulseConverter,
     },
 };
+
+use strict_num_extended::FinF64;
 
 /// Warnings that occur during conversion from `Bms` to `Bmson`.
 #[derive(Debug, Clone, Copy, Error, PartialEq, Eq, Hash)]
@@ -80,6 +81,7 @@ impl Bms {
             Some(JudgeLevel::Hard) => HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
         })
+        .ok()
         .unwrap_or_else(|| {
             warnings.push(BmsToBmsonWarning::InvalidJudgeRank);
             finite(1.0)
@@ -96,19 +98,20 @@ impl Bms {
             })
             .collect();
 
-        let bpm_events =
-            self.bpm
-                .bpm_changes
-                .values()
-                .map(|bpm_change| BpmEvent {
-                    y: converter.get_pulses_at(bpm_change.time),
-                    bpm: FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0))
-                        .unwrap_or_else(|| {
-                            warnings.push(BmsToBmsonWarning::InvalidBpm);
-                            finite(120.0)
-                        }),
-                })
-                .collect();
+        let bpm_events = self
+            .bpm
+            .bpm_changes
+            .values()
+            .map(|bpm_change| BpmEvent {
+                y: converter.get_pulses_at(bpm_change.time),
+                bpm: FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0))
+                    .ok()
+                    .unwrap_or_else(|| {
+                        warnings.push(BmsToBmsonWarning::InvalidBpm);
+                        finite(120.0)
+                    }),
+            })
+            .collect();
 
         let stop_events = self
             .stop
@@ -157,7 +160,7 @@ impl Bms {
                     },
                     |bpm| bpm.to_f64().unwrap_or(120.0),
                 );
-                FinF64::new(bpm_value).unwrap_or_else(|| {
+                FinF64::new(bpm_value).ok().unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidBpm);
                     finite(120.0)
                 })
@@ -171,7 +174,7 @@ impl Bms {
                     },
                     |total| total.to_f64().unwrap_or(100.0),
                 );
-                FinF64::new(total_value).unwrap_or_else(|| {
+                FinF64::new(total_value).ok().unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidTotal);
                     finite(100.0)
                 })
@@ -344,7 +347,8 @@ impl Bms {
             .scrolling_factor_changes
             .values()
             .filter_map(|scroll| {
-                let Some(rate) = FinF64::new(scroll.factor.clone().to_f64().unwrap_or(1.0)) else {
+                let Some(rate) = FinF64::new(scroll.factor.clone().to_f64().unwrap_or(1.0)).ok()
+                else {
                     warnings.push(BmsToBmsonWarning::InvalidScrollingFactor);
                     return None;
                 };

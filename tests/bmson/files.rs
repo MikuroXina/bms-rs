@@ -3,9 +3,10 @@
 use std::num::NonZeroU64;
 
 use bms_rs::bmson::{
-    BgaEvent, BgaHeader, BgaId, BmsonParseError, BpmEvent, fin_f64::FinF64, parse_bmson,
-    pulse::PulseNumber,
+    BgaEvent, BgaHeader, BgaId, BmsonParseError, BpmEvent, parse_bmson, pulse::PulseNumber,
 };
+
+use strict_num_extended::FinF64;
 
 #[test]
 fn test_bmson100_lostokens() {
