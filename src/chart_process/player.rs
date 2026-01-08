@@ -99,19 +99,23 @@ impl ChartPlayer {
     /// Returns empty vec if playback has not started.
     pub fn update(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
         // Early return if not started
-        if self.started_at.is_none() {
-            return Vec::new();
-        }
+        let state = match self.playback_state.as_ref() {
+            Some(s) => s,
+            None => return Vec::new(),
+        };
 
-        let state = self.playback_state.as_ref().unwrap();
         let prev_y = state.progressed_y.clone();
         let speed = state.current_speed.clone();
         self.step_to(now, &speed);
-        let state = self.playback_state.as_ref().unwrap();
-        let cur_y = state.progressed_y.clone();
+
+        let cur_y = self
+            .playback_state
+            .as_ref()
+            .map(|s| s.progressed_y.clone())
+            .unwrap_or_else(|| prev_y.clone());
 
         // Calculate preload range: current y + visible y range
-        let visible_y_length = self.visible_window_y(&state.current_speed);
+        let visible_y_length = self.visible_window_y(&speed);
         let preload_end_y = &cur_y + &visible_y_length;
 
         use std::ops::Bound::{Excluded, Included};
@@ -124,9 +128,9 @@ impl ChartPlayer {
         // Apply Speed changes
         for event in &triggered_events {
             if let ChartEvent::SpeedChange { factor } = event.event()
-                && let Some(state) = &mut self.playback_state
+                && let Some(s) = &mut self.playback_state
             {
-                state.current_speed = factor.clone();
+                s.current_speed = factor.clone();
             }
         }
 
@@ -362,7 +366,11 @@ impl ChartPlayer {
 
         let mut remaining_time = now - last;
         let mut cur_vel = self.calculate_velocity(speed);
-        let mut cur_y = self.playback_state.as_ref().unwrap().progressed_y.clone();
+        let mut cur_y = self
+            .playback_state
+            .as_ref()
+            .map(|s| s.progressed_y.clone())
+            .unwrap_or_else(YCoordinate::zero);
 
         // Advance in segments until time slice is used up
         loop {
@@ -455,10 +463,11 @@ impl ChartPlayer {
     pub fn update_preloaded_events(&mut self, preload_end_y: &YCoordinate) {
         use std::ops::Bound::{Excluded, Included};
 
-        let state = self
-            .playback_state
-            .as_ref()
-            .expect("playback_state should be Some");
+        let Some(state) = self.playback_state.as_ref() else {
+            self.preloaded_events.clear();
+            return;
+        };
+
         let cur_y = &state.progressed_y;
         let new_preloaded_events = self
             .all_events
