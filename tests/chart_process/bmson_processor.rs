@@ -11,7 +11,7 @@ use bms_rs::chart_process::prelude::*;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// Setup a BMSON processor for testing (without calling `start_play`)
+/// Setup a BMSON processor for testing
 fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> ChartPlayer {
     let output = parse_bmson(json);
     let Some(bmson) = output.bmson else {
@@ -29,7 +29,8 @@ fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> ChartPlayer {
     };
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
-    ChartPlayer::new(chart, visible_range_per_bpm)
+    let start_time = TimeStamp::now();
+    ChartPlayer::start(chart, visible_range_per_bpm, start_time)
 }
 
 #[test]
@@ -66,7 +67,6 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
 
     // Progress slightly so the note at y=0.5 is inside visible window (0.6 measure default)
     // Advance slightly to ensure y=0.5 enters the visible window (default 0.6 measure)
@@ -75,7 +75,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
 
     // Find the note and assert continue_play duration
     let mut found = false;
-    for (ev, _) in processor.visible_events().unwrap() {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -119,12 +119,11 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::start();
-    processor.start_play(start_time);
 
     let _ = processor.update(start_time + TimeSpan::MILLISECOND * 100);
 
     let mut got_any_ratio = false;
-    for (ev, ratio_range) in processor.visible_events().unwrap() {
+    for (ev, ratio_range) in processor.visible_events() {
         if matches!(ev.event(), ChartEvent::Note { .. }) {
             let ratio = ratio_range.start().value().to_f64().unwrap_or(0.0);
             // Expected value after precision fix: 0.8333... (5/6)
@@ -143,7 +142,7 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
 }
 
 #[test]
-fn test_bmson_start_play_resets_scroll_to_one() {
+fn test_bmson_restart_resets_scroll_to_one() {
     let json = r#"{
         "version": "1.0.0",
         "info": {
@@ -169,16 +168,16 @@ fn test_bmson_start_play_resets_scroll_to_one() {
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    let start_time = processor.started_at();
 
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
     let _ = processor.update(after_scroll);
-    let state = processor.playback_state().unwrap();
+    let state = processor.playback_state();
     assert_ne!(*state.current_scroll(), Decimal::one());
 
-    processor.start_play(after_scroll + TimeSpan::SECOND);
-    let reset_state = processor.playback_state().unwrap();
+    // Restart by creating a new player
+    let restarted_processor = setup_bmson_processor(json, reaction_time);
+    let reset_state = restarted_processor.playback_state();
     assert_eq!(*reset_state.current_scroll(), Decimal::one());
 }
 
@@ -206,7 +205,6 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
 
     let mut processor = setup_bmson_processor(json, TimeSpan::MILLISECOND * 600);
     let start_time = TimeStamp::start();
-    processor.start_play(start_time);
     let _events = processor.update(start_time + TimeSpan::SECOND * 2);
 
     let events = processor.events_in_time_range(
@@ -268,14 +266,13 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
 
     // Advance slightly to ensure y=0.25 enters the visible window (default 0.6 measure)
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
 
     let mut found = false;
-    for (ev, _) in processor.visible_events().unwrap() {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -330,7 +327,6 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     let reaction_time = TimeSpan::MILLISECOND * 5000;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
 
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
@@ -338,7 +334,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     let mut some_count = 0;
     let mut none_count = 0;
     let mut durations = Vec::new();
-    for (ev, _) in processor.visible_events().unwrap() {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note { continue_play, .. } = ev.event() {
             match continue_play {
                 Some(d) => {
@@ -408,7 +404,6 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
 
     // Advance to make the preload window cover the note at y=1.25
     // Note: With new playhead speed (1/240), speed is half of original (1/120)
@@ -418,7 +413,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let _ = processor.update(t);
 
     let mut found = false;
-    for (ev, _) in processor.visible_events().unwrap() {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -473,13 +468,12 @@ fn test_bmson_continue_independent_across_sound_channels() {
     let reaction_time = TimeSpan::MILLISECOND * 5000;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
 
     let mut durations = Vec::new();
     let mut none_count = 0;
-    for (ev, _) in processor.visible_events().unwrap() {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note { continue_play, .. } = ev.event() {
             match continue_play {
                 Some(d) => durations.push(d.as_secs_f64()),
@@ -532,10 +526,9 @@ fn test_bmson_visible_event_activate_time_prediction() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
 
     let _ = processor.update(start_time);
-    let events = processor.visible_events().unwrap();
+    let events = processor.visible_events();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -577,10 +570,9 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
     let reaction_time = TimeSpan::MILLISECOND * 2000;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
     let _ = processor.update(start_time);
 
-    let events = processor.visible_events().unwrap();
+    let events = processor.visible_events();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -622,10 +614,9 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
     let reaction_time = TimeSpan::MILLISECOND * 3000;
     let mut processor = setup_bmson_processor(json, reaction_time);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
     let _ = processor.update(start_time);
 
-    let events = processor.visible_events().unwrap();
+    let events = processor.visible_events();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -666,19 +657,18 @@ fn test_bmson_visible_events_duration_matches_reaction_time() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    let processor = setup_bmson_processor(json, reaction_time);
+    let _start_time = TimeStamp::start();
 
     // Verify standard conditions
-    let initial_state = processor.playback_state().unwrap();
+    let initial_state = processor.playback_state();
     assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
     assert_eq!(*initial_state.playback_ratio(), Decimal::one());
 
     // Calculate expected visible window Y
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let state = processor.playback_state().unwrap();
+    let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(
         state.current_bpm(),
         &Decimal::one(), // BMSON has no current_speed
@@ -726,14 +716,13 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    let _start_time = TimeStamp::start();
 
     // Get initial visible_window_y (playback_ratio = 1)
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
 
-    let state = processor.playback_state().unwrap();
+    let state = processor.playback_state();
     let visible_window_y_ratio_1 =
         visible_range.window_y(state.current_bpm(), &Decimal::one(), &Decimal::one());
 
@@ -743,11 +732,11 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
     }));
 
     // Verify playback_ratio changed
-    let changed_state = processor.playback_state().unwrap();
+    let changed_state = processor.playback_state();
     assert_eq!(*changed_state.playback_ratio(), Decimal::from(0.5));
 
     // Get new visible_window_y (playback_ratio = 0.5)
-    let state_0_5 = processor.playback_state().unwrap();
+    let state_0_5 = processor.playback_state();
     let visible_window_y_ratio_0_5 = visible_range.window_y(
         state_0_5.current_bpm(),
         &Decimal::one(),
