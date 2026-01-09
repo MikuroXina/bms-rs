@@ -10,7 +10,7 @@
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{ToPrimitive, Zero};
+use num::{One, ToPrimitive};
 
 use bms_rs::bms::Decimal;
 use bms_rs::bms::prelude::*;
@@ -131,9 +131,14 @@ fn test_very_long_elapsed_time_no_errors() {
 
     // Verify playback state is still valid
     let state = processor.playback_state();
-    assert!(
-        *state.current_bpm() > Decimal::zero(),
-        "BPM should remain positive after 30 days"
+    // BPM should be 180 after the BPM change event at y=240
+    let expected_bpm = Decimal::from(180);
+    assert_eq!(
+        *state.current_bpm(),
+        expected_bpm,
+        "BPM should be {} after 30 days, got {}",
+        expected_bpm,
+        state.current_bpm()
     );
 
     // Verify visible_events returns valid results
@@ -214,6 +219,8 @@ fn test_bms_zero_length_section_rejected_by_parser() {
 
 // ============================================================================
 // Test 2a-alt: BMS Edge Cases (very small but non-zero section length)
+// Test that ChartPlayer correctly handles events before, during, and after
+// a very small section to simulate zero-length section edge cases
 // ============================================================================
 
 #[test]
@@ -226,33 +233,82 @@ fn test_bms_very_small_section_no_division_by_zero() {
 #WAV01 test.wav
 
 // Set section 2 length to very small value (but greater than zero)
+// This simulates a near-zero-length section
 #00202:0.000001
 
-// Place note inside very small section
+// Note BEFORE the very small section (in section 1)
+#00111:01
+
+// Note INSIDE the very small section (section 2)
 #00211:01
 
-// Note in normal section for comparison
-#00111:01
+// Note AFTER the very small section (in section 3)
+#00311:01
 "#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
     let start_time = TimeStamp::start();
 
-    // Should parse and initialize normally without panic
-    let _ = processor.update(start_time + TimeSpan::SECOND * 2);
+    // Progress through multiple update calls to ensure we pass through all sections
+    // First update: process initial section
+    let _ = processor.update(start_time + TimeSpan::SECOND);
+    let events1 = processor.visible_events();
+    let count1 = events1.len();
 
-    // Verify visible_events returns valid results
-    let events = processor.visible_events();
-    for (_ev, ratio_range) in events {
+    // Second update: move past the very small section
+    let _ = processor.update(start_time + TimeSpan::SECOND * 5);
+    let events2 = processor.visible_events();
+    let count2 = events2.len();
+
+    // Third update: ensure we've processed all sections
+    let _ = processor.update(start_time + TimeSpan::SECOND * 10);
+    let events3 = processor.visible_events();
+
+    // Verify that we processed events without panicking
+    // The exact count may vary, but we should have some events
+    assert!(
+        count1 + count2 + events3.len() > 0,
+        "Should have processed some events across all sections"
+    );
+
+    // Verify all visible_events return valid results (no division by zero)
+    for (_ev, ratio_range) in events1.iter().chain(events2.iter()).chain(events3.iter()) {
         // Ensure no NaN or infinite values caused by division by zero
         let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
         assert!(
             ratio_start.is_finite(),
-            "display_ratio should be finite with very small section length, got {}",
+            "display_ratio start should be finite with very small section length, got {}",
             ratio_start
         );
+        assert!(
+            ratio_end.is_finite(),
+            "display_ratio end should be finite with very small section length, got {}",
+            ratio_end
+        );
     }
+
+    // Additional verification: check that playback state remains consistent
+    let state = processor.playback_state();
+    // BPM should be 120 (the initial BPM in the BMS)
+    let expected_bpm = Decimal::from(120);
+    assert_eq!(
+        *state.current_bpm(),
+        expected_bpm,
+        "BPM should be {} after processing very small section, got {}",
+        expected_bpm,
+        state.current_bpm()
+    );
+    // Speed should be 1.0 (initial speed)
+    let expected_speed = Decimal::one();
+    assert_eq!(
+        *state.current_speed(),
+        expected_speed,
+        "Speed should be {} after processing very small section, got {}",
+        expected_speed,
+        state.current_speed()
+    );
 }
 
 // ============================================================================
