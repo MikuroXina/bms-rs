@@ -7,7 +7,7 @@
 pub use super::types::{
     BaseBpm, BaseBpmGenerator, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources,
     DisplayRatio, FlowEvent, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, ParsedChart,
-    PlaybackState, StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
+    StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
 };
 
 // Re-export event types
@@ -26,4 +26,4 @@ pub use super::bms_processor::BmsProcessor;
 pub use super::bmson_processor::BmsonProcessor;
 
 // Re-export ChartPlayer
-pub use super::player::ChartPlayer;
+pub use super::player::{ChartPlayer, PlaybackState};
