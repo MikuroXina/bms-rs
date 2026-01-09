@@ -174,8 +174,8 @@ fn test_bmson_start_play_resets_scroll_to_one() {
 
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
     let _ = processor.update(after_scroll);
-    let changed_state = processor.playback_state().unwrap();
-    assert_ne!(*changed_state.current_scroll(), Decimal::one());
+    let state = processor.playback_state().unwrap();
+    assert_ne!(*state.current_scroll(), Decimal::one());
 
     processor.start_play(after_scroll + TimeSpan::SECOND);
     let reset_state = processor.playback_state().unwrap();
@@ -678,11 +678,11 @@ fn test_bmson_visible_events_duration_matches_reaction_time() {
     // Calculate expected visible window Y
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let current_state = processor.playback_state().unwrap();
+    let state = processor.playback_state().unwrap();
     let visible_window_y = visible_range.window_y(
-        current_state.current_bpm(),
+        state.current_bpm(),
         &Decimal::one(), // BMSON has no current_speed
-        current_state.playback_ratio(),
+        state.playback_ratio(),
     );
 
     // Calculate time to cross window
@@ -733,12 +733,9 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
 
-    let initial_state = processor.playback_state().unwrap();
-    let visible_window_y_ratio_1 = visible_range.window_y(
-        initial_state.current_bpm(),
-        &Decimal::one(),
-        &Decimal::one(),
-    );
+    let state = processor.playback_state().unwrap();
+    let visible_window_y_ratio_1 =
+        visible_range.window_y(state.current_bpm(), &Decimal::one(), &Decimal::one());
 
     // Set playback_ratio to 0.5
     processor.post_events(std::iter::once(ControlEvent::SetPlaybackRatio {
@@ -750,11 +747,11 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
     assert_eq!(*changed_state.playback_ratio(), Decimal::from(0.5));
 
     // Get new visible_window_y (playback_ratio = 0.5)
-    let current_state = processor.playback_state().unwrap();
+    let state_0_5 = processor.playback_state().unwrap();
     let visible_window_y_ratio_0_5 = visible_range.window_y(
-        current_state.current_bpm(),
+        state_0_5.current_bpm(),
         &Decimal::one(),
-        current_state.playback_ratio(),
+        state_0_5.playback_ratio(),
     );
 
     // Verify: visible_window_y should halve when playback_ratio halves

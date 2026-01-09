@@ -78,11 +78,11 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let after_first_change = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_change);
 
-    let current_state = processor.playback_state().unwrap();
+    let state = processor.playback_state().unwrap();
     let visible_window_y = processor.visible_range_per_bpm().window_y(
-        current_state.current_bpm(),
-        current_state.current_speed(),
-        current_state.playback_ratio(),
+        state.current_bpm(),
+        state.current_speed(),
+        state.playback_ratio(),
     );
     assert!(
         visible_window_y.as_ref() > &Decimal::zero(),
@@ -183,8 +183,8 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let bpm_75_5 = Decimal::from_str("75.5").unwrap_or_else(|err| {
         panic!("Failed to parse Decimal literal in test: {err:?}");
     });
-    let changed_state = processor.playback_state().unwrap();
-    assert_eq!(*changed_state.current_bpm(), bpm_75_5);
+    let state = processor.playback_state().unwrap();
+    assert_eq!(*state.current_bpm(), bpm_75_5);
 
     // Get visible events after BPM change
     let after_bpm_events = processor.visible_events().unwrap();
@@ -229,8 +229,8 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     // Advance to first Scroll change point (still 1.0)
     let after_first_scroll = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_scroll);
-    let first_scroll_state = processor.playback_state().unwrap();
-    assert_eq!(*first_scroll_state.current_scroll(), Decimal::one());
+    let state = processor.playback_state().unwrap();
+    assert_eq!(*state.current_scroll(), Decimal::one());
 
     let after_first_ratios: Vec<f64> = processor
         .visible_events()
@@ -258,10 +258,10 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     // Advance to second Scroll change point (scroll 0.5)
     let after_scroll_half = after_first_scroll + TimeSpan::SECOND * 2;
-    let _ = processor.update(after_scroll_half);
     let scroll_half = Decimal::from_str("0.5").unwrap_or_else(|err| {
         panic!("Failed to parse Decimal literal in test: {err:?}");
     });
+    let _ = processor.update(after_scroll_half);
     let half_scroll_state = processor.playback_state().unwrap();
     assert_eq!(*half_scroll_state.current_scroll(), scroll_half);
 
@@ -432,8 +432,8 @@ fn test_bms_start_play_resets_scroll_to_one() {
 
     let after_scroll_change = start_time + TimeSpan::MILLISECOND * 2700;
     let _ = processor.update(after_scroll_change);
-    let changed_state = processor.playback_state().unwrap();
-    assert_ne!(*changed_state.current_scroll(), Decimal::one());
+    let state = processor.playback_state().unwrap();
+    assert_ne!(*state.current_scroll(), Decimal::one());
 
     processor.start_play(after_scroll_change + TimeSpan::SECOND);
     let reset_state = processor.playback_state().unwrap();
@@ -466,11 +466,11 @@ fn test_visible_events_duration_matches_reaction_time() {
     // Calculate expected visible window Y
     let base_bpm = BaseBpm::from(Decimal::from(120));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let current_state = processor.playback_state().unwrap();
+    let state = processor.playback_state().unwrap();
     let visible_window_y = visible_range.window_y(
-        current_state.current_bpm(),
-        current_state.current_speed(),
-        current_state.playback_ratio(),
+        state.current_bpm(),
+        state.current_speed(),
+        state.playback_ratio(),
     );
 
     // Calculate time to cross window
@@ -521,13 +521,13 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 
     // Verify that BPM and/or Scroll have potentially changed
     // We just check that the state is valid (not necessarily changed in this specific file)
-    let current_state = processor.playback_state().unwrap();
+    let state = processor.playback_state().unwrap();
     assert!(
-        *current_state.current_bpm() > Decimal::zero(),
+        *state.current_bpm() > Decimal::zero(),
         "BPM should be valid"
     );
     assert!(
-        *current_state.current_scroll() > Decimal::zero(),
+        *state.current_scroll() > Decimal::zero(),
         "Scroll should be valid"
     );
 
