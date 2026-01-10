@@ -69,6 +69,45 @@ impl<T: FromStr> StringValue<T> {
             value: Ok(value),
         }
     }
+
+    /// 从 `Result<T, R>` 创建 `StringValue`
+    ///
+    /// 允许从任何返回 `Result<T, R>` 的构造函数创建 `StringValue<T>`，
+    /// 只要错误类型 `R` 可以转换为 `<T as FromStr>::Err`。
+    ///
+    /// # 类型参数
+    /// - `R`: 源 Result 的错误类型，必须实现了 `Into<<T as FromStr>::Err>`
+    ///
+    /// # 示例
+    ///
+    /// 从 `FinF64::new` 创建（需要 `FinF64` 的错误类型实现了 `Into<ParseError>`）：
+    ///
+    /// ```text
+    /// # use bms_rs::bms::command::StringValue;
+    /// # use strict_num_extended::FinF64;
+    /// let fin_result = FinF64::new(120.0);
+    /// let sv = StringValue::from_result(fin_result);
+    /// ```
+    #[must_use]
+    pub fn from_result<R>(result: Result<T, R>) -> Self
+    where
+        T: ToString,
+        R: Into<<T as FromStr>::Err>,
+    {
+        match result {
+            Ok(value) => {
+                let string = value.to_string();
+                Self {
+                    string,
+                    value: Ok(value),
+                }
+            }
+            Err(err) => Self {
+                string: String::new(),
+                value: Err(err.into()),
+            },
+        }
+    }
 }
 
 impl<T> Clone for StringValue<T>
