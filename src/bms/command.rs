@@ -2,20 +2,54 @@
 //!
 //! Structures in this module can be used in [Lex] part, [Parse] part, and the output models.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{collections::{HashMap, HashSet, VecDeque}, str::FromStr};
 
 use super::parse::ParseWarning;
 
 pub mod channel;
 pub mod graphics;
+pub mod minor_command;
 pub mod mixin;
 pub mod time;
 
-/// Minor command types and utilities.
-///
-/// This module contains types and utilities for minor BMS commands that are only available
-/// when the `minor-command` feature is enabled.
-pub mod minor_command;
+/// Represents a string that should be convert to a value by `FromStr`, and stores the result.
+pub struct StringValue<T: FromStr> {
+    /// The original string.
+    pub string: String,
+    /// The parsed value or the parsing error.
+    pub value: Result<T, <T as FromStr>::Err>,
+}
+
+impl<T: FromStr> FromStr for StringValue<T> {
+    type Err = <T as FromStr>::Err;
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        let result = T::from_str(str);
+        Ok(StringValue {
+            string: str.to_string(),
+            value: result,
+        })
+    }
+}
+
+/// Represents a string slice that should be convert to a value by `FromStr`, and stores the result.
+pub struct StrValue<'a, T: FromStr> {
+    /// The original string slice.
+    pub str_ref: &'a str,
+    /// The parsed value or the parsing error.
+    pub value: Result<T, <T as FromStr>::Err>,
+}
+
+impl<'a, T: FromStr> StrValue<'a, T> {
+    /// 从字符串引用创建 `StrValue`，解析并存储结果。
+    #[must_use] 
+    pub fn parse(s: &'a str) -> Self {
+        let result = T::from_str(s);
+        StrValue {
+            str_ref: s,
+            value: result,
+        }
+    }
+}
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
