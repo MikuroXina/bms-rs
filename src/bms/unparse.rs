@@ -726,18 +726,30 @@ impl Bms {
 
         // Helper closures for mapping definitions
 
-        let bpm_value_to_id: HashMap<&'a Decimal, ObjId> =
-            self.bpm.bpm_defs.iter().map(|(k, v)| (v, *k)).collect();
-        let stop_value_to_id: HashMap<&'a Decimal, ObjId> =
-            self.stop.stop_defs.iter().map(|(k, v)| (v, *k)).collect();
-        let scroll_value_to_id: HashMap<&'a Decimal, ObjId> = self
+        let bpm_value_to_id: HashMap<&'a str, ObjId> = self
+            .bpm
+            .bpm_defs
+            .iter()
+            .map(|(k, v)| (v.string.as_str(), *k))
+            .collect();
+        let stop_value_to_id: HashMap<&'a str, ObjId> = self
+            .stop
+            .stop_defs
+            .iter()
+            .map(|(k, v)| (v.string.as_str(), *k))
+            .collect();
+        let scroll_value_to_id: HashMap<&'a str, ObjId> = self
             .scroll
             .scroll_defs
             .iter()
-            .map(|(k, v)| (v, *k))
+            .map(|(k, v)| (v.string.as_str(), *k))
             .collect();
-        let speed_value_to_id: HashMap<&'a Decimal, ObjId> =
-            self.speed.speed_defs.iter().map(|(k, v)| (v, *k)).collect();
+        let speed_value_to_id: HashMap<&'a str, ObjId> = self
+            .speed
+            .speed_defs
+            .iter()
+            .map(|(k, v)| (v.string.as_str(), *k))
+            .collect();
         let text_value_to_id: HashMap<&'a str, ObjId> = self
             .text
             .texts
@@ -751,8 +763,12 @@ impl Bms {
             .map(|(k, v)| (&v.judge_level, *k))
             .collect();
 
-        let seek_value_to_id: HashMap<&'a Decimal, ObjId> =
-            self.video.seek_defs.iter().map(|(k, v)| (v, *k)).collect();
+        let seek_value_to_id: HashMap<&'a str, ObjId> = self
+            .video
+            .seek_defs
+            .iter()
+            .map(|(k, v)| (v.string.as_str(), *k))
+            .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
         let mut bpm_message_tokens = Vec::new();
@@ -786,11 +802,11 @@ impl Bms {
         } = build_event_messages(
             self.bpm.bpm_changes.iter(),
             Some((
-                |id, bpm: &Decimal| Token::Header {
+                |id, bpm: &str| Token::Header {
                     name: format!("BPM{id}").into(),
                     args: bpm.to_string().into(),
                 },
-                |ev: &'a BpmChangeObj| &ev.bpm,
+                |ev: &'a BpmChangeObj| ev.bpm.string.as_str(),
                 &mut bpm_manager,
             )),
             |_ev| Channel::BpmChange,
@@ -816,11 +832,11 @@ impl Bms {
         } = build_event_messages(
             self.stop.stops.iter(),
             Some((
-                |id, duration: &Decimal| Token::Header {
+                |id, duration: &str| Token::Header {
                     name: format!("STOP{id}").into(),
                     args: duration.to_string().into(),
                 },
-                |ev: &'a StopObj| &ev.duration,
+                |ev: &'a StopObj| ev.duration.string.as_str(),
                 &mut stop_manager,
             )),
             |_ev| Channel::Stop,
@@ -842,11 +858,11 @@ impl Bms {
         } = build_event_messages(
             self.scroll.scrolling_factor_changes.iter(),
             Some((
-                |id, factor: &Decimal| Token::Header {
+                |id, factor: &str| Token::Header {
                     name: format!("SCROLL{id}").into(),
                     args: factor.to_string().into(),
                 },
-                |ev: &'a ScrollingFactorObj| &ev.factor,
+                |ev: &'a ScrollingFactorObj| ev.factor.string.as_str(),
                 &mut scroll_manager,
             )),
             |_ev| Channel::Scroll,
@@ -868,11 +884,11 @@ impl Bms {
         } = build_event_messages(
             self.speed.speed_factor_changes.iter(),
             Some((
-                |id, factor: &Decimal| Token::Header {
+                |id, factor: &str| Token::Header {
                     name: format!("SPEED{id}").into(),
                     args: factor.to_string().into(),
                 },
-                |ev: &'a SpeedObj| &ev.factor,
+                |ev: &'a SpeedObj| ev.factor.string.as_str(),
                 &mut speed_manager,
             )),
             |_ev| Channel::Speed,
@@ -1155,11 +1171,11 @@ impl Bms {
             } = build_event_messages(
                 self.video.seek_events.iter(),
                 Some((
-                    |id, position: &Decimal| Token::Header {
+                    |id, position: &str| Token::Header {
                         name: format!("SEEK{id}").into(),
                         args: position.to_string().into(),
                     },
-                    |ev: &'a SeekObj| &ev.position,
+                    |ev: &'a SeekObj| ev.position.string.as_str(),
                     &mut seek_manager,
                 )),
                 |_ev| Channel::Seek,

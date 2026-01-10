@@ -2,7 +2,12 @@
 //!
 //! Structures in this module can be used in [Lex] part, [Parse] part, and the output models.
 
-use std::{collections::{HashMap, HashSet, VecDeque}, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    str::FromStr,
+};
+
+use fraction::BigDecimal;
 
 use super::parse::ParseWarning;
 
@@ -31,6 +36,108 @@ impl<T: FromStr> FromStr for StringValue<T> {
     }
 }
 
+impl<T> Clone for StringValue<T>
+where
+    T: FromStr + Clone,
+    <T as FromStr>::Err: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            string: self.string.clone(),
+            value: self.value.clone(),
+        }
+    }
+}
+
+impl<T> std::fmt::Debug for StringValue<T>
+where
+    T: FromStr + std::fmt::Debug,
+    <T as FromStr>::Err: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StringValue")
+            .field("string", &self.string)
+            .field("value", &self.value)
+            .finish()
+    }
+}
+
+impl<T> PartialEq for StringValue<T>
+where
+    T: FromStr,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.string == other.string
+    }
+}
+
+impl<T> Eq for StringValue<T> where T: FromStr {}
+
+impl<T> std::hash::Hash for StringValue<T>
+where
+    T: FromStr + std::hash::Hash,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.string.hash(state);
+    }
+}
+
+impl<T> PartialOrd for StringValue<T>
+where
+    T: FromStr,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for StringValue<T>
+where
+    T: FromStr,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.string.cmp(&other.string)
+    }
+}
+
+impl<T> std::fmt::Display for StringValue<T>
+where
+    T: FromStr,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.string)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<T: FromStr> serde::Serialize for StringValue<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.string.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T: FromStr> serde::Deserialize<'de> for StringValue<T>
+where
+    T::Err: std::fmt::Display,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let string = String::deserialize(deserializer)?;
+        T::from_str(&string)
+            .map(|v| StringValue {
+                string,
+                value: Ok(v),
+            })
+            .map_err(|e| serde::de::Error::custom(format!("Parse error: {}", e)))
+    }
+}
+
 /// Represents a string slice that should be convert to a value by `FromStr`, and stores the result.
 pub struct StrValue<'a, T: FromStr> {
     /// The original string slice.
@@ -40,14 +147,45 @@ pub struct StrValue<'a, T: FromStr> {
 }
 
 impl<'a, T: FromStr> StrValue<'a, T> {
-    /// 从字符串引用创建 `StrValue`，解析并存储结果。
-    #[must_use] 
+    /// Creates `StrValue` from string reference, parses and stores the result.
+    #[must_use]
     pub fn parse(s: &'a str) -> Self {
         let result = T::from_str(s);
         StrValue {
             str_ref: s,
             value: result,
         }
+    }
+}
+
+impl StringValue<strict_num_extended::FinF64> {
+    /// Converts to f64 value for compatibility with existing code
+    #[must_use]
+    pub fn as_f64(&self) -> Option<f64> {
+        self.value
+            .as_ref()
+            .ok()
+            .map(strict_num_extended::FinF64::get)
+    }
+
+    /// 转换为 u64 值，用于生成随机数
+    #[must_use]
+    pub fn as_u64(&self) -> Option<u64> {
+        self.value.as_ref().ok().map(|v| v.get() as u64)
+    }
+
+    /// 转换为 `BigDecimal`
+    #[must_use]
+    pub fn as_big_decimal(&self) -> Option<BigDecimal> {
+        self.as_f64().map(BigDecimal::from)
+    }
+}
+
+impl StringValue<u64> {
+    /// 获取解析后的 u64 值
+    #[must_use]
+    pub fn as_u64(&self) -> Option<u64> {
+        self.value.as_ref().ok().copied()
     }
 }
 

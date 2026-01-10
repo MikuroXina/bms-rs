@@ -344,15 +344,15 @@ impl ChartPlayer {
     fn apply_flow_event(&mut self, event: FlowEvent) {
         match event {
             FlowEvent::Bpm(bpm) => {
+                self.playback_state.current_bpm = bpm.into();
                 self.mark_velocity_dirty();
-                self.playback_state.current_bpm = bpm;
             }
             FlowEvent::Speed(_s) => {
                 // Speed is format-specific (BMS only)
                 // Handled in update() method
             }
             FlowEvent::Scroll(s) => {
-                self.playback_state.current_scroll = s;
+                self.playback_state.current_scroll = s.into();
                 // Scroll doesn't affect velocity
             }
         }
@@ -618,13 +618,7 @@ mod tests {
         let y_event = YCoordinate::from(100.0);
 
         let mut flow_events_by_y = BTreeMap::new();
-        flow_events_by_y.insert(
-            y_event,
-            vec![
-                FlowEvent::Bpm(Decimal::from(180)),
-                FlowEvent::Scroll(Decimal::from(1.5)),
-            ],
-        );
+        flow_events_by_y.insert(y_event, vec![FlowEvent::Bpm(180.0), FlowEvent::Scroll(1.5)]);
 
         let chart = ParsedChart::new(
             ChartResources::new(HashMap::new(), HashMap::new()),
@@ -645,7 +639,7 @@ mod tests {
         assert_eq!(player.playback_state().current_scroll(), &Decimal::one());
 
         // Apply BPM change
-        player.apply_flow_event(FlowEvent::Bpm(Decimal::from(180)));
+        player.apply_flow_event(FlowEvent::Bpm(180.0));
 
         assert_eq!(player.playback_state().current_bpm(), &Decimal::from(180));
         assert!(player.velocity_dirty);
@@ -677,13 +671,7 @@ mod tests {
         let y_event = YCoordinate::from(100.0);
 
         let mut flow_events_by_y = BTreeMap::new();
-        flow_events_by_y.insert(
-            y_event,
-            vec![
-                FlowEvent::Bpm(Decimal::from(180)),
-                FlowEvent::Scroll(Decimal::from(1.5)),
-            ],
-        );
+        flow_events_by_y.insert(y_event, vec![FlowEvent::Bpm(180.0), FlowEvent::Scroll(1.5)]);
 
         let chart = ParsedChart::new(
             ChartResources::new(HashMap::new(), HashMap::new()),

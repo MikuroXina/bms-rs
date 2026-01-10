@@ -91,14 +91,14 @@ impl BmsonProcessor {
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Bpm(ev.bpm.as_f64().into()));
+                .push(FlowEvent::Bpm(ev.bpm.as_f64()));
         }
         for ScrollEvent { y, rate } in &bmson.scroll_events {
             let y = pulses_to_y(y.0 as i64);
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Scroll(rate.as_f64().into()));
+                .push(FlowEvent::Scroll(rate.as_f64()));
         }
 
         let all_events =

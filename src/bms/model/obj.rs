@@ -1,13 +1,11 @@
 //! Definitions of the note object.
 
-use crate::bms::{
-    Decimal,
-    command::{
-        JudgeLevel, ObjId,
-        channel::{Channel, NoteChannelId},
-        time::{ObjTime, Track},
-    },
+use crate::bms::command::{
+    JudgeLevel, ObjId, StringValue,
+    channel::{Channel, NoteChannelId},
+    time::{ObjTime, Track},
 };
+use strict_num_extended::FinF64;
 
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
@@ -54,7 +52,7 @@ pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The BPM to be.
-    pub bpm: Decimal,
+    pub bpm: StringValue<FinF64>,
 }
 
 impl PartialEq for BpmChangeObj {
@@ -84,7 +82,7 @@ pub struct SectionLenChangeObj {
     /// The target track to change.
     pub track: Track,
     /// The length to be.
-    pub length: Decimal,
+    pub length: StringValue<FinF64>,
 }
 
 impl PartialEq for SectionLenChangeObj {
@@ -116,7 +114,7 @@ pub struct StopObj {
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: Decimal,
+    pub duration: StringValue<FinF64>,
 }
 
 impl PartialEq for StopObj {
@@ -224,7 +222,7 @@ pub struct ScrollingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The scrolling factor to be.
-    pub factor: Decimal,
+    pub factor: StringValue<FinF64>,
 }
 
 impl PartialEq for ScrollingFactorObj {
@@ -254,7 +252,7 @@ pub struct SpeedObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The spacing factor to be.
-    pub factor: Decimal,
+    pub factor: StringValue<FinF64>,
 }
 
 impl PartialEq for SpeedObj {
@@ -328,7 +326,7 @@ pub struct SeekObj {
     /// The time which the seek event is on.
     pub time: ObjTime,
     /// The seek position value.
-    pub position: Decimal,
+    pub position: StringValue<FinF64>,
 }
 
 /// An object to display text.

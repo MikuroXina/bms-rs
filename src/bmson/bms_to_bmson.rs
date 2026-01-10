@@ -6,7 +6,6 @@ use std::{
     num::{NonZeroU8, NonZeroU64},
 };
 
-use num::ToPrimitive;
 use thiserror::Error;
 
 use crate::{
@@ -104,7 +103,7 @@ impl Bms {
             .values()
             .map(|bpm_change| BpmEvent {
                 y: converter.get_pulses_at(bpm_change.time),
-                bpm: FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0))
+                bpm: FinF64::new(bpm_change.bpm.as_f64().unwrap_or(120.0))
                     .ok()
                     .unwrap_or_else(|| {
                         warnings.push(BmsToBmsonWarning::InvalidBpm);
@@ -118,7 +117,7 @@ impl Bms {
             .stops
             .values()
             .filter_map(|stop| {
-                stop.duration.to_f64().map(|f64_value| StopEvent {
+                stop.duration.as_f64().map(|f64_value| StopEvent {
                     y: converter.get_pulses_at(stop.time),
                     duration: f64_value as u64,
                 })
@@ -158,7 +157,7 @@ impl Bms {
                         warnings.push(BmsToBmsonWarning::MissingBpm);
                         120.0
                     },
-                    |bpm| bpm.to_f64().unwrap_or(120.0),
+                    |bpm| bpm.as_f64().unwrap_or(120.0),
                 );
                 FinF64::new(bpm_value).ok().unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidBpm);
@@ -172,7 +171,7 @@ impl Bms {
                         warnings.push(BmsToBmsonWarning::MissingTotal);
                         100.0
                     },
-                    |total| total.to_f64().unwrap_or(100.0),
+                    |total| total.as_f64().unwrap_or(100.0),
                 );
                 FinF64::new(total_value).ok().unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidTotal);
@@ -347,8 +346,7 @@ impl Bms {
             .scrolling_factor_changes
             .values()
             .filter_map(|scroll| {
-                let Some(rate) = FinF64::new(scroll.factor.clone().to_f64().unwrap_or(1.0)).ok()
-                else {
+                let Some(rate) = FinF64::new(scroll.factor.as_f64().unwrap_or(1.0)).ok() else {
                     warnings.push(BmsToBmsonWarning::InvalidScrollingFactor);
                     return None;
                 };

@@ -6,9 +6,7 @@
 //! - `#DEFEXRANK mode` - Custom judgement level option.
 //! - `#TOTAL n` - Gauge increasing rate option. When the player played perfect, the gauge will increase the amount of `n`%.
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
-
-use fraction::GenericFraction;
+use std::{cell::RefCell, rc::Rc};
 
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_ids};
 use crate::bms::ParseErrorWithRange;
@@ -112,10 +110,9 @@ impl JudgeProcessor {
                 .insert(id, ExRankDef { id, judge_level });
         }
         if name.eq_ignore_ascii_case("TOTAL") {
-            let total = Decimal::from_fraction(
-                GenericFraction::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
-            );
+            let total = args
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?;
             objects.total = Some(total);
         }
         Ok(())

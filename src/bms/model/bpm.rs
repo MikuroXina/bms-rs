@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 
+use strict_num_extended::FinF64;
+
 use crate::bms::{
+    command::StringValue,
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
@@ -12,11 +15,11 @@ use crate::bms::{
 /// This aggregate manages definition and events of BPM change on playing.
 pub struct BpmObjects {
     /// The initial BPM of the score.
-    pub bpm: Option<Decimal>,
+    pub bpm: Option<StringValue<FinF64>>,
     /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
-    pub bpm_defs: HashMap<ObjId, Decimal>,
+    pub bpm_defs: HashMap<ObjId, StringValue<FinF64>>,
     /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
-    pub base_bpm: Option<Decimal>,
+    pub base_bpm: Option<StringValue<FinF64>>,
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
@@ -101,13 +104,31 @@ impl BpmObjects {
             }
             Entry::Occupied(mut entry) => {
                 let existing = entry.get();
+                let older_bpm_val = format!("{}", *existing)
+                    .parse::<StringValue<FinF64>>()
+                    .unwrap_or_else(|_| StringValue {
+                        string: format!("{}", *existing),
+                        value: Ok(FinF64::new(*existing as f64).unwrap_or_else(|_| {
+                            strict_num_extended::FinF64::new(0.0)
+                                .expect("Failed to create FinF64 from 0.0")
+                        })),
+                    });
+                let newer_bpm_val = format!("{}", bpm_change)
+                    .parse::<StringValue<FinF64>>()
+                    .unwrap_or_else(|_| StringValue {
+                        string: format!("{}", bpm_change),
+                        value: Ok(FinF64::new(bpm_change as f64).unwrap_or_else(|_| {
+                            strict_num_extended::FinF64::new(0.0)
+                                .expect("Failed to create FinF64 from 0.0")
+                        })),
+                    });
                 let older = BpmChangeObj {
                     time,
-                    bpm: Decimal::from(*existing),
+                    bpm: older_bpm_val,
                 };
                 let newer = BpmChangeObj {
                     time,
-                    bpm: Decimal::from(bpm_change),
+                    bpm: newer_bpm_val,
                 };
                 prompt_handler
                     .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {

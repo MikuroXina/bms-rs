@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use num::BigUint;
+use crate::bms::command::StringValue;
 
 use crate::bms::model::Bms;
 use crate::bms::prelude::*;
@@ -17,9 +17,9 @@ use crate::bms::rng::Rng;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowValue {
     /// Use a fixed value (emits `#SETRANDOM <value>`).
-    Set(BigUint),
+    Set(StringValue<u64>),
     /// Generate a random value with the given maximum (emits `#RANDOM <max>`).
-    GenMax(BigUint),
+    GenMax(StringValue<u64>),
 }
 
 /// A branch in a randomized block.
@@ -27,7 +27,7 @@ pub enum ControlFlowValue {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RandomizedBranch {
     /// The condition value for this branch (e.g. `1` for `#IF 1` or `#CASE 1`).
-    pub condition: BigUint,
+    pub condition: StringValue<u64>,
     /// The content of this branch, parsed as a BMS object.
     pub sub: Box<Bms>,
 }
@@ -35,7 +35,7 @@ pub struct RandomizedBranch {
 impl RandomizedBranch {
     /// Create a new randomized branch.
     #[must_use]
-    pub fn new(condition: BigUint, sub: Bms) -> Self {
+    pub fn new(condition: StringValue<u64>, sub: Bms) -> Self {
         Self {
             condition,
             sub: Box::new(sub),
@@ -44,7 +44,7 @@ impl RandomizedBranch {
 
     /// Get the condition value.
     #[must_use]
-    pub const fn condition(&self) -> &BigUint {
+    pub const fn condition(&self) -> &StringValue<u64> {
         &self.condition
     }
 
@@ -69,7 +69,7 @@ pub struct RandomizedObjects {
     /// The control flow value generator.
     pub generating: Option<ControlFlowValue>,
     /// The branches, mapped by their condition value.
-    pub branches: BTreeMap<BigUint, RandomizedBranch>,
+    pub branches: BTreeMap<StringValue<u64>, RandomizedBranch>,
 }
 
 impl RandomizedObjects {
@@ -137,21 +137,21 @@ impl RandomizedObjects {
     ///
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
     #[must_use]
-    pub fn branch(&self, condition: BigUint) -> Option<&RandomizedBranch> {
+    pub fn branch(&self, condition: StringValue<u64>) -> Option<&RandomizedBranch> {
         self.branches.get(&condition)
     }
 
     /// Returns a mutable reference to the branch with the given condition value.
     ///
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
-    pub fn branch_mut(&mut self, condition: BigUint) -> Option<&mut RandomizedBranch> {
+    pub fn branch_mut(&mut self, condition: StringValue<u64>) -> Option<&mut RandomizedBranch> {
         self.branches.get_mut(&condition)
     }
 
     /// Returns a mutable reference to the branch entry for `condition`.
     ///
     /// If the branch does not exist, a new one with an empty `Bms` is inserted and returned.
-    pub fn branch_entry(&mut self, condition: BigUint) -> &mut RandomizedBranch {
+    pub fn branch_entry(&mut self, condition: StringValue<u64>) -> &mut RandomizedBranch {
         self.branches
             .entry(condition)
             .or_insert_with_key(|cond| RandomizedBranch::new(cond.clone(), Bms::default()))
@@ -183,7 +183,16 @@ impl RandomizedObjects {
     pub fn evaluate(&self, mut rng: impl Rng) -> Bms {
         let val = match &self.generating {
             Some(ControlFlowValue::Set(v)) => v.clone(),
-            Some(ControlFlowValue::GenMax(max)) => rng.generate(BigUint::from(1u64)..=max.clone()),
+            Some(ControlFlowValue::GenMax(max)) => {
+                let max_u64 = max.as_u64().unwrap_or(1);
+                let generated =
+                    rng.generate(num::BigUint::from(1u64)..=num::BigUint::from(max_u64));
+                let generated_u64: u64 = generated.try_into().unwrap_or(1);
+                StringValue {
+                    string: generated_u64.to_string(),
+                    value: Ok(generated_u64),
+                }
+            }
             None => return Bms::default(),
         };
 

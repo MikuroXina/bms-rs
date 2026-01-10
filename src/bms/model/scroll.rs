@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
+use strict_num_extended::FinF64;
+
 use crate::bms::{
+    command::StringValue,
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
@@ -12,7 +15,7 @@ use crate::bms::{
 /// This aggregate manages definition and events of scroll speed change.
 pub struct ScrollObjects {
     /// Scroll speed change definitions, indexed by [`ObjId`]. `#SCROLL[01-ZZ]`
-    pub scroll_defs: HashMap<ObjId, Decimal>,
+    pub scroll_defs: HashMap<ObjId, StringValue<FinF64>>,
     /// The scrolling factors corresponding to the id of the scroll speed change object.
     pub scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
 }
