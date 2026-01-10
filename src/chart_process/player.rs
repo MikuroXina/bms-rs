@@ -380,7 +380,6 @@ impl ChartPlayer {
     ///
     /// This is the core time progression algorithm, shared between BMS and BMSON.
     fn step_to(&mut self, now: TimeStamp, speed: &Decimal) {
-        let _started = self.started_at;
         let last = self.last_poll_at;
         if now <= last {
             return;
