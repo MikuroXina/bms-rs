@@ -26,4 +26,4 @@ pub use super::bms_processor::BmsProcessor;
 pub use super::bmson_processor::BmsonProcessor;
 
 // Re-export ChartPlayer
-pub use super::player::ChartPlayer;
+pub use super::player::{ChartPlayer, PlaybackState};

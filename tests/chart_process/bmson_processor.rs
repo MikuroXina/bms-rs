@@ -11,27 +11,6 @@ use bms_rs::chart_process::prelude::*;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// Setup a BMSON processor for testing (without calling `start_play`)
-fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> ChartPlayer {
-    let output = parse_bmson(json);
-    let Some(bmson) = output.bmson else {
-        panic!(
-            "Failed to parse BMSON in test setup. Errors: {:?}",
-            output.errors
-        );
-    };
-
-    let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
-        panic!(
-            "Failed to generate base BPM in test setup. Info: {:?}",
-            bmson.info
-        );
-    };
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
-    ChartPlayer::new(chart, visible_range_per_bpm)
-}
-
 #[test]
 fn test_bmson_continue_duration_references_bpm_and_stop() {
     // BMSON with init BPM 120, a single key note at y=0.5 measure (480 pulses), c=true,
@@ -64,9 +43,16 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Progress slightly so the note at y=0.5 is inside visible window (0.6 measure default)
     // Advance slightly to ensure y=0.5 enters the visible window (default 0.6 measure)
@@ -117,9 +103,16 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let _ = processor.update(start_time + TimeSpan::MILLISECOND * 100);
 
@@ -143,7 +136,7 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
 }
 
 #[test]
-fn test_bmson_start_play_resets_scroll_to_one() {
+fn test_bmson_restart_resets_scroll_to_one() {
     let json = r#"{
         "version": "1.0.0",
         "info": {
@@ -168,16 +161,36 @@ fn test_bmson_start_play_resets_scroll_to_one() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let processor_start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, processor_start_time);
+    let start_time = processor.started_at();
 
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
     let _ = processor.update(after_scroll);
-    assert_ne!(*processor.current_scroll(), Decimal::one());
+    let state = processor.playback_state();
+    assert_ne!(*state.current_scroll(), Decimal::one());
 
-    processor.start_play(after_scroll + TimeSpan::SECOND);
-    assert_eq!(*processor.current_scroll(), Decimal::one());
+    // Restart by creating a new player
+    let output2 = parse_bmson(json);
+    let bmson2 = output2.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm2 = StartBpmGenerator
+        .generate(&bmson2)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
+    let chart2 = BmsonProcessor::parse(&bmson2);
+    let start_time2 = TimeStamp::now();
+    let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
+    let reset_state = restarted_processor.playback_state();
+    assert_eq!(*reset_state.current_scroll(), Decimal::one());
 }
 
 #[test]
@@ -202,9 +215,18 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
         ]
     }"#;
 
-    let mut processor = setup_bmson_processor(json, TimeSpan::MILLISECOND * 600);
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let processor_start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, processor_start_time);
     let start_time = TimeStamp::start();
-    processor.start_play(start_time);
     let _events = processor.update(start_time + TimeSpan::SECOND * 2);
 
     let events = processor.events_in_time_range(
@@ -264,9 +286,16 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Advance slightly to ensure y=0.25 enters the visible window (default 0.6 measure)
     let t = start_time + TimeSpan::MILLISECOND * 100;
@@ -326,9 +355,16 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 5000;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
@@ -404,9 +440,16 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Advance to make the preload window cover the note at y=1.25
     // Note: With new playhead speed (1/240), speed is half of original (1/120)
@@ -469,9 +512,16 @@ fn test_bmson_continue_independent_across_sound_channels() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 5000;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
 
@@ -528,9 +578,16 @@ fn test_bmson_visible_event_activate_time_prediction() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let _ = processor.update(start_time);
     let events = processor.visible_events();
@@ -573,9 +630,16 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 2000;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
     let _ = processor.update(start_time);
 
     let events = processor.visible_events();
@@ -618,9 +682,16 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 3000;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    processor.start_play(start_time);
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
     let _ = processor.update(start_time);
 
     let events = processor.visible_events();
@@ -664,21 +735,31 @@ fn test_bmson_visible_events_duration_matches_reaction_time() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let start_time = TimeStamp::now();
+    let processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let _start_time = TimeStamp::start();
 
     // Verify standard conditions
-    assert_eq!(*processor.current_bpm(), Decimal::from(120));
-    assert_eq!(*processor.playback_ratio(), Decimal::one());
+    let initial_state = processor.playback_state();
+    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
+    assert_eq!(*initial_state.playback_ratio(), Decimal::one());
 
     // Calculate expected visible window Y
-    let base_bpm = BaseBpm::from(Decimal::from(120));
-    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
+    let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(
-        processor.current_bpm(),
+        state.current_bpm(),
         &Decimal::one(), // BMSON has no current_speed
-        processor.playback_ratio(),
+        state.playback_ratio(),
     );
 
     // Calculate time to cross window
@@ -721,16 +802,25 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = TimeStamp::start();
-    processor.start_play(start_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let _start_time = TimeStamp::start();
 
     // Get initial visible_window_y (playback_ratio = 1)
-    let base_bpm = BaseBpm::from(Decimal::from(120));
-    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
 
+    let state = processor.playback_state();
     let visible_window_y_ratio_1 =
-        visible_range.window_y(processor.current_bpm(), &Decimal::one(), &Decimal::one());
+        visible_range.window_y(state.current_bpm(), &Decimal::one(), &Decimal::one());
 
     // Set playback_ratio to 0.5
     processor.post_events(std::iter::once(ControlEvent::SetPlaybackRatio {
@@ -738,13 +828,15 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
     }));
 
     // Verify playback_ratio changed
-    assert_eq!(*processor.playback_ratio(), Decimal::from(0.5));
+    let changed_state = processor.playback_state();
+    assert_eq!(*changed_state.playback_ratio(), Decimal::from(0.5));
 
     // Get new visible_window_y (playback_ratio = 0.5)
+    let state_0_5 = processor.playback_state();
     let visible_window_y_ratio_0_5 = visible_range.window_y(
-        processor.current_bpm(),
+        state_0_5.current_bpm(),
         &Decimal::one(),
-        processor.playback_ratio(),
+        state_0_5.playback_ratio(),
     );
 
     // Verify: visible_window_y should halve when playback_ratio halves
@@ -792,11 +884,20 @@ fn test_visible_events_with_boundary_conditions() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let _processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let start_time = TimeStamp::now();
+    let _processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Test with very small playback_ratio (not zero, to avoid division by zero)
-    let base_bpm = BaseBpm::from(Decimal::from(120));
-    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
 
     let very_small_ratio = Decimal::from(1u64);
     let visible_window_y =

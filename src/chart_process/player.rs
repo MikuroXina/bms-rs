@@ -26,14 +26,10 @@ pub struct ChartPlayer {
     chart: crate::chart_process::types::ParsedChart,
 
     // Playback state
-    started_at: Option<TimeStamp>,
-    last_poll_at: Option<TimeStamp>,
-    progressed_y: YCoordinate,
+    started_at: TimeStamp,
+    last_poll_at: TimeStamp,
 
-    // Flow parameters
-    pub(crate) current_bpm: Decimal,
-    pub(crate) current_scroll: Decimal,
-    pub(crate) playback_ratio: Decimal,
+    // Configuration
     pub(crate) visible_range_per_bpm: VisibleRangePerBpm,
 
     // Performance: velocity caching
@@ -46,66 +42,102 @@ pub struct ChartPlayer {
 
     // Flow event indexing
     pub(crate) flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
-    pub(crate) init_bpm: Decimal,
 
-    // Current Speed factor (updated during playback).
-    current_speed: Decimal,
+    // Playback state (always initialized after construction)
+    playback_state: PlaybackState,
 }
 
 impl ChartPlayer {
-    /// Create a new player from a parsed chart.
+    /// Create a new player and start playback at the given time.
+    ///
+    /// This is the only way to create a `ChartPlayer` instance.
+    /// It combines chart initialization and playback startup into a single operation.
+    ///
+    /// # Arguments
+    ///
+    /// * `chart` - The parsed chart to play
+    /// * `visible_range_per_bpm` - Visible range configuration based on BPM
+    /// * `start_time` - The timestamp when playback should start
+    ///
+    /// # Returns
+    ///
+    /// A fully initialized `ChartPlayer` ready to receive `update()` calls.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use gametime::TimeStamp;
+    /// use bms_rs::chart_process::{ChartPlayer, VisibleRangePerBpm, BaseBpmGenerator};
+    ///
+    /// let start_time = TimeStamp::now();
+    /// let base_bpm = StartBpmGenerator.generate(&bms)?;
+    /// let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    /// let chart = BmsProcessor::parse(&bms);
+    ///
+    /// let mut player = ChartPlayer::start(chart, visible_range, start_time);
+    /// ```
     #[must_use]
-    pub fn new(
+    pub fn start(
         mut chart: crate::chart_process::types::ParsedChart,
         visible_range_per_bpm: VisibleRangePerBpm,
+        start_time: TimeStamp,
     ) -> Self {
         // Extract flow_events and events from chart (take ownership)
         let flow_events = std::mem::take(&mut chart.flow_events);
         let all_events = chart.events.clone();
         let init_bpm = chart.init_bpm.clone();
+        let init_speed = chart.init_speed.clone();
 
         Self {
             chart,
-            started_at: None,
-            last_poll_at: None,
-            progressed_y: YCoordinate::zero(),
-            current_bpm: init_bpm.clone(),
-            current_scroll: Decimal::one(),
-            playback_ratio: Decimal::one(),
+            started_at: start_time,
+            last_poll_at: start_time,
             visible_range_per_bpm,
             cached_velocity: None,
             velocity_dirty: true,
             preloaded_events: Vec::new(),
             all_events,
             flow_events_by_y: flow_events,
-            init_bpm,
-            current_speed: Decimal::one(),
+            playback_state: PlaybackState::new(
+                init_bpm,
+                init_speed,
+                Decimal::one(),
+                Decimal::one(),
+                YCoordinate::zero(),
+            ),
         }
     }
 
     // ===== Playback Control =====
 
-    /// Start playback at the given time.
-    pub fn start_play(&mut self, now: TimeStamp) {
-        self.started_at = Some(now);
-        self.last_poll_at = Some(now);
-        self.progressed_y = YCoordinate::zero();
-        self.preloaded_events.clear();
-        self.current_bpm = self.init_bpm.clone();
-        self.current_scroll = Decimal::one();
-        self.current_speed = self.chart.init_speed.clone();
-        self.mark_velocity_dirty();
-    }
-
     /// Update playback to the given time, return triggered events.
+    ///
+    /// Advances the internal playback state from `last_poll_at` to `now`,
+    /// processing all flow events and collecting triggered chart events.
+    ///
+    /// # Arguments
+    ///
+    /// * `now` - The timestamp to advance playback to (must be >= `last_poll_at`)
+    ///
+    /// # Returns
+    ///
+    /// A vector of events triggered during this time slice. May be empty if
+    /// no events were triggered.
+    ///
+    /// # Flow Events Processing
+    ///
+    /// This method automatically processes BPM changes, scroll changes, and
+    /// speed changes that occur during the time slice, updating the internal
+    /// `playback_state` accordingly.
     pub fn update(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
-        let prev_y = self.progressed_y.clone();
-        let speed = self.current_speed.clone();
+        let prev_y = self.playback_state.progressed_y.clone();
+        let speed = self.playback_state.current_speed.clone();
         self.step_to(now, &speed);
-        let cur_y = self.progressed_y.clone();
+
+        let cur_y = self.playback_state.progressed_y.clone();
 
         // Calculate preload range: current y + visible y range
-        let visible_y_length = self.visible_window_y(&self.current_speed);
+        let visible_y_length = self.visible_window_y(&speed);
         let preload_end_y = &cur_y + &visible_y_length;
 
         use std::ops::Bound::{Excluded, Included};
@@ -118,7 +150,7 @@ impl ChartPlayer {
         // Apply Speed changes
         for event in &triggered_events {
             if let ChartEvent::SpeedChange { factor } = event.event() {
-                self.current_speed = factor.clone();
+                self.playback_state.current_speed = factor.clone();
             }
         }
 
@@ -142,6 +174,15 @@ impl ChartPlayer {
 
     // ===== State Query =====
 
+    /// Get current playback state.
+    ///
+    /// Always returns a valid reference because the player is always in the playing state
+    /// after construction via [`ChartPlayer::start()`].
+    #[must_use]
+    pub const fn playback_state(&self) -> &PlaybackState {
+        &self.playback_state
+    }
+
     /// Get audio file resources (id to path mapping).
     #[must_use]
     pub const fn audio_files(&self) -> &HashMap<WavId, PathBuf> {
@@ -154,63 +195,41 @@ impl ChartPlayer {
         self.chart.resources().bmp_files()
     }
 
-    /// Get current BPM.
-    #[must_use]
-    pub const fn current_bpm(&self) -> &Decimal {
-        &self.current_bpm
-    }
-
-    /// Get current Speed factor.
-    #[must_use]
-    pub const fn current_speed(&self) -> &Decimal {
-        &self.current_speed
-    }
-
-    /// Get current Scroll factor.
-    #[must_use]
-    pub const fn current_scroll(&self) -> &Decimal {
-        &self.current_scroll
-    }
-
-    /// Get current playback ratio.
-    #[must_use]
-    pub const fn playback_ratio(&self) -> &Decimal {
-        &self.playback_ratio
-    }
-
     /// Get visible range per BPM.
     #[must_use]
     pub const fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
         &self.visible_range_per_bpm
     }
 
-    /// Get playback start time.
+    /// Get the start time of playback.
     #[must_use]
-    pub const fn started_at(&self) -> Option<TimeStamp> {
+    pub const fn started_at(&self) -> TimeStamp {
         self.started_at
-    }
-
-    /// Get the last poll time.
-    #[must_use]
-    pub const fn last_poll_at(&self) -> Option<TimeStamp> {
-        self.last_poll_at
-    }
-
-    /// Get the current Y position.
-    #[must_use]
-    pub const fn progressed_y(&self) -> &YCoordinate {
-        &self.progressed_y
     }
 
     // ===== Visible Events =====
 
     /// Get all events in current visible area (with display positions).
+    ///
+    /// Returns all events that are currently visible based on the playback
+    /// position and reaction time window. Each event is paired with its
+    /// display ratio range indicating where it appears on screen.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `(event, display_ratio_range)` tuples. May be empty if
+    /// no events are currently visible.
+    ///
+    /// # Display Ratio
+    ///
+    /// The display ratio ranges from 0.0 (judgment line) to 1.0+ (visible
+    /// area top), with scroll factor applied.
     pub fn visible_events(
         &mut self,
     ) -> Vec<(PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
-        let current_y = &self.progressed_y;
-        let visible_window_y = self.visible_window_y(&self.current_speed);
-        let scroll_factor = &self.current_scroll;
+        let current_y = &self.playback_state.progressed_y;
+        let visible_window_y = self.visible_window_y(&self.playback_state.current_speed);
+        let scroll_factor = &self.playback_state.current_scroll;
 
         self.preloaded_events
             .iter()
@@ -249,21 +268,19 @@ impl ChartPlayer {
         &self,
         range: impl std::ops::RangeBounds<TimeSpan>,
     ) -> Vec<PlayheadEvent> {
-        self.started_at.map_or_else(Vec::new, |started| {
-            let last = self.last_poll_at.unwrap_or(started);
-            // Calculate center time: elapsed time scaled by playback ratio
-            let elapsed = last
-                .checked_elapsed_since(started)
-                .unwrap_or(TimeSpan::ZERO);
-            let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
-            let elapsed_nanos = Decimal::from(elapsed_nanos);
-            let center_nanos = (&elapsed_nanos * &self.playback_ratio)
-                .to_u64()
-                .unwrap_or(0);
-            let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
-            self.all_events
-                .events_in_time_range_offset_from(center, range)
-        })
+        let started = self.started_at;
+        let last = self.last_poll_at;
+        // Calculate center time: elapsed time scaled by playback ratio
+        let elapsed = last
+            .checked_elapsed_since(started)
+            .unwrap_or(TimeSpan::ZERO);
+        let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
+        let elapsed_nanos = Decimal::from(elapsed_nanos);
+        let playback_ratio = self.playback_state.playback_ratio.clone();
+        let center_nanos = (elapsed_nanos * playback_ratio).to_u64().unwrap_or(0);
+        let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
+        self.all_events
+            .events_in_time_range_offset_from(center, range)
     }
 
     // ===== Internal Core Methods =====
@@ -288,13 +305,16 @@ impl ChartPlayer {
 
     /// Compute velocity without caching (internal use).
     fn compute_velocity(&self, speed: &Decimal) -> Decimal {
-        if self.current_bpm <= Decimal::zero() {
+        let current_bpm = self.playback_state.current_bpm.clone();
+        let playback_ratio = self.playback_state.playback_ratio.clone();
+
+        if current_bpm <= Decimal::zero() {
             Decimal::from(f64::EPSILON)
         } else {
             let denom = Decimal::from(240);
-            let base = &self.current_bpm / &denom;
+            let base = &current_bpm / &denom;
             let v1 = base * speed.clone();
-            let v = &v1 * &self.playback_ratio;
+            let v = &v1 * &playback_ratio;
             v.max(Decimal::from(f64::EPSILON))
         }
     }
@@ -342,15 +362,15 @@ impl ChartPlayer {
     fn apply_flow_event(&mut self, event: FlowEvent) {
         match event {
             FlowEvent::Bpm(bpm) => {
-                self.current_bpm = bpm;
                 self.mark_velocity_dirty();
+                self.playback_state.current_bpm = bpm;
             }
             FlowEvent::Speed(_s) => {
                 // Speed is format-specific (BMS only)
                 // Handled in update() method
             }
             FlowEvent::Scroll(s) => {
-                self.current_scroll = s;
+                self.playback_state.current_scroll = s;
                 // Scroll doesn't affect velocity
             }
         }
@@ -360,17 +380,14 @@ impl ChartPlayer {
     ///
     /// This is the core time progression algorithm, shared between BMS and BMSON.
     fn step_to(&mut self, now: TimeStamp, speed: &Decimal) {
-        let Some(started) = self.started_at else {
-            return;
-        };
-        let last = self.last_poll_at.unwrap_or(started);
+        let last = self.last_poll_at;
         if now <= last {
             return;
         }
 
         let mut remaining_time = now - last;
         let mut cur_vel = self.calculate_velocity(speed);
-        let mut cur_y = self.progressed_y.clone();
+        let mut cur_y = self.playback_state.progressed_y.clone();
 
         // Advance in segments until time slice is used up
         loop {
@@ -434,15 +451,19 @@ impl ChartPlayer {
             break;
         }
 
-        self.progressed_y = cur_y;
-        self.last_poll_at = Some(now);
+        // Update playback state
+        self.playback_state.progressed_y = cur_y;
+        self.last_poll_at = now;
     }
 
     /// Get visible window length in Y units.
     #[must_use]
     pub fn visible_window_y(&self, speed: &Decimal) -> YCoordinate {
-        self.visible_range_per_bpm
-            .window_y(&self.current_bpm, speed, &self.playback_ratio)
+        self.visible_range_per_bpm.window_y(
+            &self.playback_state.current_bpm,
+            speed,
+            &self.playback_state.playback_ratio,
+        )
     }
 
     /// Get events in a Y range.
@@ -457,7 +478,7 @@ impl ChartPlayer {
     pub fn update_preloaded_events(&mut self, preload_end_y: &YCoordinate) {
         use std::ops::Bound::{Excluded, Included};
 
-        let cur_y = &self.progressed_y;
+        let cur_y = &self.playback_state.progressed_y;
         let new_preloaded_events = self
             .all_events
             .events_in_y_range((Excluded(cur_y), Included(preload_end_y)));
@@ -498,10 +519,79 @@ impl ChartPlayer {
                 self.visible_range_per_bpm = visible_range_per_bpm;
             }
             ControlEvent::SetPlaybackRatio { ratio } => {
-                self.playback_ratio = ratio;
                 self.mark_velocity_dirty();
+                self.playback_state.playback_ratio = ratio;
             }
         }
+    }
+}
+
+/// Playback state snapshot.
+///
+/// Represents the current playback state of the player, including all
+/// flow parameters and position information. This state is only available
+/// after `start_play()` has been called.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlaybackState {
+    /// Current BPM value
+    pub current_bpm: Decimal,
+    /// Current speed factor (BMS only, BMSON always 1.0)
+    pub current_speed: Decimal,
+    /// Current scroll factor
+    pub current_scroll: Decimal,
+    /// Current playback ratio
+    pub playback_ratio: Decimal,
+    /// Current Y position in chart
+    pub progressed_y: YCoordinate,
+}
+
+impl PlaybackState {
+    /// Create a new playback state.
+    #[must_use]
+    pub const fn new(
+        current_bpm: Decimal,
+        current_speed: Decimal,
+        current_scroll: Decimal,
+        playback_ratio: Decimal,
+        progressed_y: YCoordinate,
+    ) -> Self {
+        Self {
+            current_bpm,
+            current_speed,
+            current_scroll,
+            playback_ratio,
+            progressed_y,
+        }
+    }
+
+    /// Get current BPM.
+    #[must_use]
+    pub const fn current_bpm(&self) -> &Decimal {
+        &self.current_bpm
+    }
+
+    /// Get current speed factor.
+    #[must_use]
+    pub const fn current_speed(&self) -> &Decimal {
+        &self.current_speed
+    }
+
+    /// Get current scroll factor.
+    #[must_use]
+    pub const fn current_scroll(&self) -> &Decimal {
+        &self.current_scroll
+    }
+
+    /// Get playback ratio.
+    #[must_use]
+    pub const fn playback_ratio(&self) -> &Decimal {
+        &self.playback_ratio
+    }
+
+    /// Get current Y position.
+    #[must_use]
+    pub const fn progressed_y(&self) -> &YCoordinate {
+        &self.progressed_y
     }
 }
 
@@ -522,9 +612,10 @@ mod tests {
             Decimal::one(),
         );
 
-        let mut player = ChartPlayer::new(
+        let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
+            TimeStamp::now(),
         );
 
         let speed = Decimal::one();
@@ -539,7 +630,7 @@ mod tests {
     }
 
     #[test]
-    fn test_flow_event_application() {
+    fn test_flow_event_application_after_start() {
         use std::collections::BTreeMap;
 
         let y_event = YCoordinate::from(100.0);
@@ -561,19 +652,20 @@ mod tests {
             Decimal::one(),
         );
 
-        let mut player = ChartPlayer::new(
+        let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
+            TimeStamp::now(),
         );
 
-        // Initial state
-        assert_eq!(player.current_bpm, Decimal::from(120));
-        assert_eq!(player.current_scroll, Decimal::one());
+        // Initial state after start
+        assert_eq!(player.playback_state().current_bpm(), &Decimal::from(120));
+        assert_eq!(player.playback_state().current_scroll(), &Decimal::one());
 
         // Apply BPM change
         player.apply_flow_event(FlowEvent::Bpm(Decimal::from(180)));
 
-        assert_eq!(player.current_bpm, Decimal::from(180));
+        assert_eq!(player.playback_state().current_bpm(), &Decimal::from(180));
         assert!(player.velocity_dirty);
     }
 
@@ -619,18 +711,16 @@ mod tests {
             Decimal::one(),
         );
 
-        let mut player = ChartPlayer::new(
+        let start_time = TimeStamp::now();
+        let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
+            start_time,
         );
 
-        // Start playback
-        let start_time = TimeStamp::now();
-        player.start_play(start_time);
-
         // Initial state
-        assert_eq!(player.current_bpm, Decimal::from(120));
-        assert_eq!(player.current_scroll, Decimal::one());
+        assert_eq!(player.playback_state().current_bpm(), &Decimal::from(120));
+        assert_eq!(player.playback_state().current_scroll(), &Decimal::one());
 
         // Advance past the event Y position
         // Calculate time needed: distance / velocity
@@ -644,14 +734,14 @@ mod tests {
         // Verify that both events were applied
         // BPM should be updated to 180
         assert_eq!(
-            player.current_bpm,
-            Decimal::from(180),
+            player.playback_state().current_bpm(),
+            &Decimal::from(180),
             "BPM change event should be applied"
         );
         // Scroll should be updated to 1.5
         assert_eq!(
-            player.current_scroll,
-            Decimal::from(1.5),
+            player.playback_state().current_scroll(),
+            &Decimal::from(1.5),
             "Scroll change event should be applied"
         );
     }
