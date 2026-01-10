@@ -4,10 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::bms::{
-    Decimal,
-    command::time::{ObjTime, Track},
-};
+use crate::bms::command::time::{ObjTime, Track};
 
 /// Note position for the chart [`super::Bmson`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -50,9 +47,7 @@ impl PulseConverter {
                 .section_len
                 .section_len_changes
                 .get(&Track(current_track))
-                .map_or_else(|| Decimal::from(1u64), |section| section.length.clone())
-                .try_into()
-                .unwrap_or(1.0);
+                .map_or_else(|| 1.0, |section| section.length.as_f64().unwrap_or(1.0));
             current_pulses = current_pulses.saturating_add((section_len * 4.0) as u64 * resolution);
             current_track += 1;
             pulses_at_track_start.insert(Track(current_track), current_pulses);
@@ -108,7 +103,7 @@ fn pulse_conversion() {
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(1),
-                    length: Decimal::from(0.75),
+                    length: "0.75".parse().unwrap(),
                 },
                 &prompt_handler,
             )
@@ -117,7 +112,7 @@ fn pulse_conversion() {
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(2),
-                    length: Decimal::from(1.25),
+                    length: "1.25".parse().unwrap(),
                 },
                 &prompt_handler,
             )

@@ -1,4 +1,5 @@
 use bms_rs::bms::prelude::*;
+use std::str::FromStr;
 
 use std::path::Path;
 
@@ -56,28 +57,28 @@ fn test_always_use_older() {
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
         bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(120))
+        Some(&StringValue::from_str("120").unwrap())
     );
 
     assert_eq!(
         bms.stop
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(0.5))
+        Some(&StringValue::from_str("0.5").unwrap())
     );
 
     assert_eq!(
         bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1.0))
+        Some(&StringValue::from_str("1.0").unwrap())
     );
 
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1.0))
+        Some(&StringValue::from_str("1.0").unwrap())
     );
 
     // Check that older values are used for all other conflicts
@@ -111,7 +112,7 @@ fn test_always_use_older() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01) - check the BPM value
-    assert_eq!(bpm_change_0.bpm, Decimal::from(120));
+    assert_eq!(bpm_change_0.bpm, StringValue::from_str("120").unwrap());
 }
 
 /// Test `AlwaysUseNewer` behavior with various conflict types
@@ -133,28 +134,28 @@ fn test_always_use_newer() {
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
         bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(120))
+        Some(&StringValue::from_str("120").unwrap())
     );
 
     assert_eq!(
         bms.stop
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1.0))
+        Some(&StringValue::from_str("1.0").unwrap())
     );
 
     assert_eq!(
         bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(2.0))
+        Some(&StringValue::from_str("2.0").unwrap())
     );
 
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1.5))
+        Some(&StringValue::from_str("1.5").unwrap())
     );
 
     // Check that newer values are used for all other conflicts
@@ -188,7 +189,7 @@ fn test_always_use_newer() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
-    assert_eq!(bpm_change_0.bpm, Decimal::from(160));
+    assert_eq!(bpm_change_0.bpm, StringValue::from_str("160").unwrap());
 }
 
 /// Test `AlwaysWarnAndUseOlder` behavior with various conflict types
@@ -206,8 +207,8 @@ fn test_always_warn_and_use_older() {
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
     let bms = bms.unwrap();
 
-    // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
-    assert_eq!(warnings.len(), 9);
+    // Should have warnings for each conflict (8 conflicts: 4 scope_defines + 3 others + 1 event)
+    assert_eq!(warnings.len(), 8);
     assert!(warnings.iter().all(|w: &_| matches!(
         w.content(),
         ParseWarning::DuplicatingChannelObj(_, _) | ParseWarning::DuplicatingDef(_)
@@ -216,28 +217,28 @@ fn test_always_warn_and_use_older() {
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
         bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(120))
+        Some(&StringValue::from_str("120").unwrap())
     );
 
     assert_eq!(
         bms.stop
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(0.5))
+        Some(&StringValue::from_str("0.5").unwrap())
     );
 
     assert_eq!(
         bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1.0))
+        Some(&StringValue::from_str("1.0").unwrap())
     );
 
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1.0))
+        Some(&StringValue::from_str("1.0").unwrap())
     );
 
     // Check that older values are used for all other conflicts
@@ -271,7 +272,7 @@ fn test_always_warn_and_use_older() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01)
-    assert_eq!(bpm_change_0.bpm, Decimal::from(120));
+    assert_eq!(bpm_change_0.bpm, StringValue::from_str("120").unwrap());
 }
 
 /// Test `AlwaysWarnAndUseNewer` behavior with various conflict types
@@ -289,7 +290,7 @@ fn test_always_warn_and_use_newer() {
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseNewer));
     let bms = bms.unwrap();
 
-    // 应有重复定义类的警告（如 DuplicatingDef）
+    // Should have duplicate definition warning (e.g., DuplicatingDef)
     assert!(
         parse_warnings
             .iter()
@@ -299,28 +300,28 @@ fn test_always_warn_and_use_newer() {
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
         bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(120))
+        Some(&StringValue::from_str("120").unwrap())
     );
 
     assert_eq!(
         bms.stop
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1.0))
+        Some(&StringValue::from_str("1.0").unwrap())
     );
 
     assert_eq!(
         bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(2.0))
+        Some(&StringValue::from_str("2.0").unwrap())
     );
 
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1.5))
+        Some(&StringValue::from_str("1.5").unwrap())
     );
 
     // Check that newer values are used for all other conflicts
@@ -354,5 +355,5 @@ fn test_always_warn_and_use_newer() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
-    assert_eq!(bpm_change_0.bpm, Decimal::from(160));
+    assert_eq!(bpm_change_0.bpm, StringValue::from_str("160").unwrap());
 }

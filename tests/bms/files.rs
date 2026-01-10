@@ -1,5 +1,5 @@
 use bms_rs::bms::prelude::*;
-use num::One;
+use std::str::FromStr;
 
 #[test]
 fn test_lal() {
@@ -18,11 +18,14 @@ fn test_lal() {
         Some("ikaruga_nex (obj:Mikuro Xina)")
     );
     assert_eq!(bms.music_info.genre.as_deref(), Some("Hi-Tech Rave"));
-    assert_eq!(bms.bpm.bpm, Some(Decimal::from(151)));
+    assert_eq!(bms.bpm.bpm, Some(StringValue::from_str("151").unwrap()));
     assert_eq!(bms.metadata.play_level, Some(7));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.metadata.difficulty, Some(2));
-    assert_eq!(bms.judge.total, Some(Decimal::from(359.6)));
+    assert_eq!(
+        bms.judge.total,
+        Some(StringValue::from_str("359.6").unwrap())
+    );
 
     eprintln!("{bms:?}");
 }
@@ -42,11 +45,11 @@ fn test_nc() {
     );
     assert_eq!(bms.music_info.genre.as_deref(), Some("MOTION"));
     assert_eq!(bms.music_info.subtitle.as_deref(), Some("[STX]"));
-    assert_eq!(bms.bpm.bpm, Some(Decimal::from(100)));
+    assert_eq!(bms.bpm.bpm, Some(StringValue::from_str("100").unwrap()));
     assert_eq!(bms.metadata.play_level, Some(5));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.metadata.difficulty, Some(2));
-    assert_eq!(bms.judge.total, Some(Decimal::from(260)));
+    assert_eq!(bms.judge.total, Some(StringValue::from_str("260").unwrap()));
     assert_eq!(
         bms.sprite.stage_file.as_ref().map(|p| p.to_string_lossy()),
         Some("stagefile.png".into())
@@ -73,10 +76,10 @@ fn test_j219() {
         Some("cranky (obj: Mikuro Xina)")
     );
     assert_eq!(bms.music_info.genre.as_deref(), Some("EURO BEAT"));
-    assert_eq!(bms.bpm.bpm, Some(Decimal::from(147)));
+    assert_eq!(bms.bpm.bpm, Some(StringValue::from_str("147").unwrap()));
     assert_eq!(bms.metadata.play_level, Some(6));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
-    assert_eq!(bms.judge.total, Some(Decimal::from(218)));
+    assert_eq!(bms.judge.total, Some(StringValue::from_str("218").unwrap()));
     assert_eq!(
         bms.sprite.stage_file.as_ref().map(|p| p.to_string_lossy()),
         Some("J219title.bmp".into())
@@ -143,25 +146,25 @@ fn test_bemuse_ext() {
         bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::one())
+        Some(&StringValue::from_str("1").unwrap())
     );
     assert_eq!(
         bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("02", false).unwrap()),
-        Some(&Decimal::from(0.5))
+        Some(&StringValue::from_str("0.5").unwrap())
     );
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::one())
+        Some(&StringValue::from_str("1").unwrap())
     );
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("02", false).unwrap()),
-        Some(&Decimal::from(0.5))
+        Some(&StringValue::from_str("0.5").unwrap())
     );
 
     eprintln!("{bms:?}");

@@ -2,20 +2,286 @@
 //!
 //! Structures in this module can be used in [Lex] part, [Parse] part, and the output models.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    str::FromStr,
+};
+
+use fraction::BigDecimal;
 
 use super::parse::ParseWarning;
 
 pub mod channel;
 pub mod graphics;
+pub mod minor_command;
 pub mod mixin;
 pub mod time;
 
-/// Minor command types and utilities.
-///
-/// This module contains types and utilities for minor BMS commands that are only available
-/// when the `minor-command` feature is enabled.
-pub mod minor_command;
+/// Represents a string that should be convert to a value by `FromStr`, and stores the result.
+pub struct StringValue<T: FromStr> {
+    /// The original string.
+    string: String,
+    /// The parsed value or the parsing error.
+    value: Result<T, <T as FromStr>::Err>,
+}
+
+impl<T: FromStr> FromStr for StringValue<T> {
+    type Err = <T as FromStr>::Err;
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        let result = T::from_str(str);
+        Ok(StringValue {
+            string: str.to_string(),
+            value: result,
+        })
+    }
+}
+
+impl<T: FromStr> StringValue<T> {
+    /// Gets a reference to the original string.
+    pub fn as_str(&self) -> &str {
+        &self.string
+    }
+
+    /// Gets a reference to the parsed result.
+    pub const fn parsed(&self) -> &Result<T, <T as FromStr>::Err> {
+        &self.value
+    }
+
+    /// Checks if parsing succeeded.
+    pub const fn is_ok(&self) -> bool {
+        self.value.is_ok()
+    }
+
+    /// Checks if parsing failed.
+    pub const fn is_err(&self) -> bool {
+        self.value.is_err()
+    }
+
+    /// Creates `StringValue` from a value that implements `ToString`.
+    #[must_use]
+    pub fn from_value(value: T) -> Self
+    where
+        T: ToString,
+    {
+        let string = value.to_string();
+        Self {
+            string,
+            value: Ok(value),
+        }
+    }
+
+    /// Creates `StringValue` from a `Result<T, R>`.
+    ///
+    /// Allows creating `StringValue<T>` from any constructor that returns `Result<T, R>`,
+    /// as long as the error type `R` can be converted to `<T as FromStr>::Err`.
+    ///
+    /// # Type parameters
+    /// - `R`: The error type of the source Result, must implement `Into<<T as FromStr>::Err>`
+    ///
+    /// # Examples
+    ///
+    /// Create from `FinF64::new` (requires `FinF64`'s error type implements `Into<ParseError>`):
+    ///
+    /// ```text
+    /// # use bms_rs::bms::command::StringValue;
+    /// # use strict_num_extended::FinF64;
+    /// let fin_result = FinF64::new(120.0);
+    /// let sv = StringValue::from_result(fin_result);
+    /// ```
+    #[must_use]
+    pub fn from_result<R>(result: Result<T, R>) -> Self
+    where
+        T: ToString,
+        R: Into<<T as FromStr>::Err>,
+    {
+        match result {
+            Ok(value) => {
+                let string = value.to_string();
+                Self {
+                    string,
+                    value: Ok(value),
+                }
+            }
+            Err(err) => Self {
+                string: String::new(),
+                value: Err(err.into()),
+            },
+        }
+    }
+}
+
+impl<T> Clone for StringValue<T>
+where
+    T: FromStr + Clone,
+    <T as FromStr>::Err: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            string: self.string.clone(),
+            value: self.value.clone(),
+        }
+    }
+}
+
+impl<T> std::fmt::Debug for StringValue<T>
+where
+    T: FromStr + std::fmt::Debug,
+    <T as FromStr>::Err: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StringValue")
+            .field("string", &self.string)
+            .field("value", &self.value)
+            .finish()
+    }
+}
+
+impl<T> PartialEq for StringValue<T>
+where
+    T: FromStr,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.string == other.string
+    }
+}
+
+impl<T> Eq for StringValue<T> where T: FromStr {}
+
+impl<T> std::hash::Hash for StringValue<T>
+where
+    T: FromStr + std::hash::Hash,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.string.hash(state);
+    }
+}
+
+impl<T> PartialOrd for StringValue<T>
+where
+    T: FromStr,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for StringValue<T>
+where
+    T: FromStr,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.string.cmp(&other.string)
+    }
+}
+
+impl<T> std::fmt::Display for StringValue<T>
+where
+    T: FromStr,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<T: FromStr> serde::Serialize for StringValue<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_str().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T: FromStr> serde::Deserialize<'de> for StringValue<T>
+where
+    T::Err: std::fmt::Display,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let string = String::deserialize(deserializer)?;
+        T::from_str(&string)
+            .map(|v| StringValue {
+                string,
+                value: Ok(v),
+            })
+            .map_err(|e| serde::de::Error::custom(format!("Parse error: {}", e)))
+    }
+}
+
+/// Represents a string slice that should be convert to a value by `FromStr`, and stores the result.
+pub struct StrValue<'a, T: FromStr> {
+    /// The original string slice.
+    str_ref: &'a str,
+    /// The parsed value or the parsing error.
+    value: Result<T, <T as FromStr>::Err>,
+}
+
+impl<'a, T: FromStr> StrValue<'a, T> {
+    /// Creates `StrValue` from string reference, parses and stores the result.
+    #[must_use]
+    pub fn parse(s: &'a str) -> Self {
+        let result = T::from_str(s);
+        StrValue {
+            str_ref: s,
+            value: result,
+        }
+    }
+
+    /// Gets a reference to the original string slice.
+    pub const fn as_str(&self) -> &str {
+        self.str_ref
+    }
+
+    /// Gets a reference to the parsed result.
+    pub const fn parsed(&self) -> &Result<T, <T as FromStr>::Err> {
+        &self.value
+    }
+
+    /// Checks if parsing succeeded.
+    pub const fn is_ok(&self) -> bool {
+        self.value.is_ok()
+    }
+
+    /// Checks if parsing failed.
+    pub const fn is_err(&self) -> bool {
+        self.value.is_err()
+    }
+}
+
+impl StringValue<strict_num_extended::FinF64> {
+    /// Converts to f64 value for compatibility with existing code
+    #[must_use]
+    pub fn as_f64(&self) -> Option<f64> {
+        self.value
+            .as_ref()
+            .ok()
+            .map(strict_num_extended::FinF64::get)
+    }
+
+    /// Converts to u64 value for random number generation
+    #[must_use]
+    pub fn as_u64(&self) -> Option<u64> {
+        self.value.as_ref().ok().map(|v| v.get() as u64)
+    }
+
+    /// Converts to `BigDecimal`
+    #[must_use]
+    pub fn as_big_decimal(&self) -> Option<BigDecimal> {
+        self.as_f64().map(BigDecimal::from)
+    }
+}
+
+impl StringValue<u64> {
+    /// Gets the parsed u64 value
+    #[must_use]
+    pub fn as_u64(&self) -> Option<u64> {
+        self.value.as_ref().ok().copied()
+    }
+}
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
