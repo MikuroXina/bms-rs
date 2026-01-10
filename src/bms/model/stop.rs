@@ -2,14 +2,16 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::bms::prelude::*;
+use strict_num_extended::FinF64;
+
+use crate::bms::{command::StringValue, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// This aggregate manages definitions and events of scroll stop.
 pub struct StopObjects {
     /// Stop definitions, indexed by [`ObjId`]. `#STOP[01-ZZ]`
-    pub stop_defs: HashMap<ObjId, Decimal>,
+    pub stop_defs: HashMap<ObjId, StringValue<FinF64>>,
     /// Stop lengths by stop object id.
     pub stops: BTreeMap<ObjTime, StopObj>,
     /// Record of used STOP ids from `#STOPxx` messages, for validity checks.
@@ -32,7 +34,17 @@ impl StopObjects {
         self.stops
             .entry(stop.time)
             .and_modify(|existing| {
-                existing.duration = &existing.duration + &stop.duration;
+                // Sum two durations
+                let sum = existing
+                    .duration
+                    .as_f64()
+                    .zip(stop.duration.as_f64())
+                    .map(|(a, b)| a + b)
+                    .unwrap_or(0.0);
+                existing.duration = format!("{}", sum).parse().unwrap_or_else(|_| StringValue {
+                    string: format!("{}", sum),
+                    value: Ok(FinF64::new(sum).expect("Failed to create FinF64 from sum")),
+                });
             })
             .or_insert_with(|| stop);
     }

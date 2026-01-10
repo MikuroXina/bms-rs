@@ -5,7 +5,8 @@ use std::{
     path::PathBuf,
 };
 
-use num::{One, ToPrimitive, Zero};
+use num::{ToPrimitive, Zero};
+use strict_num_extended::FinF64;
 
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
@@ -43,12 +44,12 @@ impl BmsProcessor {
         let y_memo = YMemo::new(bms);
 
         // Initialize BPM: prefer chart initial BPM, otherwise 120
-        let init_bpm = bms
-            .bpm
-            .bpm
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| Decimal::from(120));
+        let init_bpm = bms.bpm.bpm.as_ref().cloned().unwrap_or_else(|| {
+            "120".to_string().parse().unwrap_or_else(|_| StringValue {
+                string: "120".to_string(),
+                value: Ok(FinF64::new(120.0).expect("Failed to create FinF64 from 120.0")),
+            })
+        });
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
@@ -73,21 +74,21 @@ impl BmsProcessor {
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Bpm(change.bpm.clone()));
+                .push(FlowEvent::Bpm(change.bpm.as_f64().unwrap_or(120.0)));
         }
         for change in bms.scroll.scrolling_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Scroll(change.factor.clone()));
+                .push(FlowEvent::Scroll(change.factor.as_f64().unwrap_or(1.0)));
         }
         for change in bms.speed.speed_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Speed(change.factor.clone()));
+                .push(FlowEvent::Speed(change.factor.as_f64().unwrap_or(1.0)));
         }
 
         // Precompute activate times
@@ -97,8 +98,8 @@ impl BmsProcessor {
             ChartResources::new(wav_files, bmp_files),
             all_events,
             flow_events_by_y,
-            init_bpm,
-            Decimal::one(),
+            Decimal::from(init_bpm.as_f64().unwrap_or(120.0)),
+            Decimal::from(1.0),
         )
     }
 
@@ -166,7 +167,15 @@ impl YMemo {
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
             let passed_sections = (track.0 - last_track).saturating_sub(1);
             y += Decimal::from(passed_sections);
-            y += &section_len_change.length;
+            let length_decimal: Decimal =
+                section_len_change
+                    .length
+                    .string
+                    .parse()
+                    .unwrap_or_else(|_| {
+                        Decimal::from(section_len_change.length.as_f64().unwrap_or(1.0))
+                    });
+            y += length_decimal;
             y_by_track.insert(track, y.clone());
             last_track = track.0;
         }
@@ -197,7 +206,7 @@ impl YMemo {
             .speed_changes
             .range(..=time)
             .last()
-            .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
+            .map_or_else(|| 1.0, |(_, obj)| obj.factor.as_f64().unwrap_or(1.0));
         YCoordinate((section_y + fraction) * factor)
     }
 }
@@ -223,7 +232,7 @@ impl AllEventsIndex {
         for change in bms.bpm.bpm_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::BpmChange {
-                bpm: change.bpm.clone(),
+                bpm: Decimal::from(change.bpm.as_f64().unwrap_or(120.0)),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -234,7 +243,7 @@ impl AllEventsIndex {
         for change in bms.scroll.scrolling_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::ScrollChange {
-                factor: change.factor.clone(),
+                factor: Decimal::from(change.factor.as_f64().unwrap_or(1.0)),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -245,7 +254,7 @@ impl AllEventsIndex {
         for change in bms.speed.speed_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::SpeedChange {
-                factor: change.factor.clone(),
+                factor: Decimal::from(change.factor.as_f64().unwrap_or(1.0)),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -255,8 +264,12 @@ impl AllEventsIndex {
         // Stop events
         for stop in bms.stop.stops.values() {
             let y = y_memo.get_y(stop.time);
+            let duration_decimal = stop
+                .duration
+                .as_big_decimal()
+                .unwrap_or_else(|| Decimal::from(0.0));
             let event = ChartEvent::Stop {
-                duration: convert_stop_duration_to_beats(&stop.duration),
+                duration: convert_stop_duration_to_beats(&duration_decimal),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -410,7 +423,8 @@ pub fn precompute_activate_times(
         .bpm
         .as_ref()
         .cloned()
-        .unwrap_or_else(|| Decimal::from(120));
+        .and_then(|sv| sv.as_big_decimal())
+        .unwrap_or_else(|| Decimal::from(120.0));
     bpm_map.insert(YCoordinate::zero(), init_bpm.clone());
     let bpm_pairs: Vec<(YCoordinate, Decimal)> = bms
         .bpm
@@ -418,7 +432,12 @@ pub fn precompute_activate_times(
         .values()
         .map(|change| {
             let y = y_memo.get_y(change.time);
-            (y, change.bpm.clone())
+            let bpm_decimal = change
+                .bpm
+                .string
+                .parse()
+                .unwrap_or_else(|_| change.bpm.as_f64().unwrap_or(120.0).into());
+            (y, bpm_decimal)
         })
         .collect();
     bpm_map.extend(bpm_pairs.iter().cloned());
@@ -430,7 +449,12 @@ pub fn precompute_activate_times(
         .values()
         .map(|st| {
             let sy = y_memo.get_y(st.time);
-            (sy, st.duration.clone())
+            let stop_decimal = st
+                .duration
+                .string
+                .parse()
+                .unwrap_or_else(|_| st.duration.as_f64().unwrap_or(0.0).into());
+            (sy, stop_decimal)
         })
         .collect();
     stop_list.sort_by(|a, b| a.0.cmp(&b.0));

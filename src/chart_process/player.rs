@@ -342,7 +342,7 @@ impl ChartPlayer {
     fn apply_flow_event(&mut self, event: FlowEvent) {
         match event {
             FlowEvent::Bpm(bpm) => {
-                self.current_bpm = bpm;
+                self.current_bpm = Decimal::from(bpm);
                 self.mark_velocity_dirty();
             }
             FlowEvent::Speed(_s) => {
@@ -350,7 +350,7 @@ impl ChartPlayer {
                 // Handled in update() method
             }
             FlowEvent::Scroll(s) => {
-                self.current_scroll = s;
+                self.current_scroll = Decimal::from(s);
                 // Scroll doesn't affect velocity
             }
         }
@@ -545,13 +545,7 @@ mod tests {
         let y_event = YCoordinate::from(100.0);
 
         let mut flow_events_by_y = BTreeMap::new();
-        flow_events_by_y.insert(
-            y_event,
-            vec![
-                FlowEvent::Bpm(Decimal::from(180)),
-                FlowEvent::Scroll(Decimal::from(1.5)),
-            ],
-        );
+        flow_events_by_y.insert(y_event, vec![FlowEvent::Bpm(180.0), FlowEvent::Scroll(1.5)]);
 
         let chart = ParsedChart::new(
             ChartResources::new(HashMap::new(), HashMap::new()),
@@ -571,7 +565,7 @@ mod tests {
         assert_eq!(player.current_scroll, Decimal::one());
 
         // Apply BPM change
-        player.apply_flow_event(FlowEvent::Bpm(Decimal::from(180)));
+        player.apply_flow_event(FlowEvent::Bpm(180.0));
 
         assert_eq!(player.current_bpm, Decimal::from(180));
         assert!(player.velocity_dirty);
@@ -603,13 +597,7 @@ mod tests {
         let y_event = YCoordinate::from(100.0);
 
         let mut flow_events_by_y = BTreeMap::new();
-        flow_events_by_y.insert(
-            y_event,
-            vec![
-                FlowEvent::Bpm(Decimal::from(180)),
-                FlowEvent::Scroll(Decimal::from(1.5)),
-            ],
-        );
+        flow_events_by_y.insert(y_event, vec![FlowEvent::Bpm(180.0), FlowEvent::Scroll(1.5)]);
 
         let chart = ParsedChart::new(
             ChartResources::new(HashMap::new(), HashMap::new()),

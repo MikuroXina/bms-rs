@@ -15,15 +15,19 @@ use crate::bms::prelude::Bms;
 #[derive(Debug, Clone)]
 pub enum FlowEvent {
     /// BPM change event.
-    Bpm(Decimal),
+    Bpm(f64),
     /// Speed factor change event (BMS only).
-    Speed(Decimal),
+    Speed(f64),
     /// Scroll factor change event.
-    Scroll(Decimal),
+    Scroll(f64),
 }
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
-use crate::{bms::Decimal, chart_process::ChartEvent};
+use crate::{
+    bms::{Decimal, command::StringValue},
+    chart_process::ChartEvent,
+};
+use strict_num_extended::FinF64;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
@@ -124,6 +128,17 @@ impl From<BaseBpm> for Decimal {
     }
 }
 
+impl From<StringValue<FinF64>> for BaseBpm {
+    fn from(value: StringValue<FinF64>) -> Self {
+        Self::new(
+            value
+                .string
+                .parse()
+                .unwrap_or_else(|_| Decimal::from(value.as_f64().unwrap_or(120.0))),
+        )
+    }
+}
+
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
 /// Formula: `visible_y_range` = `current_bpm` * `visible_range_per_bpm`
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -216,7 +231,11 @@ impl From<VisibleRangePerBpm> for Decimal {
 // ---- Generators for BMS ----
 impl BaseBpmGenerator<Bms> for StartBpmGenerator {
     fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
-        bms.bpm.bpm.as_ref().cloned().map(BaseBpm::new)
+        bms.bpm
+            .bpm
+            .as_ref()
+            .and_then(super::super::bms::command::StringValue::as_big_decimal)
+            .map(BaseBpm::new)
     }
 }
 
@@ -224,13 +243,14 @@ impl BaseBpmGenerator<Bms> for MinBpmGenerator {
     fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
         bms.bpm
             .bpm
-            .iter()
-            .cloned()
+            .as_ref()
+            .and_then(super::super::bms::command::StringValue::as_big_decimal)
+            .into_iter()
             .chain(
                 bms.bpm
                     .bpm_changes
                     .values()
-                    .map(|change| change.bpm.clone()),
+                    .filter_map(|change| change.bpm.as_big_decimal()),
             )
             .min()
             .map(BaseBpm::new)
@@ -241,13 +261,14 @@ impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
     fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
         bms.bpm
             .bpm
-            .iter()
-            .cloned()
+            .as_ref()
+            .and_then(super::super::bms::command::StringValue::as_big_decimal)
+            .into_iter()
             .chain(
                 bms.bpm
                     .bpm_changes
                     .values()
-                    .map(|change| change.bpm.clone()),
+                    .filter_map(|change| change.bpm.as_big_decimal()),
             )
             .max()
             .map(BaseBpm::new)

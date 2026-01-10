@@ -27,7 +27,7 @@
 //! let bms = bms.expect("must be parsed");
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
-//! println!("BPM: {}", bms.bpm.bpm.unwrap_or(120.into()));
+//! println!("BPM: {}", bms.bpm.bpm.as_ref().and_then(|b| b.as_f64()).unwrap_or(120.0));
 //! ```
 //!
 //! ## Advanced Usage
@@ -63,7 +63,7 @@
 //! assert_eq!(playing_errors, vec![]);
 //! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
 //! println!("Artist: {}", bms.music_info.artist.as_deref().unwrap_or("Unknown"));
-//! println!("BPM: {}", bms.bpm.bpm.unwrap_or(120.into()));
+//! println!("BPM: {}", bms.bpm.bpm.as_ref().and_then(|b| b.as_f64()).unwrap_or(120.0));
 //! ```
 //!
 //! # Features

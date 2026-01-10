@@ -4,9 +4,9 @@
 //! - `#xxx09:` - Stop channel.
 //! - `#STP xxx.yyy time` - It stops `time` milliseconds at section `xxx` and its position (`yyy` / 1000).
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, rc::Rc};
 
-use fraction::GenericFraction;
+use strict_num_extended::FinF64;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -15,6 +15,7 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
+        command::StringValue,
         model::stop::StopObjects,
         parse::{ParseWarning, Result},
         prelude::*,
@@ -77,19 +78,20 @@ impl StopProcessor {
         objects: &mut StopObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("STOP") {
-            let len =
-                Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
-                    ParseWarning::SyntaxError("expected decimal stop length".into())
-                })?);
+            let len: StringValue<FinF64> = args
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected decimal stop length".into()))?;
 
             let stop_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = objects.stop_defs.get_mut(&stop_obj_id) {
+                let older_value = older.as_f64().unwrap_or(0.0);
+                let newer_value = len.as_f64().unwrap_or(0.0);
                 prompter
                     .handle_def_duplication(DefDuplication::Stop {
                         id: stop_obj_id,
-                        older: older.clone(),
-                        newer: len.clone(),
+                        older: older_value,
+                        newer: newer_value,
                     })
                     .apply_def(older, len, stop_obj_id)?;
             } else {

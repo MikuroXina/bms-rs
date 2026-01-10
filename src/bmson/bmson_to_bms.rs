@@ -5,6 +5,7 @@ use std::{
     path::PathBuf,
 };
 
+use strict_num_extended::FinF64;
 use thiserror::Error;
 
 use crate::{
@@ -74,7 +75,17 @@ impl Bms {
             .map(|s| s.clone().into_owned());
         bms.music_info.genre = Some(value.info.genre.into_owned());
         bms.metadata.play_level = Some(value.info.level as u8);
-        bms.judge.total = Some(Decimal::from(value.info.total.as_f64()));
+        bms.judge.total = Some(
+            format!("{}", value.info.total.as_f64())
+                .parse()
+                .unwrap_or_else(|_| {
+                    let val = value.info.total.as_f64();
+                    StringValue {
+                        string: format!("{}", val),
+                        value: Ok(FinF64::new(val).expect("Failed to create FinF64 from total")),
+                    }
+                }),
+        );
         bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
         bms.sprite.stage_file = value
             .info
@@ -94,21 +105,50 @@ impl Bms {
         bms.judge.rank = Some(JudgeLevel::OtherInt(judge_rank_value));
 
         // Convert initial BPM
-        bms.bpm.bpm = Some(Decimal::from(value.info.init_bpm.as_f64()));
+        bms.bpm.bpm = Some(
+            format!("{}", value.info.init_bpm.as_f64())
+                .parse()
+                .unwrap_or_else(|_| {
+                    let val = value.info.init_bpm.as_f64();
+                    StringValue {
+                        string: format!("{}", val),
+                        value: Ok(FinF64::new(val).expect("Failed to create FinF64 from init_bpm")),
+                    }
+                }),
+        );
 
         // Convert resolution
         bms.section_len.section_len_changes.insert(
             Track(0),
             SectionLenChangeObj {
                 track: Track(0),
-                length: Decimal::from(resolution.get()),
+                length: format!("{}", resolution.get()).parse().unwrap_or_else(|_| {
+                    let val = resolution.get() as f64;
+                    StringValue {
+                        string: format!("{}", val),
+                        value: Ok(
+                            FinF64::new(val).expect("Failed to create FinF64 from resolution")
+                        ),
+                    }
+                }),
             },
         );
 
         // Convert BPM events
         for bpm_event in value.bpm_events {
             let time = convert_pulse_to_obj_time(bpm_event.y, resolution);
-            let bpm = Decimal::from(bpm_event.bpm.as_f64());
+            let bpm =
+                format!("{}", bpm_event.bpm.as_f64())
+                    .parse()
+                    .unwrap_or_else(|_| {
+                        let val = bpm_event.bpm.as_f64();
+                        StringValue {
+                            string: format!("{}", val),
+                            value: Ok(
+                                FinF64::new(val).expect("Failed to create FinF64 from bpm_event")
+                            ),
+                        }
+                    });
 
             // Add to scope_defines
             let bpm_def_id = bpm_def_obj_id_issuer.next().unwrap_or_else(|| {
@@ -123,7 +163,17 @@ impl Bms {
         // Convert stop events
         for stop_event in value.stop_events {
             let time = convert_pulse_to_obj_time(stop_event.y, resolution);
-            let duration = Decimal::from(stop_event.duration);
+            let duration = format!("{}", stop_event.duration)
+                .parse()
+                .unwrap_or_else(|_| {
+                    let val = stop_event.duration as f64;
+                    StringValue {
+                        string: format!("{}", val),
+                        value: Ok(
+                            FinF64::new(val).expect("Failed to create FinF64 from stop_event")
+                        ),
+                    }
+                });
 
             // Add to scope_defines
             let stop_def_id = stop_def_obj_id_issuer.next().unwrap_or_else(|| {
@@ -138,7 +188,17 @@ impl Bms {
         // Convert scroll events
         for scroll_event in value.scroll_events {
             let time = convert_pulse_to_obj_time(scroll_event.y, resolution);
-            let factor = Decimal::from(scroll_event.rate.as_f64());
+            let factor = format!("{}", scroll_event.rate.as_f64())
+                .parse()
+                .unwrap_or_else(|_| {
+                    let val = scroll_event.rate.as_f64();
+                    StringValue {
+                        string: format!("{}", val),
+                        value: Ok(
+                            FinF64::new(val).expect("Failed to create FinF64 from scroll_event")
+                        ),
+                    }
+                });
 
             // Add to scope_defines
             let scroll_def_id = scroll_def_obj_id_issuer.next().unwrap_or_else(|| {

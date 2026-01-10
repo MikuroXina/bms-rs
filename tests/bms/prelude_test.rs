@@ -1,5 +1,6 @@
 use bms_rs::bms::prelude::*;
-use num::{BigUint, One};
+use num::BigUint;
+use std::str::FromStr;
 
 #[test]
 fn test_prelude_imports() {
@@ -66,15 +67,15 @@ fn test_prelude_imports() {
     };
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
-        bpm: Decimal::from(120),
+        bpm: StringValue::from_str("120").unwrap(),
     };
     let _section_len_change_obj = SectionLenChangeObj {
         track: _track,
-        length: Decimal::from(4),
+        length: StringValue::from_str("4").unwrap(),
     };
     let _stop_obj = StopObj {
         time: _obj_time,
-        duration: Decimal::one(),
+        duration: StringValue::from_str("1").unwrap(),
     };
     let _bga_obj = BgaObj {
         time: _obj_time,
@@ -83,11 +84,11 @@ fn test_prelude_imports() {
     };
     let _scrolling_factor_obj = ScrollingFactorObj {
         time: _obj_time,
-        factor: Decimal::one(),
+        factor: StringValue::from_str("1").unwrap(),
     };
     let _speed_obj = SpeedObj {
         time: _obj_time,
-        factor: Decimal::one(),
+        factor: StringValue::from_str("1").unwrap(),
     };
 
     // Test prompt types
