@@ -57,31 +57,16 @@ impl<T: FromStr> StringValue<T> {
         self.value.is_err()
     }
 
-    /// 从已解析的值创建 StringValue（用于已知解析值的情况）
-    #[must_use]
-    pub fn from_parsed(string: String) -> Self
-    where
-        <T as FromStr>::Err: std::fmt::Debug,
-    {
-        let parsed =
-            T::from_str(&string).expect("StringValue::from_parsed: string must be parsable");
-        Self {
-            string,
-            value: Ok(parsed),
-        }
-    }
-
     /// 从实现了 `ToString` 的值创建 `StringValue`
-    pub fn from_value<U>(value: &U) -> Self
+    #[must_use]
+    pub fn from_value(value: T) -> Self
     where
-        U: ToString,
-        <T as FromStr>::Err: std::fmt::Debug,
+        T: ToString,
     {
         let string = value.to_string();
-        let parsed = T::from_str(&string).expect("StringValue::from_value: value must be parsable");
         Self {
             string,
-            value: Ok(parsed),
+            value: Ok(value),
         }
     }
 }

@@ -6,6 +6,7 @@ use std::{
 };
 
 use num::{ToPrimitive, Zero};
+use strict_num_extended::FinF64;
 
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
@@ -43,12 +44,9 @@ impl BmsProcessor {
         let y_memo = YMemo::new(bms);
 
         // Initialize BPM: prefer chart initial BPM, otherwise 120
-        let init_bpm = bms
-            .bpm
-            .bpm
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| StringValue::from_parsed("120".to_string()));
+        let init_bpm = bms.bpm.bpm.as_ref().cloned().unwrap_or_else(|| {
+            StringValue::from_value(FinF64::new(120.0).expect("120.0 is valid"))
+        });
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
