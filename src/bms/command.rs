@@ -20,9 +20,9 @@ pub mod time;
 /// Represents a string that should be convert to a value by `FromStr`, and stores the result.
 pub struct StringValue<T: FromStr> {
     /// The original string.
-    pub string: String,
+    string: String,
     /// The parsed value or the parsing error.
-    pub value: Result<T, <T as FromStr>::Err>,
+    value: Result<T, <T as FromStr>::Err>,
 }
 
 impl<T: FromStr> FromStr for StringValue<T> {
@@ -33,6 +33,56 @@ impl<T: FromStr> FromStr for StringValue<T> {
             string: str.to_string(),
             value: result,
         })
+    }
+}
+
+impl<T: FromStr> StringValue<T> {
+    /// 获取原始字符串引用
+    pub fn as_str(&self) -> &str {
+        &self.string
+    }
+
+    /// 获取解析结果引用
+    pub const fn parsed(&self) -> &Result<T, <T as FromStr>::Err> {
+        &self.value
+    }
+
+    /// 检查解析是否成功
+    pub const fn is_ok(&self) -> bool {
+        self.value.is_ok()
+    }
+
+    /// 检查解析是否失败
+    pub const fn is_err(&self) -> bool {
+        self.value.is_err()
+    }
+
+    /// 从已解析的值创建 StringValue（用于已知解析值的情况）
+    #[must_use]
+    pub fn from_parsed(string: String) -> Self
+    where
+        <T as FromStr>::Err: std::fmt::Debug,
+    {
+        let parsed =
+            T::from_str(&string).expect("StringValue::from_parsed: string must be parsable");
+        Self {
+            string,
+            value: Ok(parsed),
+        }
+    }
+
+    /// 从实现了 `ToString` 的值创建 `StringValue`
+    pub fn from_value<U>(value: &U) -> Self
+    where
+        U: ToString,
+        <T as FromStr>::Err: std::fmt::Debug,
+    {
+        let string = value.to_string();
+        let parsed = T::from_str(&string).expect("StringValue::from_value: value must be parsable");
+        Self {
+            string,
+            value: Ok(parsed),
+        }
     }
 }
 
@@ -105,7 +155,7 @@ where
     T: FromStr,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.string)
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -115,7 +165,7 @@ impl<T: FromStr> serde::Serialize for StringValue<T> {
     where
         S: serde::Serializer,
     {
-        self.string.serialize(serializer)
+        self.as_str().serialize(serializer)
     }
 }
 
@@ -141,9 +191,9 @@ where
 /// Represents a string slice that should be convert to a value by `FromStr`, and stores the result.
 pub struct StrValue<'a, T: FromStr> {
     /// The original string slice.
-    pub str_ref: &'a str,
+    str_ref: &'a str,
     /// The parsed value or the parsing error.
-    pub value: Result<T, <T as FromStr>::Err>,
+    value: Result<T, <T as FromStr>::Err>,
 }
 
 impl<'a, T: FromStr> StrValue<'a, T> {
@@ -155,6 +205,26 @@ impl<'a, T: FromStr> StrValue<'a, T> {
             str_ref: s,
             value: result,
         }
+    }
+
+    /// 获取原始字符串切片引用
+    pub const fn as_str(&self) -> &str {
+        self.str_ref
+    }
+
+    /// 获取解析结果引用
+    pub const fn parsed(&self) -> &Result<T, <T as FromStr>::Err> {
+        &self.value
+    }
+
+    /// 检查解析是否成功
+    pub const fn is_ok(&self) -> bool {
+        self.value.is_ok()
+    }
+
+    /// 检查解析是否失败
+    pub const fn is_err(&self) -> bool {
+        self.value.is_err()
     }
 }
 

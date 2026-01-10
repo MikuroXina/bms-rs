@@ -6,7 +6,6 @@ use std::{
 };
 
 use num::{ToPrimitive, Zero};
-use strict_num_extended::FinF64;
 
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
@@ -44,12 +43,12 @@ impl BmsProcessor {
         let y_memo = YMemo::new(bms);
 
         // Initialize BPM: prefer chart initial BPM, otherwise 120
-        let init_bpm = bms.bpm.bpm.as_ref().cloned().unwrap_or_else(|| {
-            "120".to_string().parse().unwrap_or_else(|_| StringValue {
-                string: "120".to_string(),
-                value: Ok(FinF64::new(120.0).expect("Failed to create FinF64 from 120.0")),
-            })
-        });
+        let init_bpm = bms
+            .bpm
+            .bpm
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| StringValue::from_parsed("120".to_string()));
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
@@ -167,14 +166,13 @@ impl YMemo {
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
             let passed_sections = (track.0 - last_track).saturating_sub(1);
             y += Decimal::from(passed_sections);
-            let length_decimal: Decimal =
-                section_len_change
-                    .length
-                    .string
-                    .parse()
-                    .unwrap_or_else(|_| {
-                        Decimal::from(section_len_change.length.as_f64().unwrap_or(1.0))
-                    });
+            let length_decimal: Decimal = section_len_change
+                .length
+                .as_str()
+                .parse()
+                .unwrap_or_else(|_| {
+                    Decimal::from(section_len_change.length.as_f64().unwrap_or(1.0))
+                });
             y += length_decimal;
             y_by_track.insert(track, y.clone());
             last_track = track.0;
@@ -434,7 +432,7 @@ pub fn precompute_activate_times(
             let y = y_memo.get_y(change.time);
             let bpm_decimal = change
                 .bpm
-                .string
+                .as_str()
                 .parse()
                 .unwrap_or_else(|_| change.bpm.as_f64().unwrap_or(120.0).into());
             (y, bpm_decimal)
@@ -451,7 +449,7 @@ pub fn precompute_activate_times(
             let sy = y_memo.get_y(st.time);
             let stop_decimal = st
                 .duration
-                .string
+                .as_str()
                 .parse()
                 .unwrap_or_else(|_| st.duration.as_f64().unwrap_or(0.0).into());
             (sy, stop_decimal)
