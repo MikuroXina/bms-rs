@@ -13,10 +13,7 @@ use bms_rs::chart_process::prelude::*;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// Parse BMS source and return the BMS struct, asserting no warnings.
-fn parse_bms_no_warnings<T, P, R, M>(
-    source: &str,
-    config: ParseConfig<T, P, R, M>,
-) -> Bms
+fn parse_bms_no_warnings<T, P, R, M>(source: &str, config: ParseConfig<T, P, R, M>) -> Bms
 where
     T: KeyLayoutMapper,
     P: Prompter,
