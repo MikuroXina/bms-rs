@@ -37,27 +37,27 @@ impl<T: FromStr> FromStr for StringValue<T> {
 }
 
 impl<T: FromStr> StringValue<T> {
-    /// 获取原始字符串引用
+    /// Gets a reference to the original string.
     pub fn as_str(&self) -> &str {
         &self.string
     }
 
-    /// 获取解析结果引用
+    /// Gets a reference to the parsed result.
     pub const fn parsed(&self) -> &Result<T, <T as FromStr>::Err> {
         &self.value
     }
 
-    /// 检查解析是否成功
+    /// Checks if parsing succeeded.
     pub const fn is_ok(&self) -> bool {
         self.value.is_ok()
     }
 
-    /// 检查解析是否失败
+    /// Checks if parsing failed.
     pub const fn is_err(&self) -> bool {
         self.value.is_err()
     }
 
-    /// 从实现了 `ToString` 的值创建 `StringValue`
+    /// Creates `StringValue` from a value that implements `ToString`.
     #[must_use]
     pub fn from_value(value: T) -> Self
     where
@@ -70,17 +70,17 @@ impl<T: FromStr> StringValue<T> {
         }
     }
 
-    /// 从 `Result<T, R>` 创建 `StringValue`
+    /// Creates `StringValue` from a `Result<T, R>`.
     ///
-    /// 允许从任何返回 `Result<T, R>` 的构造函数创建 `StringValue<T>`，
-    /// 只要错误类型 `R` 可以转换为 `<T as FromStr>::Err`。
+    /// Allows creating `StringValue<T>` from any constructor that returns `Result<T, R>`,
+    /// as long as the error type `R` can be converted to `<T as FromStr>::Err`.
     ///
-    /// # 类型参数
-    /// - `R`: 源 Result 的错误类型，必须实现了 `Into<<T as FromStr>::Err>`
+    /// # Type parameters
+    /// - `R`: The error type of the source Result, must implement `Into<<T as FromStr>::Err>`
     ///
-    /// # 示例
+    /// # Examples
     ///
-    /// 从 `FinF64::new` 创建（需要 `FinF64` 的错误类型实现了 `Into<ParseError>`）：
+    /// Create from `FinF64::new` (requires `FinF64`'s error type implements `Into<ParseError>`):
     ///
     /// ```text
     /// # use bms_rs::bms::command::StringValue;
@@ -231,22 +231,22 @@ impl<'a, T: FromStr> StrValue<'a, T> {
         }
     }
 
-    /// 获取原始字符串切片引用
+    /// Gets a reference to the original string slice.
     pub const fn as_str(&self) -> &str {
         self.str_ref
     }
 
-    /// 获取解析结果引用
+    /// Gets a reference to the parsed result.
     pub const fn parsed(&self) -> &Result<T, <T as FromStr>::Err> {
         &self.value
     }
 
-    /// 检查解析是否成功
+    /// Checks if parsing succeeded.
     pub const fn is_ok(&self) -> bool {
         self.value.is_ok()
     }
 
-    /// 检查解析是否失败
+    /// Checks if parsing failed.
     pub const fn is_err(&self) -> bool {
         self.value.is_err()
     }
@@ -262,13 +262,13 @@ impl StringValue<strict_num_extended::FinF64> {
             .map(strict_num_extended::FinF64::get)
     }
 
-    /// 转换为 u64 值，用于生成随机数
+    /// Converts to u64 value for random number generation
     #[must_use]
     pub fn as_u64(&self) -> Option<u64> {
         self.value.as_ref().ok().map(|v| v.get() as u64)
     }
 
-    /// 转换为 `BigDecimal`
+    /// Converts to `BigDecimal`
     #[must_use]
     pub fn as_big_decimal(&self) -> Option<BigDecimal> {
         self.as_f64().map(BigDecimal::from)
@@ -276,7 +276,7 @@ impl StringValue<strict_num_extended::FinF64> {
 }
 
 impl StringValue<u64> {
-    /// 获取解析后的 u64 值
+    /// Gets the parsed u64 value
     #[must_use]
     pub fn as_u64(&self) -> Option<u64> {
         self.value.as_ref().ok().copied()
