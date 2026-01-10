@@ -188,7 +188,7 @@ impl RandomizedObjects {
                 let generated =
                     rng.generate(num::BigUint::from(1u64)..=num::BigUint::from(max_u64));
                 let generated_u64: u64 = generated.try_into().unwrap_or(1);
-                StringValue::from_parsed(generated_u64.to_string())
+                StringValue::from_value(generated_u64)
             }
             None => return Bms::default(),
         };

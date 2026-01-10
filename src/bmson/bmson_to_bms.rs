@@ -5,6 +5,7 @@ use std::{
     path::PathBuf,
 };
 
+use strict_num_extended::FinF64;
 use thiserror::Error;
 
 use crate::{
@@ -78,7 +79,10 @@ impl Bms {
             format!("{}", value.info.total.as_f64())
                 .parse()
                 .unwrap_or_else(|_| {
-                    StringValue::from_parsed(format!("{}", value.info.total.as_f64()))
+                    StringValue::from_value(
+                        FinF64::new(value.info.total.as_f64())
+                            .expect("Failed to create FinF64 from total"),
+                    )
                 }),
         );
         bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
@@ -104,7 +108,10 @@ impl Bms {
             format!("{}", value.info.init_bpm.as_f64())
                 .parse()
                 .unwrap_or_else(|_| {
-                    StringValue::from_parsed(format!("{}", value.info.init_bpm.as_f64()))
+                    StringValue::from_value(
+                        FinF64::new(value.info.init_bpm.as_f64())
+                            .expect("Failed to create FinF64 from init_bpm"),
+                    )
                 }),
         );
 
@@ -114,7 +121,10 @@ impl Bms {
             SectionLenChangeObj {
                 track: Track(0),
                 length: format!("{}", resolution.get()).parse().unwrap_or_else(|_| {
-                    StringValue::from_parsed(format!("{}", resolution.get() as f64))
+                    StringValue::from_value(
+                        FinF64::new(resolution.get() as f64)
+                            .expect("Failed to create FinF64 from resolution"),
+                    )
                 }),
             },
         );
@@ -125,7 +135,10 @@ impl Bms {
             let bpm = format!("{}", bpm_event.bpm.as_f64())
                 .parse()
                 .unwrap_or_else(|_| {
-                    StringValue::from_parsed(format!("{}", bpm_event.bpm.as_f64()))
+                    StringValue::from_value(
+                        FinF64::new(bpm_event.bpm.as_f64())
+                            .expect("Failed to create FinF64 from bpm_event"),
+                    )
                 });
 
             // Add to scope_defines
@@ -144,7 +157,10 @@ impl Bms {
             let duration = format!("{}", stop_event.duration)
                 .parse()
                 .unwrap_or_else(|_| {
-                    StringValue::from_parsed(format!("{}", stop_event.duration as f64))
+                    StringValue::from_value(
+                        FinF64::new(stop_event.duration as f64)
+                            .expect("Failed to create FinF64 from stop_event"),
+                    )
                 });
 
             // Add to scope_defines
@@ -163,7 +179,10 @@ impl Bms {
             let factor = format!("{}", scroll_event.rate.as_f64())
                 .parse()
                 .unwrap_or_else(|_| {
-                    StringValue::from_parsed(format!("{}", scroll_event.rate.as_f64()))
+                    StringValue::from_value(
+                        FinF64::new(scroll_event.rate.as_f64())
+                            .expect("Failed to create FinF64 from scroll_event"),
+                    )
                 });
 
             // Add to scope_defines

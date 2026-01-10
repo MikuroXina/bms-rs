@@ -455,7 +455,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                     let max_u64 = max.as_u64().unwrap_or(1);
                     let mut current = 1u64;
                     while current <= max_u64 {
-                        let current_str = StringValue::from_parsed(current.to_string());
+                        let current_str = StringValue::from_value(current);
                         if !scope.covered_values.contains(&current_str) {
                             conditions.push(current_str.clone());
                             scope.covered_values.insert(current_str);
@@ -782,7 +782,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 let max_u64 = max.as_u64().unwrap_or(1);
                 let mut current = 1u64;
                 while current <= max_u64 {
-                    let current_str = StringValue::from_parsed(current.to_string());
+                    let current_str = StringValue::from_value(current);
                     if !scope.covered_values.contains(&current_str) {
                         conditions.push(current_str.clone());
                         scope.covered_values.insert(current_str);
