@@ -20,12 +20,11 @@ fn test_atbga_parsing() {
     // Verify that #@BGA is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
     let id_02 = ObjId::try_from("02", false).unwrap();
-    let Some(atbga_def) = bms.bmp.atbga_defs.get(&id_01) else {
-        panic!(
-            "Expected #@BGA{}/ definition to exist, but found: {:?}",
-            id_01, bms.bmp.atbga_defs
-        );
-    };
+    let atbga_def = bms
+        .bmp
+        .atbga_defs
+        .get(&id_01)
+        .expect("Expected #@BGA{}/ definition to exist");
     assert_eq!(atbga_def.source_bmp, id_02);
     assert_eq!(atbga_def.trim_top_left, PixelPoint::new(10, 20));
     assert_eq!(atbga_def.trim_size, PixelSize::new(100, 200));
@@ -53,12 +52,11 @@ fn test_bga_parsing() {
     // Verify that #BGA is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
     let id_02 = ObjId::try_from("02", false).unwrap();
-    let Some(bga_def) = bms.bmp.bga_defs.get(&id_01) else {
-        panic!(
-            "Expected #BGA{}/ definition to exist, but found: {:?}",
-            id_01, bms.bmp.bga_defs
-        );
-    };
+    let bga_def = bms
+        .bmp
+        .bga_defs
+        .get(&id_01)
+        .expect("Expected #BGA{}/ definition to exist");
     assert_eq!(bga_def.source_bmp, id_02);
     assert_eq!(bga_def.trim_top_left, PixelPoint::new(10, 20));
     assert_eq!(bga_def.trim_bottom_right, PixelPoint::new(110, 220));
@@ -85,12 +83,11 @@ fn test_exrank_parsing() {
 
     // Verify that #EXRANK is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
-    let Some(exrank_def) = bms.judge.exrank_defs.get(&id_01) else {
-        panic!(
-            "Expected #EXRANK{}/ definition to exist, but found: {:?}",
-            id_01, bms.judge.exrank_defs
-        );
-    };
+    let exrank_def = bms
+        .judge
+        .exrank_defs
+        .get(&id_01)
+        .expect("Expected #EXRANK{}/ definition to exist");
     assert_eq!(exrank_def.judge_level, JudgeLevel::Normal);
 }
 
@@ -114,9 +111,11 @@ fn test_exwav_parsing() {
 
     // Verify that #EXWAV is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
-    let Some(exwav_def) = bms.wav.exwav_defs.get(&id_01) else {
-        panic!("Expected #EXWAV{}/ definition to exist", id_01);
-    };
+    let exwav_def = bms
+        .wav
+        .exwav_defs
+        .get(&id_01)
+        .expect("Expected #EXWAV{}/ definition to exist");
     assert_eq!(*exwav_def.pan.as_ref(), 10000);
     assert_eq!(*exwav_def.volume.as_ref(), 0);
     assert_eq!(exwav_def.frequency.map(u64::from), Some(48000));
@@ -143,12 +142,11 @@ fn test_changeoption_parsing() {
 
     // Verify that #CHANGEOPTION is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
-    let Some(option) = bms.option.change_options.get(&id_01) else {
-        panic!(
-            "Expected #CHANGEOPTION{}/ definition to exist, but found: {:?}",
-            id_01, bms.option.change_options
-        );
-    };
+    let option = bms
+        .option
+        .change_options
+        .get(&id_01)
+        .expect("Expected #CHANGEOPTION{}/ definition to exist");
     assert_eq!(option, "test_option");
 }
 
@@ -172,12 +170,11 @@ fn test_text_parsing() {
 
     // Verify that #TEXT is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
-    let Some(text) = bms.text.texts.get(&id_01) else {
-        panic!(
-            "Expected #TEXT{}/ definition to exist, but found: {:?}",
-            id_01, bms.text.texts
-        );
-    };
+    let text = bms
+        .text
+        .texts
+        .get(&id_01)
+        .expect("Expected #TEXT{}/ definition to exist");
     assert_eq!(text, "test_text");
 }
 

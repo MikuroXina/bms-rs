@@ -6,17 +6,17 @@ use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive, Zero};
 
 use bms_rs::bms::Decimal;
+use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// Setup a BMS processor for testing
-fn setup_bms_processor_with_config<T, P, R, M>(
+/// Parse BMS source and return the BMS struct, asserting no warnings.
+fn parse_bms_no_warnings<T, P, R, M>(
     source: &str,
     config: ParseConfig<T, P, R, M>,
-    reaction_time: TimeSpan,
-) -> ChartPlayer
+) -> Bms
 where
     T: KeyLayoutMapper,
     P: Prompter,
@@ -34,30 +34,7 @@ where
         parse_warnings,
     } = Bms::from_token_stream(&tokens, config);
     assert_eq!(parse_warnings, vec![]);
-    let bms = match bms_res {
-        Ok(bms) => bms,
-        Err(err) => panic!("Failed to parse BMS in test setup: {err:?}"),
-    };
-
-    let base_bpm = StartBpmGenerator
-        .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<T>(&bms);
-    let start_time = TimeStamp::now();
-    ChartPlayer::start(chart, visible_range_per_bpm, start_time)
-}
-
-/// Setup a BMS processor with `AlwaysUseOlder` prompter
-fn setup_bms_processor_with_older_prompter(source: &str, reaction_time: TimeSpan) -> ChartPlayer {
-    let config = default_config().prompter(AlwaysUseOlder);
-    setup_bms_processor_with_config(source, config, reaction_time)
-}
-
-/// Setup a BMS processor with `AlwaysWarnAndUseNewer` prompter
-fn setup_bms_processor_with_newer_prompter(source: &str, reaction_time: TimeSpan) -> ChartPlayer {
-    let config = default_config().prompter(AlwaysWarnAndUseNewer);
-    setup_bms_processor_with_config(source, config, reaction_time)
+    bms_res.expect("Failed to parse BMS in test setup")
 }
 
 #[test]
@@ -65,8 +42,16 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     // Test basic visible_events functionality using bemuse_ext.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor = setup_bms_processor_with_older_prompter(bms_source, reaction_time);
+    let config = default_config().prompter(AlwaysUseOlder);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Verify initial state
     let initial_state = processor.playback_state();
@@ -142,8 +127,16 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 fn test_bms_visible_event_activate_time_within_reaction_window() {
     let reaction = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction);
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let after = start_time + TimeSpan::SECOND;
     let _ = processor.update(after);
@@ -166,8 +159,16 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     // Test BPM changes' effect on visible window using lilith_mx.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/lilith_mx.bms");
-    let mut processor = setup_bms_processor_with_older_prompter(bms_source, reaction_time);
+    let config = default_config().prompter(AlwaysUseOlder);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Initial state: BPM = 151
     let initial_state = processor.playback_state();
@@ -203,8 +204,16 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     // Test DisplayRatio scaling when scroll value is 0.5 using bemuse_ext.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor = setup_bms_processor_with_older_prompter(bms_source, reaction_time);
+    let config = default_config().prompter(AlwaysUseOlder);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Verify initial state：Scroll = 1.0
     let initial_state = processor.playback_state();
@@ -325,9 +334,17 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 #[test]
 fn test_bms_triggered_event_activate_time_equals_elapsed() {
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor =
-        setup_bms_processor_with_newer_prompter(bms_source, TimeSpan::MILLISECOND * 600);
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let elapsed = TimeSpan::SECOND * 3;
     let now = start_time + elapsed;
@@ -360,9 +377,17 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
 #WAV01 test.wav
 #00111:01
 "#;
-    let mut processor =
-        setup_bms_processor_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::start();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
     let _events = processor.update(start_time + TimeSpan::SECOND * 2);
 
     let events = processor.events_in_time_range(
@@ -398,7 +423,16 @@ fn test_bms_restart_resets_scroll_to_one() {
 #001SC:00020000
 #00111:00000000
 "#;
-    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let after_scroll_change = processor.started_at() + TimeSpan::MILLISECOND * 2700;
     let _ = processor.update(after_scroll_change);
@@ -406,7 +440,16 @@ fn test_bms_restart_resets_scroll_to_one() {
     assert_ne!(*state.current_scroll(), Decimal::one());
 
     // Restart by creating a new player
-    let restarted_processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
+    let config2 = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms2 = parse_bms_no_warnings(bms_source, config2);
+
+    let base_bpm2 = StartBpmGenerator
+        .generate(&bms2)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
+    let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2);
+    let start_time2 = TimeStamp::now();
+    let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
     let reset_state = restarted_processor.playback_state();
     assert_eq!(*reset_state.current_scroll(), Decimal::one());
 }
@@ -424,8 +467,17 @@ fn test_visible_events_duration_matches_reaction_time() {
 
 #00111:00000001
 "#;
-    let processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
-    let _start_time = TimeStamp::start();
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let start_time = TimeStamp::now();
+    let processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let _start_time = start_time;
 
     // Verify standard conditions
     let initial_state = processor.playback_state();
@@ -434,8 +486,8 @@ fn test_visible_events_duration_matches_reaction_time() {
     assert_eq!(*initial_state.playback_ratio(), Decimal::one());
 
     // Calculate expected visible window Y
-    let base_bpm = BaseBpm::from(Decimal::from(120));
-    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(
         state.current_bpm(),
@@ -469,8 +521,16 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     // Test using existing bemuse_ext.bms file which has multiple flow events
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let bms_source = include_str!("../bms/files/bemuse_ext.bms");
-    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::start();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Verify initial state
     let initial_state = processor.playback_state();

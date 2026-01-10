@@ -13,20 +13,16 @@ use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive};
 
 use bms_rs::bms::Decimal;
+use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
 
-// ============================================================================
-// Helper Functions (reused from existing test files)
-// ============================================================================
-
-/// Setup a BMS processor for testing
-fn setup_bms_processor_with_config<T, P, R, M>(
+/// Parse BMS source and return the BMS struct, asserting no warnings.
+fn parse_bms_no_warnings<T, P, R, M>(
     source: &str,
     config: ParseConfig<T, P, R, M>,
-    reaction_time: TimeSpan,
-) -> ChartPlayer
+) -> Bms
 where
     T: KeyLayoutMapper,
     P: Prompter,
@@ -44,46 +40,7 @@ where
         parse_warnings,
     } = Bms::from_token_stream(&tokens, config);
     assert_eq!(parse_warnings, vec![]);
-    let bms = match bms_res {
-        Ok(bms) => bms,
-        Err(err) => panic!("Failed to parse BMS in test setup: {err:?}"),
-    };
-
-    let base_bpm = StartBpmGenerator
-        .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<T>(&bms);
-    let start_time = TimeStamp::now();
-    ChartPlayer::start(chart, visible_range_per_bpm, start_time)
-}
-
-/// Setup a BMS processor with `AlwaysWarnAndUseNewer` prompter
-fn setup_bms_processor_with_newer_prompter(source: &str, reaction_time: TimeSpan) -> ChartPlayer {
-    let config = default_config().prompter(AlwaysWarnAndUseNewer);
-    setup_bms_processor_with_config(source, config, reaction_time)
-}
-
-/// Setup a BMSON processor for testing
-fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> ChartPlayer {
-    let output = parse_bmson(json);
-    let Some(bmson) = output.bmson else {
-        panic!(
-            "Failed to parse BMSON in test setup. Errors: {:?}",
-            output.errors
-        );
-    };
-
-    let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
-        panic!(
-            "Failed to generate base BPM in test setup. Info: {:?}",
-            bmson.info
-        );
-    };
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
-    let start_time = TimeStamp::now();
-    ChartPlayer::start(chart, visible_range_per_bpm, start_time)
+    bms_res.expect("Failed to parse BMS in test setup")
 }
 
 // ============================================================================
@@ -119,8 +76,24 @@ fn test_very_long_elapsed_time_no_errors() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let Some(bmson) = output.bmson else {
+        panic!(
+            "Failed to parse BMSON in test setup. Errors: {:?}",
+            output.errors
+        );
+    };
+
+    let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
+        panic!(
+            "Failed to generate base BPM in test setup. Info: {:?}",
+            bmson.info
+        );
+    };
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Simulate 30 days of playback time
     let thirty_days = TimeSpan::from_duration(Duration::from_secs(2592000));
@@ -247,8 +220,16 @@ fn test_bms_very_small_section_no_division_by_zero() {
 "#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
-    let start_time = TimeStamp::start();
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Progress through multiple update calls to ensure we pass through all sections
     // First update: process initial section
@@ -339,8 +320,24 @@ fn test_bmson_edge_cases_no_division_by_zero() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let mut processor = setup_bmson_processor(json, reaction_time);
+    let output = parse_bmson(json);
+    let Some(bmson) = output.bmson else {
+        panic!(
+            "Failed to parse BMSON in test setup. Errors: {:?}",
+            output.errors
+        );
+    };
+
+    let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
+        panic!(
+            "Failed to generate base BPM in test setup. Info: {:?}",
+            bmson.info
+        );
+    };
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     // Start playback from y=0
     let _ = processor.update(start_time);
