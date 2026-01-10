@@ -132,7 +132,7 @@ impl From<StringValue<FinF64>> for BaseBpm {
     fn from(value: StringValue<FinF64>) -> Self {
         Self::new(
             value
-                .string
+                .as_str()
                 .parse()
                 .unwrap_or_else(|_| Decimal::from(value.as_f64().unwrap_or(120.0))),
         )

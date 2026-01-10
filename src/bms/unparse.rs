@@ -730,25 +730,25 @@ impl Bms {
             .bpm
             .bpm_defs
             .iter()
-            .map(|(k, v)| (v.string.as_str(), *k))
+            .map(|(k, v)| (v.as_str(), *k))
             .collect();
         let stop_value_to_id: HashMap<&'a str, ObjId> = self
             .stop
             .stop_defs
             .iter()
-            .map(|(k, v)| (v.string.as_str(), *k))
+            .map(|(k, v)| (v.as_str(), *k))
             .collect();
         let scroll_value_to_id: HashMap<&'a str, ObjId> = self
             .scroll
             .scroll_defs
             .iter()
-            .map(|(k, v)| (v.string.as_str(), *k))
+            .map(|(k, v)| (v.as_str(), *k))
             .collect();
         let speed_value_to_id: HashMap<&'a str, ObjId> = self
             .speed
             .speed_defs
             .iter()
-            .map(|(k, v)| (v.string.as_str(), *k))
+            .map(|(k, v)| (v.as_str(), *k))
             .collect();
         let text_value_to_id: HashMap<&'a str, ObjId> = self
             .text
@@ -767,7 +767,7 @@ impl Bms {
             .video
             .seek_defs
             .iter()
-            .map(|(k, v)| (v.string.as_str(), *k))
+            .map(|(k, v)| (v.as_str(), *k))
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
@@ -806,7 +806,7 @@ impl Bms {
                     name: format!("BPM{id}").into(),
                     args: bpm.to_string().into(),
                 },
-                |ev: &'a BpmChangeObj| ev.bpm.string.as_str(),
+                |ev: &'a BpmChangeObj| ev.bpm.as_str(),
                 &mut bpm_manager,
             )),
             |_ev| Channel::BpmChange,
@@ -836,7 +836,7 @@ impl Bms {
                     name: format!("STOP{id}").into(),
                     args: duration.to_string().into(),
                 },
-                |ev: &'a StopObj| ev.duration.string.as_str(),
+                |ev: &'a StopObj| ev.duration.as_str(),
                 &mut stop_manager,
             )),
             |_ev| Channel::Stop,
@@ -862,7 +862,7 @@ impl Bms {
                     name: format!("SCROLL{id}").into(),
                     args: factor.to_string().into(),
                 },
-                |ev: &'a ScrollingFactorObj| ev.factor.string.as_str(),
+                |ev: &'a ScrollingFactorObj| ev.factor.as_str(),
                 &mut scroll_manager,
             )),
             |_ev| Channel::Scroll,
@@ -888,7 +888,7 @@ impl Bms {
                     name: format!("SPEED{id}").into(),
                     args: factor.to_string().into(),
                 },
-                |ev: &'a SpeedObj| ev.factor.string.as_str(),
+                |ev: &'a SpeedObj| ev.factor.as_str(),
                 &mut speed_manager,
             )),
             |_ev| Channel::Speed,
@@ -1175,7 +1175,7 @@ impl Bms {
                         name: format!("SEEK{id}").into(),
                         args: position.to_string().into(),
                     },
-                    |ev: &'a SeekObj| ev.position.string.as_str(),
+                    |ev: &'a SeekObj| ev.position.as_str(),
                     &mut seek_manager,
                 )),
                 |_ev| Channel::Seek,

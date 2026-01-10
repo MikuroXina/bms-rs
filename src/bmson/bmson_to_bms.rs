@@ -5,7 +5,6 @@ use std::{
     path::PathBuf,
 };
 
-use strict_num_extended::FinF64;
 use thiserror::Error;
 
 use crate::{
@@ -79,11 +78,7 @@ impl Bms {
             format!("{}", value.info.total.as_f64())
                 .parse()
                 .unwrap_or_else(|_| {
-                    let val = value.info.total.as_f64();
-                    StringValue {
-                        string: format!("{}", val),
-                        value: Ok(FinF64::new(val).expect("Failed to create FinF64 from total")),
-                    }
+                    StringValue::from_parsed(format!("{}", value.info.total.as_f64()))
                 }),
         );
         bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
@@ -109,11 +104,7 @@ impl Bms {
             format!("{}", value.info.init_bpm.as_f64())
                 .parse()
                 .unwrap_or_else(|_| {
-                    let val = value.info.init_bpm.as_f64();
-                    StringValue {
-                        string: format!("{}", val),
-                        value: Ok(FinF64::new(val).expect("Failed to create FinF64 from init_bpm")),
-                    }
+                    StringValue::from_parsed(format!("{}", value.info.init_bpm.as_f64()))
                 }),
         );
 
@@ -123,13 +114,7 @@ impl Bms {
             SectionLenChangeObj {
                 track: Track(0),
                 length: format!("{}", resolution.get()).parse().unwrap_or_else(|_| {
-                    let val = resolution.get() as f64;
-                    StringValue {
-                        string: format!("{}", val),
-                        value: Ok(
-                            FinF64::new(val).expect("Failed to create FinF64 from resolution")
-                        ),
-                    }
+                    StringValue::from_parsed(format!("{}", resolution.get() as f64))
                 }),
             },
         );
@@ -137,18 +122,11 @@ impl Bms {
         // Convert BPM events
         for bpm_event in value.bpm_events {
             let time = convert_pulse_to_obj_time(bpm_event.y, resolution);
-            let bpm =
-                format!("{}", bpm_event.bpm.as_f64())
-                    .parse()
-                    .unwrap_or_else(|_| {
-                        let val = bpm_event.bpm.as_f64();
-                        StringValue {
-                            string: format!("{}", val),
-                            value: Ok(
-                                FinF64::new(val).expect("Failed to create FinF64 from bpm_event")
-                            ),
-                        }
-                    });
+            let bpm = format!("{}", bpm_event.bpm.as_f64())
+                .parse()
+                .unwrap_or_else(|_| {
+                    StringValue::from_parsed(format!("{}", bpm_event.bpm.as_f64()))
+                });
 
             // Add to scope_defines
             let bpm_def_id = bpm_def_obj_id_issuer.next().unwrap_or_else(|| {
@@ -166,13 +144,7 @@ impl Bms {
             let duration = format!("{}", stop_event.duration)
                 .parse()
                 .unwrap_or_else(|_| {
-                    let val = stop_event.duration as f64;
-                    StringValue {
-                        string: format!("{}", val),
-                        value: Ok(
-                            FinF64::new(val).expect("Failed to create FinF64 from stop_event")
-                        ),
-                    }
+                    StringValue::from_parsed(format!("{}", stop_event.duration as f64))
                 });
 
             // Add to scope_defines
@@ -191,13 +163,7 @@ impl Bms {
             let factor = format!("{}", scroll_event.rate.as_f64())
                 .parse()
                 .unwrap_or_else(|_| {
-                    let val = scroll_event.rate.as_f64();
-                    StringValue {
-                        string: format!("{}", val),
-                        value: Ok(
-                            FinF64::new(val).expect("Failed to create FinF64 from scroll_event")
-                        ),
-                    }
+                    StringValue::from_parsed(format!("{}", scroll_event.rate.as_f64()))
                 });
 
             // Add to scope_defines

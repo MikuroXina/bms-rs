@@ -106,22 +106,10 @@ impl BpmObjects {
                 let existing = entry.get();
                 let older_bpm_val = format!("{}", *existing)
                     .parse::<StringValue<FinF64>>()
-                    .unwrap_or_else(|_| StringValue {
-                        string: format!("{}", *existing),
-                        value: Ok(FinF64::new(*existing as f64).unwrap_or_else(|_| {
-                            strict_num_extended::FinF64::new(0.0)
-                                .expect("Failed to create FinF64 from 0.0")
-                        })),
-                    });
+                    .unwrap_or_else(|_| StringValue::from_parsed(format!("{}", *existing as f64)));
                 let newer_bpm_val = format!("{}", bpm_change)
                     .parse::<StringValue<FinF64>>()
-                    .unwrap_or_else(|_| StringValue {
-                        string: format!("{}", bpm_change),
-                        value: Ok(FinF64::new(bpm_change as f64).unwrap_or_else(|_| {
-                            strict_num_extended::FinF64::new(0.0)
-                                .expect("Failed to create FinF64 from 0.0")
-                        })),
-                    });
+                    .unwrap_or_else(|_| StringValue::from_parsed(format!("{}", bpm_change as f64)));
                 let older = BpmChangeObj {
                     time,
                     bpm: older_bpm_val,
