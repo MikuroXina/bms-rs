@@ -1,16 +1,10 @@
 //! Integration tests for `bms_rs::chart_process::BmsProcessor`.
 
-use std::str::FromStr;
-
-use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive, Zero};
-
-use bms_rs::bms::Decimal;
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
-
-const NANOS_PER_SECOND: u64 = 1_000_000_000;
+use gametime::{TimeSpan, TimeStamp};
+use strict_num_extended::FinF64;
 
 /// Parse BMS source and return the BMS struct, asserting no warnings.
 fn parse_bms_no_warnings<T, P, R, M>(source: &str, config: ParseConfig<T, P, R, M>) -> Bms
@@ -44,7 +38,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -52,9 +46,9 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
     // Verify initial state
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
-    assert_eq!(*initial_state.current_speed(), Decimal::one());
-    assert_eq!(*initial_state.current_scroll(), Decimal::one());
+    assert_eq!(*initial_state.current_bpm(), FinF64::new(120.0).unwrap());
+    assert_eq!(*initial_state.current_speed(), FinF64::new(1.0).unwrap());
+    assert_eq!(*initial_state.current_scroll(), FinF64::new(1.0).unwrap());
 
     // Advance to first change point
     let after_first_change = start_time + TimeSpan::SECOND;
@@ -67,7 +61,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
         state.playback_ratio(),
     );
     assert!(
-        visible_window_y.as_ref() > &Decimal::zero(),
+        visible_window_y.as_ref() > &FinF64::new(0.0).unwrap(),
         "Expected visible window y > 0, got: {:?}",
         visible_window_y.as_ref()
     );
@@ -82,14 +76,14 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     assert!(
         after_change_events
             .iter()
-            .any(|(_, range)| range.start().as_ref() > &Decimal::zero()),
+            .any(|(_, range)| range.start().as_ref() > &FinF64::new(0.0).unwrap()),
         "Expected at least one display_ratio > 0"
     );
 
     // Verify display ratio calculation
     for (visible_event, display_ratio_range) in &after_change_events {
-        let y_value = visible_event.position().as_ref().to_f64().unwrap_or(0.0);
-        let display_ratio_value = display_ratio_range.start().value().to_f64().unwrap_or(0.0);
+        let y_value = visible_event.position().as_ref().as_f64();
+        let display_ratio_value = display_ratio_range.start().value().as_f64();
 
         // Display ratio should be in reasonable range
         assert!(
@@ -129,7 +123,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -161,7 +155,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -169,16 +163,14 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     // Initial state: BPM = 151
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), Decimal::from(151));
+    assert_eq!(*initial_state.current_bpm(), FinF64::new(151.0).unwrap());
 
     // Advance to first BPM change point
     // Note: With new playhead speed (1/240), speed is half of original (1/120)
     // So need twice the time to reach the same Y position
     let after_first_change = start_time + TimeSpan::SECOND * 2;
     let _ = processor.update(after_first_change);
-    let bpm_75_5 = Decimal::from_str("75.5").unwrap_or_else(|err| {
-        panic!("Failed to parse Decimal literal in test: {err:?}");
-    });
+    let bpm_75_5 = FinF64::new(75.5).unwrap();
     let state = processor.playback_state();
     assert_eq!(*state.current_bpm(), bpm_75_5);
 
@@ -191,7 +183,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     // Verify display ratio is still valid
     for (_, display_ratio_range) in &after_bpm_events {
-        let ratio_value = display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0);
+        let ratio_value = display_ratio_range.start().as_ref().as_f64();
         assert!(ratio_value.is_finite() && ratio_value >= 0.0);
     }
 }
@@ -206,7 +198,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -214,15 +206,13 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     // Verify initial state：Scroll = 1.0
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_scroll(), Decimal::one());
+    assert_eq!(*initial_state.current_scroll(), FinF64::new(1.0).unwrap());
 
     // Get initial visible events and their display ratios
     let initial_events = processor.visible_events();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
-        .map(|(_, display_ratio_range)| {
-            display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0)
-        })
+        .map(|(_, display_ratio_range)| display_ratio_range.start().as_ref().as_f64())
         .collect::<Vec<_>>();
 
     if initial_ratios.is_empty() {
@@ -233,14 +223,12 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let after_first_scroll = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_scroll);
     let state = processor.playback_state();
-    assert_eq!(*state.current_scroll(), Decimal::one());
+    assert_eq!(*state.current_scroll(), FinF64::new(1.0).unwrap());
 
     let after_first_ratios: Vec<f64> = processor
         .visible_events()
         .iter()
-        .map(|(_, display_ratio_range)| {
-            display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0)
-        })
+        .map(|(_, display_ratio_range)| display_ratio_range.start().as_ref().as_f64())
         .collect::<Vec<_>>();
 
     if after_first_ratios.is_empty() {
@@ -260,9 +248,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     // Advance to second Scroll change point (scroll 0.5)
     let after_scroll_half = after_first_scroll + TimeSpan::SECOND * 2;
-    let scroll_half = Decimal::from_str("0.5").unwrap_or_else(|err| {
-        panic!("Failed to parse Decimal literal in test: {err:?}");
-    });
+    let scroll_half = FinF64::new(0.5).unwrap();
     let _ = processor.update(after_scroll_half);
     let half_scroll_state = processor.playback_state();
     assert_eq!(*half_scroll_state.current_scroll(), scroll_half);
@@ -270,9 +256,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let after_scroll_half_ratios: Vec<f64> = processor
         .visible_events()
         .iter()
-        .map(|(_, display_ratio_range)| {
-            display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0)
-        })
+        .map(|(_, display_ratio_range)| display_ratio_range.start().as_ref().as_f64())
         .collect::<Vec<_>>();
 
     if after_scroll_half_ratios.is_empty() {
@@ -337,7 +321,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -380,7 +364,7 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::start();
@@ -425,7 +409,7 @@ fn test_bms_restart_resets_scroll_to_one() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -434,7 +418,7 @@ fn test_bms_restart_resets_scroll_to_one() {
     let after_scroll_change = processor.started_at() + TimeSpan::MILLISECOND * 2700;
     let _ = processor.update(after_scroll_change);
     let state = processor.playback_state();
-    assert_ne!(*state.current_scroll(), Decimal::one());
+    assert_ne!(*state.current_scroll(), FinF64::new(1.0).unwrap());
 
     // Restart by creating a new player
     let config2 = default_config().prompter(AlwaysWarnAndUseNewer);
@@ -442,13 +426,13 @@ fn test_bms_restart_resets_scroll_to_one() {
 
     let base_bpm2 = StartBpmGenerator
         .generate(&bms2)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
     let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2);
     let start_time2 = TimeStamp::now();
     let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
     let reset_state = restarted_processor.playback_state();
-    assert_eq!(*reset_state.current_scroll(), Decimal::one());
+    assert_eq!(*reset_state.current_scroll(), FinF64::new(1.0).unwrap());
 }
 
 #[test]
@@ -469,7 +453,7 @@ fn test_visible_events_duration_matches_reaction_time() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -478,36 +462,39 @@ fn test_visible_events_duration_matches_reaction_time() {
 
     // Verify standard conditions
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
-    assert_eq!(*initial_state.current_speed(), Decimal::one());
-    assert_eq!(*initial_state.playback_ratio(), Decimal::one());
+    assert_eq!(*initial_state.current_bpm(), FinF64::new(120.0).unwrap());
+    assert_eq!(*initial_state.current_speed(), FinF64::new(1.0).unwrap());
+    assert_eq!(*initial_state.playback_ratio(), FinF64::new(1.0).unwrap());
 
     // Calculate expected visible window Y
-    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let test_base_bpm = BaseBpm::from(FinF64::new(120.0).unwrap());
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
-    let visible_window_y = visible_range.window_y(
-        state.current_bpm(),
-        state.current_speed(),
-        state.playback_ratio(),
-    );
+    let visible_window_y = visible_range
+        .window_y(
+            state.current_bpm(),
+            state.current_speed(),
+            state.playback_ratio(),
+        )
+        .0;
 
     // Calculate time to cross window
     // velocity = current_bpm * current_speed * playback_ratio / 240
     // time = visible_window_y / velocity
-    let velocity = Decimal::from(120) * Decimal::one() * Decimal::one() / Decimal::from(240u64);
-    let time_to_cross = visible_window_y.as_ref() / velocity;
+    let velocity =
+        FinF64::new(120.0).unwrap() * FinF64::new(1.0).unwrap() * FinF64::new(1.0).unwrap()
+            / FinF64::new(240.0).unwrap();
+    let time_to_cross = (visible_window_y / velocity).unwrap();
 
     // Verify: time_to_cross should equal reaction_time
-    let expected_time =
-        Decimal::from(reaction_time.as_nanos().max(0)) / Decimal::from(NANOS_PER_SECOND);
-    let diff = (time_to_cross.clone() - expected_time).abs();
+    let expected_time = FinF64::new(reaction_time.as_secs_f64().max(0.0)).unwrap();
+    let diff = (time_to_cross - expected_time).unwrap().abs();
 
     assert!(
-        diff < Decimal::from(1u64), // Allow 1ms error margin
+        FinF64::new(diff.as_f64()).unwrap() < FinF64::new(1.0).unwrap(), // Allow 1ms error margin
         "Expected time_to_cross ≈ reaction_time (600ms), got {:.6}s, diff: {:.6}s",
-        time_to_cross.to_f64().unwrap_or(0.0),
-        diff.to_f64().unwrap_or(0.0)
+        time_to_cross.as_f64(),
+        diff.as_f64()
     );
 }
 
@@ -523,7 +510,7 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::start();
@@ -531,8 +518,8 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 
     // Verify initial state
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
-    assert_eq!(*initial_state.current_scroll(), Decimal::one());
+    assert_eq!(*initial_state.current_bpm(), FinF64::new(120.0).unwrap());
+    assert_eq!(*initial_state.current_scroll(), FinF64::new(1.0).unwrap());
 
     // Advance past the first BPM and Scroll change point
     // The bemuse_ext.bms file has BPM and Scroll changes at specific positions
@@ -549,11 +536,11 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     // We just check that the state is valid (not necessarily changed in this specific file)
     let state = processor.playback_state();
     assert!(
-        *state.current_bpm() > Decimal::zero(),
+        *state.current_bpm() > FinF64::new(0.0).unwrap(),
         "BPM should be valid"
     );
     assert!(
-        *state.current_scroll() > Decimal::zero(),
+        *state.current_scroll() > FinF64::new(0.0).unwrap(),
         "Scroll should be valid"
     );
 
@@ -564,37 +551,37 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 #[test]
 fn test_bms_stop_duration_conversion_from_192nd_note_to_beats() {
     // Test that STOP duration is correctly converted from 192nd-note units to beats
-    use bms_rs::bms::Decimal;
+    use strict_num_extended::FinF64;
 
     // Test conversion: 192nd-note / 48 = beats
     // 192 / 48 = 4 beats (one full measure in 4/4 time)
-    let duration_192nd = Decimal::from(192);
-    let expected_beats = Decimal::from(4);
+    let duration_192nd = FinF64::new(192.0).unwrap();
+    let expected_beats = FinF64::new(4.0).unwrap();
 
     // Use the internal conversion function via pattern matching
     // Since it's a private function, we test the logic indirectly
-    let converted_beats = duration_192nd / Decimal::from(48);
+    let converted_beats = (duration_192nd / FinF64::new(48.0).unwrap()).unwrap();
 
-    assert_eq!(
-        converted_beats, expected_beats,
+    assert!(
+        converted_beats == expected_beats,
         "192nd-note duration should be converted to beats: 192/48 = 4 beats"
     );
 
     // Test with different values
-    let duration_96 = Decimal::from(96);
-    let expected_2_beats = Decimal::from(2);
-    let converted_2_beats = duration_96 / Decimal::from(48);
-    assert_eq!(
-        converted_2_beats, expected_2_beats,
+    let duration_96 = FinF64::new(96.0).unwrap();
+    let expected_2_beats = FinF64::new(2.0).unwrap();
+    let converted_2_beats = (duration_96 / FinF64::new(48.0).unwrap()).unwrap();
+    assert!(
+        converted_2_beats == expected_2_beats,
         "96 192nd-notes should equal 2 beats"
     );
 
     // Test with fractional values
-    let duration_48 = Decimal::from(48);
-    let expected_1_beat = Decimal::from(1);
-    let converted_1_beat = duration_48 / Decimal::from(48);
-    assert_eq!(
-        converted_1_beat, expected_1_beat,
+    let duration_48 = FinF64::new(48.0).unwrap();
+    let expected_1_beat = FinF64::new(1.0).unwrap();
+    let converted_1_beat = (duration_48 / FinF64::new(48.0).unwrap()).unwrap();
+    assert!(
+        converted_1_beat == expected_1_beat,
         "48 192nd-notes should equal 1 beat"
     );
 }
@@ -603,28 +590,28 @@ fn test_bms_stop_duration_conversion_from_192nd_note_to_beats() {
 fn test_bms_stop_timing_with_bpm_changes() {
     // Test that STOP duration conversion is independent of BPM changes
     // This test verifies that the conversion formula doesn't depend on current BPM
-    use bms_rs::bms::Decimal;
+    use strict_num_extended::FinF64;
 
     // At BPM 120: 192nd-note should convert to 4 beats
-    let duration_192nd = Decimal::from(192);
-    let beats_at_120 = duration_192nd.clone() / Decimal::from(48);
-    assert_eq!(beats_at_120, Decimal::from(4));
+    let duration_192nd = FinF64::new(192.0).unwrap();
+    let beats_at_120 = (duration_192nd / FinF64::new(48.0).unwrap()).unwrap();
+    assert!(beats_at_120 == FinF64::new(4.0).unwrap());
 
     // At BPM 180: conversion should be the same (conversion is independent of BPM)
     // The conversion from 192nd-note to beats is purely mathematical, not dependent on BPM
-    let beats_at_180 = duration_192nd / Decimal::from(48);
-    assert_eq!(beats_at_180, Decimal::from(4));
+    let beats_at_180 = (duration_192nd / FinF64::new(48.0).unwrap()).unwrap();
+    assert!(beats_at_180 == FinF64::new(4.0).unwrap());
 
     // Verify they're the same
-    assert_eq!(
-        beats_at_120, beats_at_180,
+    assert!(
+        beats_at_120 == beats_at_180,
         "STOP duration conversion should be independent of BPM"
     );
 
     // Test with different duration values
-    let duration_96 = Decimal::from(96);
-    let beats_96_at_120 = duration_96.clone() / Decimal::from(48);
-    let beats_96_at_180 = duration_96 / Decimal::from(48);
-    assert_eq!(beats_96_at_120, beats_96_at_180);
-    assert_eq!(beats_96_at_120, Decimal::from(2));
+    let duration_96 = FinF64::new(96.0).unwrap();
+    let beats_96_at_120 = (duration_96 / FinF64::new(48.0).unwrap()).unwrap();
+    let beats_96_at_180 = (duration_96 / FinF64::new(48.0).unwrap()).unwrap();
+    assert!(beats_96_at_120 == beats_96_at_180);
+    assert!(beats_96_at_120 == FinF64::new(2.0).unwrap());
 }

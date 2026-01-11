@@ -10,13 +10,12 @@
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
 
-use bms_rs::bms::Decimal;
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
+use strict_num_extended::FinF64;
 
 /// Parse BMS source and return the BMS struct, asserting no warnings.
 fn parse_bms_no_warnings<T, P, R, M>(source: &str, config: ParseConfig<T, P, R, M>) -> Bms
@@ -102,7 +101,7 @@ fn test_very_long_elapsed_time_no_errors() {
     // Verify playback state is still valid
     let state = processor.playback_state();
     // BPM should be 180 after the BPM change event at y=240
-    let expected_bpm = Decimal::from(180);
+    let expected_bpm = FinF64::new(180.0).unwrap();
     assert_eq!(
         *state.current_bpm(),
         expected_bpm,
@@ -123,8 +122,8 @@ fn test_very_long_elapsed_time_no_errors() {
         );
 
         // display_ratio should be finite
-        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
-        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+        let ratio_start = ratio_range.start().value().as_f64();
+        let ratio_end = ratio_range.end().value().as_f64();
         assert!(
             ratio_start.is_finite(),
             "display_ratio start should be finite, got {}",
@@ -222,7 +221,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -253,8 +252,8 @@ fn test_bms_very_small_section_no_division_by_zero() {
     // Verify all visible_events return valid results (no division by zero)
     for (_ev, ratio_range) in events1.iter().chain(events2.iter()).chain(events3.iter()) {
         // Ensure no NaN or infinite values caused by division by zero
-        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
-        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+        let ratio_start = ratio_range.start().value().as_f64();
+        let ratio_end = ratio_range.end().value().as_f64();
         assert!(
             ratio_start.is_finite(),
             "display_ratio start should be finite with very small section length, got {}",
@@ -270,7 +269,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
     // Additional verification: check that playback state remains consistent
     let state = processor.playback_state();
     // BPM should be 120 (the initial BPM in the BMS)
-    let expected_bpm = Decimal::from(120);
+    let expected_bpm = FinF64::new(120.0).unwrap();
     assert_eq!(
         *state.current_bpm(),
         expected_bpm,
@@ -279,7 +278,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
         state.current_bpm()
     );
     // Speed should be 1.0 (initial speed)
-    let expected_speed = Decimal::one();
+    let expected_speed = FinF64::new(1.0).unwrap();
     assert_eq!(
         *state.current_speed(),
         expected_speed,
@@ -342,7 +341,7 @@ fn test_bmson_edge_cases_no_division_by_zero() {
     // Verify compute_display_ratio doesn't cause errors when event_y == current_y
     let events = processor.visible_events();
     for (_ev, ratio_range) in events {
-        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        let ratio_start = ratio_range.start().value().as_f64();
         assert!(
             ratio_start.is_finite(),
             "display_ratio should be finite when event_y == current_y, got {}",

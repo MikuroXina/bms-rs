@@ -7,12 +7,10 @@
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 
 pub use gametime::TimeSpan;
+use strict_num_extended::FinF64;
 
 use crate::bms::prelude::SwBgaEvent;
-use crate::bms::{
-    Decimal,
-    prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
-};
+use crate::bms::prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
 use crate::chart_process::types::{BmpId, VisibleRangePerBpm, WavId, YCoordinate};
 
 pub mod bms_processor;
@@ -59,22 +57,22 @@ pub enum ChartEvent {
     /// BPM change
     BpmChange {
         /// New BPM value (beats per minute)
-        bpm: Decimal,
+        bpm: FinF64,
     },
     /// Scroll factor change
     ScrollChange {
         /// Scroll factor (relative value)
-        factor: Decimal,
+        factor: FinF64,
     },
     /// Speed factor change
     SpeedChange {
         /// Spacing factor (relative value)
-        factor: Decimal,
+        factor: FinF64,
     },
     /// Stop scroll event
     Stop {
         /// Stop duration (BMS: converted from chart-defined time units; BMSON: pulse count)
-        duration: Decimal,
+        duration: FinF64,
     },
     /// BGA (background animation) change event
     ///
@@ -180,6 +178,6 @@ pub enum ControlEvent {
     /// Default is 1.
     SetPlaybackRatio {
         /// Playback ratio (>= 0)
-        ratio: Decimal,
+        ratio: FinF64,
     },
 }

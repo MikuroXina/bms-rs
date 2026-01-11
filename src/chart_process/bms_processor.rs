@@ -5,10 +5,8 @@ use std::{
     path::PathBuf,
 };
 
-use num::{ToPrimitive, Zero};
 use strict_num_extended::FinF64;
 
-use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::chart_process::ChartEvent;
 use crate::chart_process::types::{
@@ -16,7 +14,13 @@ use crate::chart_process::types::{
     PlayheadEvent, TimeSpan, WavId, YCoordinate,
 };
 
-const NANOS_PER_SECOND: u64 = 1_000_000_000;
+/// Zero constant for `FinF64`
+const FINF64_ZERO: FinF64 = FinF64::new_const(0.0);
+
+/// One constant for `FinF64`
+const FINF64_ONE: FinF64 = FinF64::new_const(1.0);
+
+use crate::chart_process::types::FINF64_120;
 
 /// BMS format parser.
 ///
@@ -32,8 +36,8 @@ pub struct BmsProcessor;
 /// - Therefore: 1 unit of 192nd-note = 1/48 beat
 /// - Formula: beats = `192nd_note_value` / 48
 #[must_use]
-fn convert_stop_duration_to_beats(duration_192nd: &Decimal) -> Decimal {
-    duration_192nd.clone() / Decimal::from(48)
+fn convert_stop_duration_to_beats(duration_192nd: f64) -> FinF64 {
+    FinF64::new(duration_192nd / 48.0).unwrap_or(FINF64_ZERO)
 }
 
 impl BmsProcessor {
@@ -44,9 +48,12 @@ impl BmsProcessor {
         let y_memo = YMemo::new(bms);
 
         // Initialize BPM: prefer chart initial BPM, otherwise 120
-        let init_bpm = bms.bpm.bpm.as_ref().cloned().unwrap_or_else(|| {
-            StringValue::from_value(FinF64::new(120.0).expect("120.0 is valid"))
-        });
+        let init_bpm = bms
+            .bpm
+            .bpm
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| StringValue::from_value(FINF64_120));
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
@@ -95,8 +102,8 @@ impl BmsProcessor {
             ChartResources::new(wav_files, bmp_files),
             all_events,
             flow_events_by_y,
-            Decimal::from(init_bpm.as_f64().unwrap_or(120.0)),
-            Decimal::from(1.0),
+            FinF64::new(init_bpm.as_f64().unwrap_or(120.0)).unwrap_or(FINF64_120),
+            FINF64_ONE,
         )
     }
 
@@ -112,7 +119,7 @@ impl BmsProcessor {
             return;
         };
 
-        if max_y.0 <= Decimal::zero() {
+        if max_y.0.get() <= 0.0 {
             return;
         }
 
@@ -152,27 +159,21 @@ impl BmsProcessor {
 #[derive(Debug)]
 pub struct YMemo {
     /// Y coordinates memoization by track, which modified its length
-    y_by_track: BTreeMap<Track, Decimal>,
+    y_by_track: BTreeMap<Track, f64>,
     speed_changes: BTreeMap<ObjTime, SpeedObj>,
 }
 
 impl YMemo {
     fn new(bms: &Bms) -> Self {
-        let mut y_by_track: BTreeMap<Track, Decimal> = BTreeMap::new();
+        let mut y_by_track: BTreeMap<Track, f64> = BTreeMap::new();
         let mut last_track = 0;
-        let mut y = Decimal::zero();
+        let mut y = 0.0f64;
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
             let passed_sections = (track.0 - last_track).saturating_sub(1);
-            y += Decimal::from(passed_sections);
-            let length_decimal: Decimal = section_len_change
-                .length
-                .as_str()
-                .parse()
-                .unwrap_or_else(|_| {
-                    Decimal::from(section_len_change.length.as_f64().unwrap_or(1.0))
-                });
-            y += length_decimal;
-            y_by_track.insert(track, y.clone());
+            y += passed_sections as f64;
+            let length_f64: f64 = section_len_change.length.as_f64().unwrap_or(1.0);
+            y += length_f64;
+            y_by_track.insert(track, y);
             last_track = track.0;
         }
         Self {
@@ -185,25 +186,25 @@ impl YMemo {
     fn get_y(&self, time: ObjTime) -> YCoordinate {
         let section_y = {
             let track = time.track();
-            if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last() {
+            if let Some((&last_track, &last_y)) = self.y_by_track.range(..=&track).last() {
                 let passed_sections = track.0 - last_track.0;
-                &Decimal::from(passed_sections) + last_y
+                passed_sections as f64 + last_y
             } else {
                 // there is no sections modified its length until
-                Decimal::from(track.0)
+                track.0 as f64
             }
         };
         let fraction = if time.denominator().get() > 0 {
-            Decimal::from(time.numerator()) / Decimal::from(time.denominator().get())
+            time.numerator() as f64 / time.denominator().get() as f64
         } else {
-            Default::default()
+            0.0
         };
         let factor = self
             .speed_changes
             .range(..=time)
             .last()
             .map_or_else(|| 1.0, |(_, obj)| obj.factor.as_f64().unwrap_or(1.0));
-        YCoordinate((section_y + fraction) * factor)
+        YCoordinate::from((section_y + fraction) * factor)
     }
 }
 
@@ -228,7 +229,7 @@ impl AllEventsIndex {
         for change in bms.bpm.bpm_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::BpmChange {
-                bpm: Decimal::from(change.bpm.as_f64().unwrap_or(120.0)),
+                bpm: FinF64::new(change.bpm.as_f64().unwrap_or(120.0)).unwrap_or(FINF64_120),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -239,7 +240,7 @@ impl AllEventsIndex {
         for change in bms.scroll.scrolling_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::ScrollChange {
-                factor: Decimal::from(change.factor.as_f64().unwrap_or(1.0)),
+                factor: FinF64::new(change.factor.as_f64().unwrap_or(1.0)).unwrap_or(FINF64_ONE),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -250,7 +251,7 @@ impl AllEventsIndex {
         for change in bms.speed.speed_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::SpeedChange {
-                factor: Decimal::from(change.factor.as_f64().unwrap_or(1.0)),
+                factor: FinF64::new(change.factor.as_f64().unwrap_or(1.0)).unwrap_or(FINF64_ONE),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -260,12 +261,9 @@ impl AllEventsIndex {
         // Stop events
         for stop in bms.stop.stops.values() {
             let y = y_memo.get_y(stop.time);
-            let duration_decimal = stop
-                .duration
-                .as_big_decimal()
-                .unwrap_or_else(|| Decimal::from(0.0));
+            let duration_f64 = stop.duration.as_f64().unwrap_or(0.0);
             let event = ChartEvent::Stop {
-                duration: convert_stop_duration_to_beats(&duration_decimal),
+                duration: convert_stop_duration_to_beats(duration_f64),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -402,6 +400,10 @@ impl AllEventsIndex {
 }
 
 /// Precompute absolute `activate_time` for all events based on BPM segmentation and Stops.
+///
+/// Time calculation formula (in seconds):
+/// - `delta_secs = delta_y * 240.0 / bpm`
+/// - One measure (Y=1.0) at 120 BPM = 2 seconds
 #[must_use]
 pub fn precompute_activate_times(
     bms: &Bms,
@@ -413,71 +415,66 @@ pub fn precompute_activate_times(
     points.insert(YCoordinate::zero());
     points.extend(all_events.as_by_y().keys().cloned());
 
-    let mut bpm_map: BTreeMap<YCoordinate, Decimal> = BTreeMap::new();
+    // BPM map: Y coordinate -> BPM value (f64)
+    let mut bpm_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
     let init_bpm = bms
         .bpm
         .bpm
         .as_ref()
-        .cloned()
-        .and_then(|sv| sv.as_big_decimal())
-        .unwrap_or_else(|| Decimal::from(120.0));
-    bpm_map.insert(YCoordinate::zero(), init_bpm.clone());
-    let bpm_pairs: Vec<(YCoordinate, Decimal)> = bms
+        .and_then(super::super::bms::command::StringValue::as_f64)
+        .unwrap_or(120.0);
+    bpm_map.insert(YCoordinate::zero(), init_bpm);
+    let bpm_pairs: Vec<(YCoordinate, f64)> = bms
         .bpm
         .bpm_changes
         .values()
         .map(|change| {
             let y = y_memo.get_y(change.time);
-            let bpm_decimal = change
-                .bpm
-                .as_str()
-                .parse()
-                .unwrap_or_else(|_| change.bpm.as_f64().unwrap_or(120.0).into());
-            (y, bpm_decimal)
+            let bpm_value = change.bpm.as_f64().unwrap_or(120.0);
+            (y, bpm_value)
         })
         .collect();
     bpm_map.extend(bpm_pairs.iter().cloned());
     points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
 
-    let mut stop_list: Vec<(YCoordinate, Decimal)> = bms
+    // Stop list: Y coordinate -> stop duration in beats (f64)
+    let mut stop_list: Vec<(YCoordinate, f64)> = bms
         .stop
         .stops
         .values()
         .map(|st| {
             let sy = y_memo.get_y(st.time);
-            let stop_decimal = st
-                .duration
-                .as_str()
-                .parse()
-                .unwrap_or_else(|_| st.duration.as_f64().unwrap_or(0.0).into());
-            (sy, stop_decimal)
+            // Stop duration is in 192nd-note units, convert to beats
+            let stop_192nd = st.duration.as_f64().unwrap_or(0.0);
+            let stop_beats = stop_192nd / 48.0;
+            (sy, stop_beats)
         })
         .collect();
     stop_list.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
-    let mut total_nanos: u64 = 0;
+    // Cumulative time map: Y coordinate -> cumulative seconds (f64)
+    let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
+    let mut total_secs: f64 = 0.0;
     let mut prev = YCoordinate::zero();
-    cum_map.insert(prev.clone(), 0);
+    cum_map.insert(prev.clone(), 0.0);
     let mut cur_bpm = bpm_map
         .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
         .next_back()
-        .map(|(_, b)| b.clone())
-        .unwrap_or_else(|| init_bpm.clone());
+        .map(|(_, b)| *b)
+        .unwrap_or(init_bpm);
     let mut stop_idx = 0usize;
     for curr in points.into_iter() {
         if curr <= prev {
             continue;
         }
         let delta_y = curr.clone() - prev.clone();
-        let delta_y_value = delta_y.value();
-        let delta_nanos = (delta_y_value * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-            / cur_bpm)
-            .round()
-            .to_u64()
-            .unwrap_or(0);
-        total_nanos = total_nanos.saturating_add(delta_nanos);
-        while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
+        let delta_y_value = delta_y.as_f64();
+        // Time formula: delta_secs = delta_y * 240.0 / bpm
+        let delta_secs = delta_y_value * 240.0 / cur_bpm;
+        total_secs += delta_secs;
+
+        // Process stops between prev and curr
+        while let Some((sy, dur_beats)) = stop_list.get(stop_idx) {
             if sy >= &curr {
                 break;
             }
@@ -485,33 +482,31 @@ pub fn precompute_activate_times(
                 let bpm_at_stop = bpm_map
                     .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(sy)))
                     .next_back()
-                    .map(|(_, b)| b.clone())
-                    .unwrap_or_else(|| init_bpm.clone());
-                let dur_nanos =
-                    (dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-                        / bpm_at_stop)
-                        .round()
-                        .to_u64()
-                        .unwrap_or(0);
-                total_nanos = total_nanos.saturating_add(dur_nanos);
+                    .map(|(_, b)| *b)
+                    .unwrap_or(init_bpm);
+                // Stop duration in seconds
+                let dur_secs = dur_beats * 240.0 / bpm_at_stop;
+                total_secs += dur_secs;
             }
             stop_idx += 1;
         }
+
         cur_bpm = bpm_map
             .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
             .next_back()
-            .map(|(_, b)| b.clone())
-            .unwrap_or_else(|| init_bpm.clone());
-        cum_map.insert(curr.clone(), total_nanos);
+            .map(|(_, b)| *b)
+            .unwrap_or(init_bpm);
+        cum_map.insert(curr.clone(), total_secs);
         prev = curr;
     }
 
+    // Convert cumulative seconds to TimeSpan for each event
     let new_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = all_events
         .as_by_y()
         .iter()
         .map(|(y_coord, indices)| {
-            let at_nanos = cum_map.get(y_coord).copied().unwrap_or(0);
-            let at = TimeSpan::from_duration(std::time::Duration::from_nanos(at_nanos));
+            let at_secs = cum_map.get(y_coord).copied().unwrap_or(0.0);
+            let at = TimeSpan::from_duration(std::time::Duration::from_secs_f64(at_secs));
             let new_events: Vec<_> = all_events
                 .as_events()
                 .get(indices.clone())

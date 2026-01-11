@@ -6,10 +6,13 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use num::{One, ToPrimitive, Zero};
+use num::Zero;
+use strict_num_extended::FinF64;
 
 pub use super::TimeSpan;
+use crate::bms::command::StringValue;
 use crate::bms::prelude::Bms;
+use crate::chart_process::ChartEvent;
 
 /// Flow events that affect playback speed/scroll.
 #[derive(Debug, Clone)]
@@ -23,13 +26,6 @@ pub enum FlowEvent {
 }
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
-use crate::{
-    bms::{Decimal, command::StringValue},
-    chart_process::ChartEvent,
-};
-use strict_num_extended::FinF64;
-
-const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {
@@ -52,21 +48,21 @@ pub struct MaxBpmGenerator;
 
 /// Generator that uses a manually specified BPM value.
 #[derive(Debug, Clone)]
-pub struct ManualBpmGenerator(pub Decimal);
+pub struct ManualBpmGenerator(pub FinF64);
 
-impl AsRef<Decimal> for ManualBpmGenerator {
-    fn as_ref(&self) -> &Decimal {
+impl AsRef<FinF64> for ManualBpmGenerator {
+    fn as_ref(&self) -> &FinF64 {
         &self.0
     }
 }
 
-impl From<Decimal> for ManualBpmGenerator {
-    fn from(value: Decimal) -> Self {
+impl From<FinF64> for ManualBpmGenerator {
+    fn from(value: FinF64) -> Self {
         Self(value)
     }
 }
 
-impl From<ManualBpmGenerator> for Decimal {
+impl From<ManualBpmGenerator> for FinF64 {
     fn from(value: ManualBpmGenerator) -> Self {
         value.0
     }
@@ -75,23 +71,23 @@ impl From<ManualBpmGenerator> for Decimal {
 impl ManualBpmGenerator {
     /// Returns a reference to the contained BPM value.
     #[must_use]
-    pub const fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &FinF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained BPM value.
     #[must_use]
-    pub fn into_value(self) -> Decimal {
+    pub const fn into_value(self) -> FinF64 {
         self.0
     }
 }
 
-/// Base BPM wrapper type, encapsulating a `Decimal` value.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BaseBpm(pub Decimal);
+/// Base BPM wrapper type, encapsulating a `FinF64` value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BaseBpm(pub FinF64);
 
-impl AsRef<Decimal> for BaseBpm {
-    fn as_ref(&self) -> &Decimal {
+impl AsRef<FinF64> for BaseBpm {
+    fn as_ref(&self) -> &FinF64 {
         &self.0
     }
 }
@@ -99,30 +95,30 @@ impl AsRef<Decimal> for BaseBpm {
 impl BaseBpm {
     /// Create a new `BaseBpm`
     #[must_use]
-    pub const fn new(value: Decimal) -> Self {
+    pub const fn new(value: FinF64) -> Self {
         Self(value)
     }
 
     /// Returns a reference to the contained BPM value.
     #[must_use]
-    pub const fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &FinF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained BPM value.
     #[must_use]
-    pub fn into_value(self) -> Decimal {
+    pub const fn into_value(self) -> FinF64 {
         self.0
     }
 }
 
-impl From<Decimal> for BaseBpm {
-    fn from(value: Decimal) -> Self {
+impl From<FinF64> for BaseBpm {
+    fn from(value: FinF64) -> Self {
         Self(value)
     }
 }
 
-impl From<BaseBpm> for Decimal {
+impl From<BaseBpm> for FinF64 {
     fn from(value: BaseBpm) -> Self {
         value.0
     }
@@ -130,51 +126,54 @@ impl From<BaseBpm> for Decimal {
 
 impl From<StringValue<FinF64>> for BaseBpm {
     fn from(value: StringValue<FinF64>) -> Self {
-        Self::new(
-            value
-                .as_str()
-                .parse()
-                .unwrap_or_else(|_| Decimal::from(value.as_f64().unwrap_or(120.0))),
-        )
+        Self::new(FinF64::new(value.as_f64().unwrap_or(120.0)).unwrap_or(FINF64_120))
     }
 }
 
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
 /// Formula: `visible_y_range` = `current_bpm` * `visible_range_per_bpm`
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VisibleRangePerBpm(Decimal);
+#[derive(Debug, Clone, PartialEq)]
+pub struct VisibleRangePerBpm(FinF64);
 
-impl AsRef<Decimal> for VisibleRangePerBpm {
-    fn as_ref(&self) -> &Decimal {
+impl AsRef<FinF64> for VisibleRangePerBpm {
+    fn as_ref(&self) -> &FinF64 {
         &self.0
     }
 }
+
+/// Zero constant for `FinF64`
+const FINF64_ZERO: FinF64 = FinF64::new_const(0.0);
+
+/// One constant for `FinF64`
+const FINF64_ONE: FinF64 = FinF64::new_const(1.0);
+
+/// 120 constant for `FinF64` (default BPM)
+pub(crate) const FINF64_120: FinF64 = FinF64::new_const(120.0);
 
 impl VisibleRangePerBpm {
     /// Create a new `VisibleRangePerBpm` from base BPM and reaction time
     /// Formula: `visible_range_per_bpm` = `reaction_time_seconds` * 240 / `base_bpm`
     #[must_use]
     pub fn new(base_bpm: &BaseBpm, reaction_time: TimeSpan) -> Self {
-        if base_bpm.value().is_zero() {
-            Self(Decimal::zero())
+        let bpm_value = base_bpm.value().get();
+        if bpm_value == 0.0 {
+            Self(FINF64_ZERO)
         } else {
-            Self(
-                Decimal::from(reaction_time.as_nanos().max(0)) / NANOS_PER_SECOND
-                    * Decimal::from(240u64)
-                    / base_bpm.value().clone(),
-            )
+            let reaction_secs = reaction_time.as_secs_f64().max(0.0);
+            let value = reaction_secs * 240.0 / bpm_value;
+            Self(FinF64::new(value).unwrap_or(FINF64_ZERO))
         }
     }
 
     /// Returns a reference to the contained value.
     #[must_use]
-    pub const fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &FinF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained value.
     #[must_use]
-    pub fn into_value(self) -> Decimal {
+    pub const fn into_value(self) -> FinF64 {
         self.0
     }
 
@@ -184,13 +183,13 @@ impl VisibleRangePerBpm {
     #[must_use]
     pub fn window_y(
         &self,
-        current_bpm: &Decimal,
-        current_speed: &Decimal,
-        playback_ratio: &Decimal,
+        current_bpm: &FinF64,
+        current_speed: &FinF64,
+        playback_ratio: &FinF64,
     ) -> YCoordinate {
-        let speed_factor = current_speed * playback_ratio;
-        let adjusted = current_bpm * self.value() * speed_factor / Decimal::from(240u64);
-        YCoordinate::new(adjusted)
+        let speed_factor = current_speed.get() * playback_ratio.get();
+        let adjusted = current_bpm.get() * self.0.get() * speed_factor / 240.0;
+        YCoordinate::new(FinF64::new(adjusted).unwrap_or(FINF64_ZERO))
     }
 
     /// Calculate reaction time from visible range per BPM
@@ -198,31 +197,28 @@ impl VisibleRangePerBpm {
     /// where `playhead_speed` = 1/240 (Y/sec per BPM)
     #[must_use]
     pub fn to_reaction_time(&self) -> TimeSpan {
-        if self.0.is_zero() {
+        if self.0.get() == 0.0 {
             TimeSpan::ZERO
         } else {
-            let base = &self.0 * &Decimal::from(240);
-            let nanos = (&base * &Decimal::from(NANOS_PER_SECOND))
-                .to_u64()
-                .unwrap_or(0);
-            TimeSpan::from_duration(Duration::from_nanos(nanos))
+            let seconds = self.0.get() * 240.0;
+            TimeSpan::from_duration(Duration::from_secs_f64(seconds))
         }
     }
 
-    /// Create from Decimal value (for internal use)
+    /// Create from `FinF64` value (for internal use)
     #[must_use]
-    pub(crate) const fn from_decimal(value: Decimal) -> Self {
+    pub(crate) const fn from_finf64(value: FinF64) -> Self {
         Self(value)
     }
 }
 
-impl From<Decimal> for VisibleRangePerBpm {
-    fn from(value: Decimal) -> Self {
-        Self::from_decimal(value)
+impl From<FinF64> for VisibleRangePerBpm {
+    fn from(value: FinF64) -> Self {
+        Self::from_finf64(value)
     }
 }
 
-impl From<VisibleRangePerBpm> for Decimal {
+impl From<VisibleRangePerBpm> for FinF64 {
     fn from(value: VisibleRangePerBpm) -> Self {
         value.0
     }
@@ -234,7 +230,8 @@ impl BaseBpmGenerator<Bms> for StartBpmGenerator {
         bms.bpm
             .bpm
             .as_ref()
-            .and_then(super::super::bms::command::StringValue::as_big_decimal)
+            .and_then(StringValue::as_f64)
+            .and_then(|v| FinF64::new(v).ok())
             .map(BaseBpm::new)
     }
 }
@@ -244,14 +241,15 @@ impl BaseBpmGenerator<Bms> for MinBpmGenerator {
         bms.bpm
             .bpm
             .as_ref()
-            .and_then(super::super::bms::command::StringValue::as_big_decimal)
+            .and_then(StringValue::as_f64)
             .into_iter()
             .chain(
                 bms.bpm
                     .bpm_changes
                     .values()
-                    .filter_map(|change| change.bpm.as_big_decimal()),
+                    .filter_map(|change| change.bpm.as_f64()),
             )
+            .filter_map(|v| FinF64::new(v).ok())
             .min()
             .map(BaseBpm::new)
     }
@@ -262,14 +260,15 @@ impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
         bms.bpm
             .bpm
             .as_ref()
-            .and_then(super::super::bms::command::StringValue::as_big_decimal)
+            .and_then(StringValue::as_f64)
             .into_iter()
             .chain(
                 bms.bpm
                     .bpm_changes
                     .values()
-                    .filter_map(|change| change.bpm.as_big_decimal()),
+                    .filter_map(|change| change.bpm.as_f64()),
             )
+            .filter_map(|v| FinF64::new(v).ok())
             .max()
             .map(BaseBpm::new)
     }
@@ -277,7 +276,7 @@ impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
 
 impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
     fn generate(&self, _bms: &Bms) -> Option<BaseBpm> {
-        Some(BaseBpm::new(self.0.clone()))
+        Some(BaseBpm::new(self.0))
     }
 }
 
@@ -285,20 +284,18 @@ impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        Some(BaseBpm::new(Decimal::from(bmson.info.init_bpm.as_f64())))
+        FinF64::new(bmson.info.init_bpm.as_f64())
+            .ok()
+            .map(BaseBpm::new)
     }
 }
 
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        std::iter::once(Decimal::from(bmson.info.init_bpm.as_f64()))
-            .chain(
-                bmson
-                    .bpm_events
-                    .iter()
-                    .map(|ev| Decimal::from(ev.bpm.as_f64())),
-            )
+        std::iter::once(bmson.info.init_bpm.as_f64())
+            .chain(bmson.bpm_events.iter().map(|ev| ev.bpm.as_f64()))
+            .filter_map(|v| FinF64::new(v).ok())
             .min()
             .map(BaseBpm::new)
     }
@@ -307,13 +304,9 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        std::iter::once(Decimal::from(bmson.info.init_bpm.as_f64()))
-            .chain(
-                bmson
-                    .bpm_events
-                    .iter()
-                    .map(|ev| Decimal::from(ev.bpm.as_f64())),
-            )
+        std::iter::once(bmson.info.init_bpm.as_f64())
+            .chain(bmson.bpm_events.iter().map(|ev| ev.bpm.as_f64()))
+            .filter_map(|v| FinF64::new(v).ok())
             .max()
             .map(BaseBpm::new)
     }
@@ -322,18 +315,18 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for ManualBpmGenerator {
     fn generate(&self, _bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        Some(BaseBpm::new(self.0.clone()))
+        Some(BaseBpm::new(self.0))
     }
 }
 
-/// Y coordinate wrapper type, using arbitrary precision decimal numbers.
+/// Y coordinate wrapper type, using finite f64 numbers.
 ///
 /// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct YCoordinate(pub Decimal);
+#[derive(Debug, Clone, PartialEq)]
+pub struct YCoordinate(pub FinF64);
 
-impl AsRef<Decimal> for YCoordinate {
-    fn as_ref(&self) -> &Decimal {
+impl AsRef<FinF64> for YCoordinate {
+    fn as_ref(&self) -> &FinF64 {
         &self.0
     }
 }
@@ -341,36 +334,42 @@ impl AsRef<Decimal> for YCoordinate {
 impl YCoordinate {
     /// Create a new `YCoordinate`
     #[must_use]
-    pub const fn new(value: Decimal) -> Self {
+    pub const fn new(value: FinF64) -> Self {
         Self(value)
     }
 
     /// Returns a reference to the contained value.
     #[must_use]
-    pub const fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &FinF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained value.
     #[must_use]
-    pub fn into_value(self) -> Decimal {
+    pub const fn into_value(self) -> FinF64 {
         self.0
+    }
+
+    /// Returns the value as f64.
+    #[must_use]
+    pub const fn as_f64(&self) -> f64 {
+        self.0.as_f64()
     }
 
     /// Creates a zero of Y coordinate.
     #[must_use]
-    pub fn zero() -> Self {
-        Self(Decimal::zero())
+    pub const fn zero() -> Self {
+        Self(FINF64_ZERO)
     }
 }
 
-impl From<Decimal> for YCoordinate {
-    fn from(value: Decimal) -> Self {
+impl From<FinF64> for YCoordinate {
+    fn from(value: FinF64) -> Self {
         Self(value)
     }
 }
 
-impl From<YCoordinate> for Decimal {
+impl From<YCoordinate> for FinF64 {
     fn from(value: YCoordinate) -> Self {
         value.0
     }
@@ -378,7 +377,7 @@ impl From<YCoordinate> for Decimal {
 
 impl From<f64> for YCoordinate {
     fn from(value: f64) -> Self {
-        Self(Decimal::from(value))
+        Self(FinF64::new(value).unwrap_or(FINF64_ZERO))
     }
 }
 
@@ -386,7 +385,7 @@ impl std::ops::Add for YCoordinate {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
+        Self((self.0 + rhs.0).unwrap_or(FINF64_ZERO))
     }
 }
 
@@ -394,7 +393,7 @@ impl std::ops::Add for &YCoordinate {
     type Output = YCoordinate;
 
     fn add(self, rhs: Self) -> Self::Output {
-        YCoordinate(&self.0 + &rhs.0)
+        YCoordinate((self.0 + rhs.0).unwrap_or(FINF64_ZERO))
     }
 }
 
@@ -402,7 +401,7 @@ impl std::ops::Sub for YCoordinate {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
+        Self((self.0 - rhs.0).unwrap_or(FINF64_ZERO))
     }
 }
 
@@ -410,7 +409,7 @@ impl std::ops::Sub for &YCoordinate {
     type Output = YCoordinate;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        YCoordinate(&self.0 - &rhs.0)
+        YCoordinate((self.0 - rhs.0).unwrap_or(FINF64_ZERO))
     }
 }
 
@@ -418,7 +417,7 @@ impl std::ops::Mul for YCoordinate {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Self(self.0 * rhs.0)
+        Self((self.0 * rhs.0).unwrap_or(FINF64_ZERO))
     }
 }
 
@@ -426,7 +425,7 @@ impl std::ops::Div for YCoordinate {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        Self(self.0 / rhs.0)
+        Self((self.0 / rhs.0).unwrap_or(FINF64_ZERO))
     }
 }
 
@@ -434,17 +433,31 @@ impl std::ops::Div for &YCoordinate {
     type Output = YCoordinate;
 
     fn div(self, rhs: Self) -> Self::Output {
-        YCoordinate(&self.0 / &rhs.0)
+        YCoordinate((self.0 / rhs.0).unwrap_or(FINF64_ZERO))
     }
 }
 
 impl Zero for YCoordinate {
     fn zero() -> Self {
-        Self(Decimal::zero())
+        Self(FINF64_ZERO)
     }
 
     fn is_zero(&self) -> bool {
-        self.0.is_zero()
+        self.0.get() == 0.0
+    }
+}
+
+impl Eq for YCoordinate {}
+
+impl PartialOrd for YCoordinate {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for YCoordinate {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.partial_cmp(&other.0).unwrap_or(Ordering::Equal)
     }
 }
 
@@ -452,11 +465,11 @@ impl Zero for YCoordinate {
 ///
 /// 0 is the judgment line, 1 is the position where the note generally starts to appear.
 /// The value of this type is only affected by: current Y, Y visible range, and current Speed, Scroll values.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
-pub struct DisplayRatio(pub Decimal);
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct DisplayRatio(pub FinF64);
 
-impl AsRef<Decimal> for DisplayRatio {
-    fn as_ref(&self) -> &Decimal {
+impl AsRef<FinF64> for DisplayRatio {
+    fn as_ref(&self) -> &FinF64 {
         &self.0
     }
 }
@@ -464,42 +477,48 @@ impl AsRef<Decimal> for DisplayRatio {
 impl DisplayRatio {
     /// Create a new `DisplayRatio`
     #[must_use]
-    pub const fn new(value: Decimal) -> Self {
+    pub const fn new(value: FinF64) -> Self {
         Self(value)
     }
 
     /// Returns a reference to the contained value.
     #[must_use]
-    pub const fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &FinF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained value.
     #[must_use]
-    pub fn into_value(self) -> Decimal {
+    pub const fn into_value(self) -> FinF64 {
         self.0
+    }
+
+    /// Returns the value as f64.
+    #[must_use]
+    pub const fn as_f64(&self) -> f64 {
+        self.0.as_f64()
     }
 
     /// Create a `DisplayRatio` representing the judgment line (value 0)
     #[must_use]
-    pub fn at_judgment_line() -> Self {
-        Self(Decimal::zero())
+    pub const fn at_judgment_line() -> Self {
+        Self(FINF64_ZERO)
     }
 
     /// Create a `DisplayRatio` representing the position where note starts to appear (value 1)
     #[must_use]
-    pub fn at_appearance() -> Self {
-        Self(Decimal::one())
+    pub const fn at_appearance() -> Self {
+        Self(FINF64_ONE)
     }
 }
 
-impl From<Decimal> for DisplayRatio {
-    fn from(value: Decimal) -> Self {
+impl From<FinF64> for DisplayRatio {
+    fn from(value: FinF64) -> Self {
         Self(value)
     }
 }
 
-impl From<DisplayRatio> for Decimal {
+impl From<DisplayRatio> for FinF64 {
     fn from(value: DisplayRatio) -> Self {
         value.0
     }
@@ -507,7 +526,7 @@ impl From<DisplayRatio> for Decimal {
 
 impl From<f64> for DisplayRatio {
     fn from(value: f64) -> Self {
-        Self(Decimal::from(value))
+        Self(FinF64::new(value).unwrap_or(FINF64_ZERO))
     }
 }
 
@@ -939,9 +958,9 @@ pub struct ParsedChart {
     /// Flow event mapping (affects playback speed).
     pub(crate) flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
     /// Initial BPM.
-    pub(crate) init_bpm: Decimal,
+    pub(crate) init_bpm: FinF64,
     /// Initial Speed (BMS-specific, BMSON defaults to 1.0).
-    pub(crate) init_speed: Decimal,
+    pub(crate) init_speed: FinF64,
 }
 
 impl ParsedChart {
@@ -965,13 +984,13 @@ impl ParsedChart {
 
     /// Get initial BPM.
     #[must_use]
-    pub const fn init_bpm(&self) -> &Decimal {
+    pub const fn init_bpm(&self) -> &FinF64 {
         &self.init_bpm
     }
 
     /// Get initial Speed.
     #[must_use]
-    pub const fn init_speed(&self) -> &Decimal {
+    pub const fn init_speed(&self) -> &FinF64 {
         &self.init_speed
     }
 
@@ -999,8 +1018,8 @@ impl ParsedChart {
         resources: ChartResources,
         events: AllEventsIndex,
         flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
-        init_bpm: Decimal,
-        init_speed: Decimal,
+        init_bpm: FinF64,
+        init_speed: FinF64,
     ) -> Self {
         Self {
             resources,
