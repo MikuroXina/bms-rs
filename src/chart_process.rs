@@ -71,7 +71,14 @@ pub enum ChartEvent {
     },
     /// Stop scroll event
     Stop {
-        /// Stop duration (BMS: converted from chart-defined time units; BMSON: pulse count)
+        /// Stop duration in beats
+        ///
+        /// - **BMS**: converted from 192nd-note units (192nd-note / 48)
+        /// - **BMSON**: pulses converted to beats
+        ///
+        /// According to BMS specification: 1 unit = 1/192 of a whole note,
+        /// independent of measure length changes. Duration is calculated based
+        /// on the BPM at the STOP position.
         duration: FinF64,
     },
     /// BGA (background animation) change event

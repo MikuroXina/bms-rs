@@ -484,8 +484,8 @@ pub fn precompute_activate_times(
                     .next_back()
                     .map(|(_, b)| *b)
                     .unwrap_or(init_bpm);
-                // Stop duration in seconds
-                let dur_secs = dur_beats * 240.0 / bpm_at_stop;
+                // Stop duration in seconds (dur_beats is in beats, use beat-to-second formula)
+                let dur_secs = dur_beats * 60.0 / bpm_at_stop;
                 total_secs += dur_secs;
             }
             stop_idx += 1;
