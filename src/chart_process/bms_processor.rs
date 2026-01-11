@@ -475,7 +475,7 @@ pub fn precompute_activate_times(
 
         // Process stops between prev and curr
         while let Some((sy, dur_beats)) = stop_list.get(stop_idx) {
-            if sy >= &curr {
+            if sy > &curr {
                 break;
             }
             if sy > &prev {
