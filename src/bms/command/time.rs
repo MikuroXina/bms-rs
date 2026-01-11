@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU64;
 
-use crate::bms::math::gcd;
+use crate::util::gcd;
 
 /// A track, or measure, or bar, in the score. It must greater than 0, but some scores may include the 0 track, where the object is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

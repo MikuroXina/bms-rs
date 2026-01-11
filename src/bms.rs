@@ -19,7 +19,6 @@ use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 pub mod command;
 pub mod lex;
-pub mod math;
 pub mod model;
 pub mod parse;
 pub mod prelude;

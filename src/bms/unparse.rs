@@ -1558,7 +1558,7 @@ where
 /// Calculate the least common multiple (LCM) of a slice of u64 values
 /// Returns 1 if the slice is empty
 fn lcm_slice(denominators: &[u64]) -> u64 {
-    use crate::bms::math::lcm;
+    use crate::util::lcm;
     denominators.iter().fold(1, |acc, denom| lcm(acc, *denom))
 }
 

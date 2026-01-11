@@ -105,7 +105,7 @@ impl Bms {
     /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
     #[must_use]
     pub fn resolution_for_pulses(&self) -> u64 {
-        use crate::bms::math::lcm;
+        use crate::util::lcm;
 
         let mut hyp_resolution = 1u64;
         for obj in self.wav.notes.all_notes() {
