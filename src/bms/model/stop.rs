@@ -41,9 +41,7 @@ impl StopObjects {
                     .zip(stop.duration.as_f64())
                     .map(|(a, b)| a + b)
                     .unwrap_or(0.0);
-                existing.duration = format!("{}", sum).parse().unwrap_or_else(|_| {
-                    StringValue::from_value(FinF64::new(sum).expect("Failed to create FinF64"))
-                });
+                existing.duration = StringValue::from_result(FinF64::new(sum));
             })
             .or_insert_with(|| stop);
     }

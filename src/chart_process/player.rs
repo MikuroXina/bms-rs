@@ -9,9 +9,10 @@ use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::FinF64;
 
 use crate::chart_process::types::{
-    AllEventsIndex, BmpId, DisplayRatio, FINF64_120, FlowEvent, PlayheadEvent, VisibleRangePerBpm,
-    WavId, YCoordinate,
+    AllEventsIndex, BmpId, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, WavId,
+    YCoordinate,
 };
+
 use crate::chart_process::{ChartEvent, ControlEvent};
 
 /// Zero constant for `FinF64`
@@ -572,7 +573,19 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
+    use crate::chart_process::types::FINF64_120;
     use crate::chart_process::types::{BaseBpm, ChartResources, ParsedChart};
+
+    /// Asserts that two f64 values are approximately equal within EPSILON tolerance
+    fn assert_approx_eq(a: f64, b: f64) {
+        assert!(
+            (a - b).abs() < f64::EPSILON,
+            "Values are not approximately equal: {} != {} (diff = {})",
+            a,
+            b,
+            (a - b).abs()
+        );
+    }
 
     #[test]
     fn test_velocity_caching() {
@@ -627,13 +640,13 @@ mod tests {
         );
 
         // Initial state after start
-        assert_eq!(player.playback_state().current_bpm().as_f64(), 120.0);
-        assert_eq!(player.playback_state().current_scroll().as_f64(), 1.0);
+        assert_approx_eq(player.playback_state().current_bpm().as_f64(), 120.0);
+        assert_approx_eq(player.playback_state().current_scroll().as_f64(), 1.0);
 
         // Apply BPM change
         player.apply_flow_event(FlowEvent::Bpm(180.0));
 
-        assert_eq!(player.playback_state().current_bpm().as_f64(), 180.0);
+        assert_approx_eq(player.playback_state().current_bpm().as_f64(), 180.0);
         assert!(player.velocity_dirty);
     }
 
@@ -682,8 +695,8 @@ mod tests {
         );
 
         // Initial state
-        assert_eq!(player.playback_state().current_bpm().as_f64(), 120.0);
-        assert_eq!(player.playback_state().current_scroll().as_f64(), 1.0);
+        assert_approx_eq(player.playback_state().current_bpm().as_f64(), 120.0);
+        assert_approx_eq(player.playback_state().current_scroll().as_f64(), 1.0);
 
         // Advance past the event Y position
         // Calculate time needed: distance / velocity
@@ -696,16 +709,8 @@ mod tests {
 
         // Verify that both events were applied
         // BPM should be updated to 180
-        assert_eq!(
-            player.playback_state().current_bpm().as_f64(),
-            180.0,
-            "BPM change event should be applied"
-        );
+        assert_approx_eq(player.playback_state().current_bpm().as_f64(), 180.0);
         // Scroll should be updated to 1.5
-        assert_eq!(
-            player.playback_state().current_scroll().as_f64(),
-            1.5,
-            "Scroll change event should be applied"
-        );
+        assert_approx_eq(player.playback_state().current_scroll().as_f64(), 1.5);
     }
 }
