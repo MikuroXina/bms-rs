@@ -18,8 +18,8 @@
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 pub mod command;
-
 pub mod lex;
+pub mod math;
 pub mod model;
 pub mod parse;
 pub mod prelude;
@@ -47,12 +47,6 @@ use self::{
     },
     prelude::*,
 };
-
-/// Decimal type used throughout the BMS module.
-///
-/// This is a type alias for `GenericDecimal<BigUint, usize>` which provides
-/// arbitrary precision decimal arithmetic for BMS parsing.
-pub type Decimal = fraction::BigDecimal;
 
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]

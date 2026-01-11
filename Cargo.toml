@@ -16,15 +16,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["bmson", "rand", "diagnostics"]
-serde = ["dep:serde", "num/serde", "fraction/with-serde-support"]
+serde = ["dep:serde"]
 bmson = ["serde", "serde_json", "serde_path_to_error", "chumsky"]
 rand = ["dep:rand"]
 diagnostics = ["dep:ariadne"]
 
 [dependencies]
 itertools = "0.14"
-num = "0.4"
-fraction = "0.15"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 serde_path_to_error = { version = "0.1", optional = true }

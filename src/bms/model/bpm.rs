@@ -39,11 +39,11 @@ impl BpmObjects {
     /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
     #[must_use]
     pub fn resolution_for_pulses(&self) -> u64 {
-        use num::Integer;
+        use crate::bms::math::lcm;
 
         let mut hyp_resolution = 1;
         for bpm_change in self.bpm_changes.values() {
-            hyp_resolution = hyp_resolution.lcm(&bpm_change.time.denominator().get());
+            hyp_resolution = lcm(hyp_resolution, bpm_change.time.denominator().get());
         }
         hyp_resolution
     }

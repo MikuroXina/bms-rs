@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU64;
 
-use num::Integer;
+use crate::bms::math::gcd;
 
 /// A track, or measure, or bar, in the score. It must greater than 0, but some scores may include the 0 track, where the object is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -58,7 +58,7 @@ impl ObjTime {
 
     /// Create a new time from a guaranteed non-zero denominator.
     #[must_use]
-    pub fn new_checked(track: u64, numerator: u64, denominator: NonZeroU64) -> Self {
+    pub const fn new_checked(track: u64, numerator: u64, denominator: NonZeroU64) -> Self {
         // If numerator is greater than denominator, add the integer part of numerator / denominator to track and set numerator to the remainder.
         let (track, numerator) = if numerator > denominator.get() {
             (
@@ -69,12 +69,12 @@ impl ObjTime {
             (track, numerator)
         };
         // Reduce the fraction to the simplest form.
-        // Note: 0.gcd(&num) == num, when num > 0
-        let gcd = numerator.gcd(&denominator.get());
-        let reduced_denominator = denominator.get() / gcd;
+        // Note: gcd(0, num) == num, when num > 0
+        let gcd_value = gcd(numerator, denominator.get());
+        let reduced_denominator = denominator.get() / gcd_value;
         Self {
             track: Track(track),
-            numerator: numerator / gcd,
+            numerator: numerator / gcd_value,
             denominator: NonZeroU64::new(reduced_denominator)
                 .expect("reduced denominator must be non-zero"),
         }

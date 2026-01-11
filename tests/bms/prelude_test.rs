@@ -1,5 +1,5 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
+
 use std::str::FromStr;
 
 #[test]
@@ -99,7 +99,7 @@ fn test_prelude_imports() {
     let _always_warn_and_use_newer = AlwaysWarnAndUseNewer;
 
     // Test rng types
-    let _rng_mock = RngMock::<1>([BigUint::from(1u32)]);
+    let _rng_mock = RngMock::<1>([1u64]);
 
     // Test that we can use the prelude types
     assert_eq!(_player_mode, PlayerMode::Single);

@@ -1,5 +1,5 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
+
 use std::str::FromStr;
 
 #[test]
@@ -43,10 +43,7 @@ fn test_nested_random_structure() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -268,10 +265,7 @@ fn test_nested_switch_structure() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -489,10 +483,7 @@ fn test_export_as_random_tokens() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -566,10 +557,7 @@ fn test_export_as_switch_tokens() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -643,10 +631,7 @@ fn test_switch_fallthrough_one_skip() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -750,10 +735,7 @@ fn test_switch_default_then_case_override() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(2u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([2u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -866,10 +848,7 @@ fn test_export_both_and_compare() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -969,10 +948,7 @@ fn test_export_both_and_compare_different_contents() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 

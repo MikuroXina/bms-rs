@@ -7,8 +7,6 @@ use std::{
     str::FromStr,
 };
 
-use fraction::BigDecimal;
-
 use super::parse::ParseWarning;
 
 pub mod channel;
@@ -266,12 +264,6 @@ impl StringValue<strict_num_extended::FinF64> {
     #[must_use]
     pub fn as_u64(&self) -> Option<u64> {
         self.value.as_ref().ok().map(|v| v.get() as u64)
-    }
-
-    /// Converts to `BigDecimal`
-    #[must_use]
-    pub fn as_big_decimal(&self) -> Option<BigDecimal> {
-        self.as_f64().map(BigDecimal::from)
     }
 }
 

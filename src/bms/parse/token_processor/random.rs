@@ -28,8 +28,6 @@ use std::{
     rc::Rc,
 };
 
-use num::BigUint;
-
 use crate::bms::{
     command::{StringValue, mixin::SourceRangeMixin},
     lex::token::{Token, TokenWithRange},
@@ -235,9 +233,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 Err(warning) => return Ok(Some(warning)),
             };
             let max_u64 = max.as_u64().unwrap_or(1);
-            let range = BigUint::from(1u64)..=BigUint::from(max_u64);
+            let range = 1u64..=max_u64;
             let generated = self.rng.borrow_mut().generate(range.clone());
-            let generated_u64 = u64::try_from(&generated).unwrap_or(1);
             let activated = self.is_activated();
             if activated && !range.contains(&generated) {
                 return Err(SourceRangeMixin::new(
@@ -249,7 +246,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 ));
             }
             self.state_stack.borrow_mut().push(ProcessState::Random {
-                generated: generated_u64,
+                generated,
                 activated,
             });
 
@@ -549,16 +546,14 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 Err(warning) => return Ok(Some(warning)),
             };
             let max_u64 = max.as_u64().unwrap_or(1);
-            let big_range = BigUint::from(1u64)..=BigUint::from(max_u64);
-            let generated = self.rng.borrow_mut().generate(big_range);
-            let generated_u64 = u64::try_from(&generated).unwrap_or(1);
             let range = 1u64..=max_u64;
+            let generated = self.rng.borrow_mut().generate(range.clone());
             let activated = self.is_activated();
             if activated {
-                if !range.contains(&generated_u64) {
+                if !range.contains(&generated) {
                     return Err(SourceRangeMixin::new(
                         ParseError::SwitchGeneratedValueOutOfRange {
-                            expected: BigUint::from(1u64)..=BigUint::from(max_u64),
+                            expected: range,
                             actual: generated,
                         },
                         token.range().clone(),
@@ -566,15 +561,11 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 }
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchBeforeActive {
-                        generated: generated_u64,
-                    });
+                    .push(ProcessState::SwitchBeforeActive { generated });
             } else {
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchAfterActive {
-                        generated: generated_u64,
-                    });
+                    .push(ProcessState::SwitchAfterActive { generated });
             }
 
             collector_mut.push_random(ControlFlowValue::GenMax(max));

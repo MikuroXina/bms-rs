@@ -6,8 +6,16 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use num::Zero;
 use strict_num_extended::FinF64;
+
+/// A trait for types that can represent zero.
+pub trait Zero {
+    /// Returns the zero value for this type.
+    fn zero() -> Self;
+
+    /// Checks if the value is zero.
+    fn is_zero(&self) -> bool;
+}
 
 pub use super::TimeSpan;
 use crate::bms::command::StringValue;

@@ -185,10 +185,8 @@ impl RandomizedObjects {
             Some(ControlFlowValue::Set(v)) => v.clone(),
             Some(ControlFlowValue::GenMax(max)) => {
                 let max_u64 = max.as_u64().unwrap_or(1);
-                let generated =
-                    rng.generate(num::BigUint::from(1u64)..=num::BigUint::from(max_u64));
-                let generated_u64: u64 = generated.try_into().unwrap_or(1);
-                StringValue::from_value(generated_u64)
+                let generated = rng.generate(1u64..=max_u64);
+                StringValue::from_value(generated)
             }
             None => return Bms::default(),
         };

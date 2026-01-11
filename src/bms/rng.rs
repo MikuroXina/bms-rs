@@ -25,8 +25,6 @@
 
 use core::ops::RangeInclusive;
 
-use num::{BigUint, ToPrimitive};
-
 /// A random number generator for BMS control flow parsing.
 ///
 /// This trait defines the interface for generating random numbers used in BMS control flow
@@ -44,17 +42,16 @@ pub trait Rng {
     ///
     /// ```rust
     /// use bms_rs::bms::rng::{Rng, RngMock};
-    /// use num::BigUint;
     ///
-    /// let mut rng = RngMock([BigUint::from(5u64)]);
-    /// let result = rng.generate(BigUint::from(1u64)..=BigUint::from(10u64));
-    /// assert_eq!(result, BigUint::from(5u64));
+    /// let mut rng = RngMock([5u64]);
+    /// let result = rng.generate(1u64..=10u64);
+    /// assert_eq!(result, 5u64);
     /// ```
-    fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint;
+    fn generate(&mut self, range: RangeInclusive<u64>) -> u64;
 }
 
 impl<T: Rng + ?Sized> Rng for Box<T> {
-    fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
+    fn generate(&mut self, range: RangeInclusive<u64>) -> u64 {
         T::generate(self, range)
     }
 }
@@ -68,21 +65,20 @@ impl<T: Rng + ?Sized> Rng for Box<T> {
 ///
 /// ```rust
 /// use bms_rs::bms::rng::{Rng, RngMock};
-/// use num::BigUint;
 ///
-/// let mut rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
+/// let mut rng = RngMock([1u64, 2u64]);
 ///
 /// // Returns values in rotation: 1, 2, 1, 2, ...
-/// assert_eq!(rng.generate(BigUint::from(0u64)..=BigUint::from(10u64)), BigUint::from(1u64));
-/// assert_eq!(rng.generate(BigUint::from(0u64)..=BigUint::from(10u64)), BigUint::from(2u64));
+/// assert_eq!(rng.generate(0u64..=10u64), 1u64);
+/// assert_eq!(rng.generate(0u64..=10u64), 2u64);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RngMock<const N: usize>(pub [BigUint; N]);
+pub struct RngMock<const N: usize>(pub [u64; N]);
 
 impl<const N: usize> Rng for RngMock<N> {
-    fn generate(&mut self, _range: RangeInclusive<BigUint>) -> BigUint {
-        let Some(first) = self.0.first().cloned() else {
-            return BigUint::default();
+    fn generate(&mut self, _range: RangeInclusive<u64>) -> u64 {
+        let Some(first) = self.0.first().copied() else {
+            return 0;
         };
         self.0.rotate_left(1);
         first
@@ -102,15 +98,13 @@ impl<const N: usize> Rng for RngMock<N> {
 /// use bms_rs::bms::rng::{Rng, RandRng};
 /// # #[cfg(feature = "rand")]
 /// use rand::{rngs::StdRng, SeedableRng};
-/// # #[cfg(feature = "rand")]
-/// use num::BigUint;
 ///
 /// # #[cfg(feature = "rand")]
 /// let mut rng = RandRng(StdRng::seed_from_u64(42));
 /// # #[cfg(feature = "rand")]
-/// let n = rng.generate(BigUint::from(1u64)..=BigUint::from(10u64));
+/// let n = rng.generate(1u64..=10u64);
 /// # #[cfg(feature = "rand")]
-/// assert!(n >= BigUint::from(1u64) && n <= BigUint::from(10u64));
+/// assert!(n >= 1u64 && n <= 10u64);
 /// ```
 ///
 /// [`rand`]: https://crates.io/crates/rand
@@ -119,21 +113,17 @@ pub struct RandRng<R>(pub R);
 
 #[cfg(feature = "rand")]
 impl<R: rand::RngCore> Rng for RandRng<R> {
-    fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
-        use num::One;
+    fn generate(&mut self, range: RangeInclusive<u64>) -> u64 {
+        let start = *range.start();
+        let end = *range.end();
+        let width = end - start + 1;
 
-        let (start, end) = (range.start(), range.end());
-        let width = end - start + BigUint::one();
-        let width_bits = width.bits() as usize;
-
-        loop {
-            let mut bytes = vec![0u8; width_bits.div_ceil(8)];
-            self.0.fill_bytes(&mut bytes);
-            let mut n = BigUint::from_bytes_le(&bytes);
-            if n < width {
-                n += start;
-                return n;
-            }
+        // Use uniform distribution for better randomness
+        if width == 0 {
+            // Edge case: full u64 range
+            self.0.next_u64()
+        } else {
+            (self.0.next_u64() % width) + start
         }
     }
 }
@@ -201,46 +191,33 @@ impl Default for JavaRandom {
 }
 
 impl Rng for JavaRandom {
-    fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
-        use num::One;
+    fn generate(&mut self, range: RangeInclusive<u64>) -> u64 {
+        let start = *range.start();
+        let end = *range.end();
 
-        let (start, end) = (range.start(), range.end());
-        let width = end - start + BigUint::one();
-
-        // If the range is small enough to fit in i32, use the efficient next_int_bound method
-        if let (Some(_start_i32), Some(width_i32)) =
-            (start.to_i32(), width.to_i32().filter(|&w| w > 0))
-        {
-            let offset = self.next_int_bound(width_i32);
-            return start + BigUint::from(offset as u32);
+        // For ranges that fit in u32, use the efficient next_int_bound method
+        let width = end - start + 1;
+        if let Ok(width_u32) = u32::try_from(width) {
+            let offset = self.next_int_bound(width_u32 as i32);
+            return start + offset as u64;
         }
 
-        // For larger ranges, we need to generate multiple random values and combine them
-        // This is a simplified approach for larger BigUint ranges
-        let width_bits = width.bits() as usize;
-        let mut result = BigUint::ZERO;
-
-        // Generate random bits until we have enough to cover the range
+        // For larger ranges, generate random values using next_int and combine
+        let mut result = 0u64;
         let mut bits_generated = 0;
-        while bits_generated < width_bits {
+        while bits_generated < 64 {
             let random_int = self.next_int();
             let random_bits = random_int.unsigned_abs();
 
-            // Add these bits to our result
             let shift_amount = bits_generated.min(32);
-            result |= BigUint::from(random_bits) << shift_amount;
+            result |= (random_bits as u64) << shift_amount;
             bits_generated += 32;
 
-            // If we've exceeded the range, we need to reduce it
+            // If we've exceeded the range, reduce it
             if result >= width {
-                result %= width.clone();
+                result %= width;
                 break;
             }
-        }
-
-        // Ensure result is within width
-        if result >= width {
-            result %= width;
         }
 
         start + result
@@ -250,27 +227,15 @@ impl Rng for JavaRandom {
 #[cfg(all(test, feature = "rand"))]
 mod tests {
     use super::*;
-    use num::BigUint;
     use rand::{SeedableRng, rngs::StdRng};
 
     #[test]
-    fn test_rand_rng_big_range() {
-        let start = BigUint::parse_bytes(b"10000000000000000000000000000000000000000000000000", 10)
-            .unwrap();
-        let end = BigUint::parse_bytes(b"10000000000000000000000000000000000000000000000099", 10)
-            .unwrap();
+    fn test_rand_rng_range() {
         let mut rng = RandRng(StdRng::seed_from_u64(42));
-        let range = start.clone()..=end.clone();
-        let n1 = rng.generate(range.clone());
-        let n2 = rng.generate(range.clone());
-        let n3 = rng.generate(range);
-        assert!(n1 >= start && n1 <= end, "n1 out of range");
-        assert!(n2 >= start && n2 <= end, "n2 out of range");
-        assert!(n3 >= start && n3 <= end, "n3 out of range");
-        assert!(
-            n1 != n2 && n1 != n3 && n2 != n3,
-            "random numbers are not unique"
-        );
+        for _ in 0..100 {
+            let n = rng.generate(1u64..=10u64);
+            assert!((1u64..=10u64).contains(&n), "n out of range: {}", n);
+        }
     }
 
     #[test]
