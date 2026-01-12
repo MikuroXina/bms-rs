@@ -2,8 +2,7 @@
 //!
 //! Unified player for parsed charts, managing playback state and event processing.
 
-use std::collections::{BTreeMap, HashMap};
-use std::path::PathBuf;
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -11,8 +10,7 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
 use crate::chart_process::types::{
-    AllEventsIndex, BmpId, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, WavId,
-    YCoordinate,
+    AllEventsIndex, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, YCoordinate,
 };
 use crate::chart_process::{ChartEvent, ControlEvent};
 
@@ -22,9 +20,6 @@ const NANOS_PER_SECOND: u64 = 1_000_000_000;
 ///
 /// This player takes a parsed chart and manages all playback state and event processing.
 pub struct ChartPlayer {
-    // Parsed chart data
-    chart: crate::chart_process::types::ParsedChart,
-
     // Playback state
     started_at: TimeStamp,
     last_poll_at: TimeStamp,
@@ -89,7 +84,6 @@ impl ChartPlayer {
         let init_speed = chart.init_speed.clone();
 
         Self {
-            chart,
             started_at: start_time,
             last_poll_at: start_time,
             visible_range_per_bpm,
@@ -181,18 +175,6 @@ impl ChartPlayer {
     #[must_use]
     pub const fn playback_state(&self) -> &PlaybackState {
         &self.playback_state
-    }
-
-    /// Get audio file resources (id to path mapping).
-    #[must_use]
-    pub const fn audio_files(&self) -> &HashMap<WavId, PathBuf> {
-        self.chart.resources().wav_files()
-    }
-
-    /// Get BGA/BMP image resources (id to path mapping).
-    #[must_use]
-    pub const fn bmp_files(&self) -> &HashMap<BmpId, PathBuf> {
-        self.chart.resources().bmp_files()
     }
 
     /// Get visible range per BPM.
@@ -597,7 +579,7 @@ impl PlaybackState {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, HashMap};
 
     use super::*;
     use crate::chart_process::types::{BaseBpm, ChartResources, ParsedChart};
