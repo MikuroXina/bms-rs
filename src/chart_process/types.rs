@@ -954,6 +954,24 @@ impl ParsedChart {
         &self.init_speed
     }
 
+    /// Get audio file resources (WAV ID to path mapping).
+    ///
+    /// This is a convenience method that directly accesses the audio files.
+    /// Equivalent to `self.resources().wav_files()`.
+    #[must_use]
+    pub const fn audio_files(&self) -> &HashMap<WavId, PathBuf> {
+        self.resources.wav_files()
+    }
+
+    /// Get BGA/BMP image resources (BMP ID to path mapping).
+    ///
+    /// This is a convenience method that directly accesses the image files.
+    /// Equivalent to `self.resources().bmp_files()`.
+    #[must_use]
+    pub const fn bmp_files(&self) -> &HashMap<BmpId, PathBuf> {
+        self.resources.bmp_files()
+    }
+
     /// Create a new `ParsedChart` (internal API).
     #[must_use]
     pub(crate) const fn new(
