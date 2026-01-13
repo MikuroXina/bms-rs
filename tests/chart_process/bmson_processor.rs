@@ -120,8 +120,8 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     for (ev, ratio_range) in processor.visible_events() {
         if matches!(ev.event(), ChartEvent::Note { .. }) {
             let ratio = ratio_range.start().value().to_f64().unwrap_or(0.0);
-            // Expected value after precision fix: 0.8333... (5/6)
-            let expected = 5.0 / 6.0;
+            // Expected value after removing round: 0.75 (3/4)
+            let expected = 3.0 / 4.0;
             assert!(
                 (ratio - expected).abs() <= 1e-9,
                 "expected display_ratio: {} for visible note, got {}",

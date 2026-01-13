@@ -245,7 +245,6 @@ impl AllEventsIndex {
                 let stop_y_len = pulses_to_y(stop_pulses);
                 (stop_y_len.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
                     / bpm_at_stop)
-                    .round()
                     .to_u64()
                     .unwrap_or(0)
             }
@@ -258,7 +257,6 @@ impl AllEventsIndex {
             let delta_y = Decimal::from(&curr - &prev);
             let delta_nanos = (&delta_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
                 / cur_bpm)
-                .round()
                 .to_u64()
                 .unwrap_or(0);
             total_nanos = total_nanos.saturating_add(delta_nanos);
