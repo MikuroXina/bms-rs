@@ -115,13 +115,19 @@ impl ScrollProcessor {
             let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
-                let factor = objects
-                    .scroll_defs
-                    .get(&obj)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects
-                    .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)?;
+                objects.push_scrolling_factor_change(
+                    ScrollingFactorObj {
+                        time,
+                        def: obj,
+                        factor: objects
+                            .scroll_defs
+                            .get(&obj)
+                            .ok_or(ParseWarning::UndefinedObject(obj))?
+                            .parsed()
+                            .clone(),
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

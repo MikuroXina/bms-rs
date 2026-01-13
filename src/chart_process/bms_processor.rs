@@ -75,24 +75,27 @@ impl BmsProcessor {
         let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         for change in bms.bpm.bpm_changes.values() {
             let y = y_memo.get_y(change.time);
-            flow_events_by_y
-                .entry(y)
-                .or_default()
-                .push(FlowEvent::Bpm(change.bpm.as_f64().unwrap_or(120.0)));
+            flow_events_by_y.entry(y).or_default().push(FlowEvent::Bpm(
+                change.bpm.as_ref().ok().map(FinF64::get).unwrap_or(120.0),
+            ));
         }
         for change in bms.scroll.scrolling_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Scroll(change.factor.as_f64().unwrap_or(1.0)));
+                .push(FlowEvent::Scroll(
+                    change.factor.as_ref().ok().map(FinF64::get).unwrap_or(1.0),
+                ));
         }
         for change in bms.speed.speed_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Speed(change.factor.as_f64().unwrap_or(1.0)));
+                .push(FlowEvent::Speed(
+                    change.factor.as_ref().ok().map(FinF64::get).unwrap_or(1.0),
+                ));
         }
 
         // Precompute activate times
@@ -199,11 +202,10 @@ impl YMemo {
         } else {
             0.0
         };
-        let factor = self
-            .speed_changes
-            .range(..=time)
-            .last()
-            .map_or_else(|| 1.0, |(_, obj)| obj.factor.as_f64().unwrap_or(1.0));
+        let factor = self.speed_changes.range(..=time).last().map_or_else(
+            || 1.0,
+            |(_, obj)| obj.factor.as_ref().ok().map(FinF64::get).unwrap_or(1.0),
+        );
         YCoordinate::from((section_y + fraction) * factor)
     }
 }
@@ -229,7 +231,8 @@ impl AllEventsIndex {
         for change in bms.bpm.bpm_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::BpmChange {
-                bpm: FinF64::new(change.bpm.as_f64().unwrap_or(120.0)).unwrap_or(FINF64_120),
+                bpm: FinF64::new(change.bpm.as_ref().ok().map(FinF64::get).unwrap_or(120.0))
+                    .unwrap_or(FINF64_120),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -240,7 +243,8 @@ impl AllEventsIndex {
         for change in bms.scroll.scrolling_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::ScrollChange {
-                factor: FinF64::new(change.factor.as_f64().unwrap_or(1.0)).unwrap_or(FINF64_ONE),
+                factor: FinF64::new(change.factor.as_ref().ok().map(FinF64::get).unwrap_or(1.0))
+                    .unwrap_or(FINF64_ONE),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -251,7 +255,8 @@ impl AllEventsIndex {
         for change in bms.speed.speed_factor_changes.values() {
             let y = y_memo.get_y(change.time);
             let event = ChartEvent::SpeedChange {
-                factor: FinF64::new(change.factor.as_f64().unwrap_or(1.0)).unwrap_or(FINF64_ONE),
+                factor: FinF64::new(change.factor.as_ref().ok().map(FinF64::get).unwrap_or(1.0))
+                    .unwrap_or(FINF64_ONE),
             };
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -261,7 +266,12 @@ impl AllEventsIndex {
         // Stop events
         for stop in bms.stop.stops.values() {
             let y = y_memo.get_y(stop.time);
-            let duration_f64 = stop.duration.as_f64().unwrap_or(0.0);
+            let duration_f64 = stop
+                .duration
+                .as_ref()
+                .ok()
+                .map(strict_num_extended::FinF64::get)
+                .unwrap_or(0.0);
             let event = ChartEvent::Stop {
                 duration: convert_stop_duration_to_beats(duration_f64),
             };
@@ -363,7 +373,12 @@ impl AllEventsIndex {
             for seek_obj in bms.video.seek_events.values() {
                 let y = y_memo.get_y(seek_obj.time);
                 let event = ChartEvent::VideoSeek {
-                    seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
+                    seek_time: seek_obj
+                        .position
+                        .as_ref()
+                        .ok()
+                        .map(FinF64::get)
+                        .unwrap_or(0.0),
                 };
 
                 let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -430,7 +445,12 @@ pub fn precompute_activate_times(
         .values()
         .map(|change| {
             let y = y_memo.get_y(change.time);
-            let bpm_value = change.bpm.as_f64().unwrap_or(120.0);
+            let bpm_value = change
+                .bpm
+                .as_ref()
+                .ok()
+                .map(strict_num_extended::FinF64::get)
+                .unwrap_or(120.0);
             (y, bpm_value)
         })
         .collect();
@@ -445,7 +465,12 @@ pub fn precompute_activate_times(
         .map(|st| {
             let sy = y_memo.get_y(st.time);
             // Stop duration is in 192nd-note units, convert to beats
-            let stop_192nd = st.duration.as_f64().unwrap_or(0.0);
+            let stop_192nd = st
+                .duration
+                .as_ref()
+                .ok()
+                .map(strict_num_extended::FinF64::get)
+                .unwrap_or(0.0);
             let stop_beats = stop_192nd / 48.0;
             (sy, stop_beats)
         })

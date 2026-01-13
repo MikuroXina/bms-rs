@@ -122,7 +122,14 @@ impl Bms {
             });
             bms.bpm.bpm_defs.insert(bpm_def_id, bpm.clone());
 
-            bms.bpm.bpm_changes.insert(time, BpmChangeObj { time, bpm });
+            bms.bpm.bpm_changes.insert(
+                time,
+                BpmChangeObj {
+                    time,
+                    def: bpm_def_id,
+                    bpm: bpm.parsed().clone(),
+                },
+            );
         }
 
         // Convert stop events
@@ -137,7 +144,14 @@ impl Bms {
             });
             bms.stop.stop_defs.insert(stop_def_id, duration.clone());
 
-            bms.stop.stops.insert(time, StopObj { time, duration });
+            bms.stop.stops.insert(
+                time,
+                StopObj {
+                    time,
+                    def: stop_def_id,
+                    duration: duration.parsed().clone(),
+                },
+            );
         }
 
         // Convert scroll events
@@ -152,9 +166,14 @@ impl Bms {
             });
             bms.scroll.scroll_defs.insert(scroll_def_id, factor.clone());
 
-            bms.scroll
-                .scrolling_factor_changes
-                .insert(time, ScrollingFactorObj { time, factor });
+            bms.scroll.scrolling_factor_changes.insert(
+                time,
+                ScrollingFactorObj {
+                    time,
+                    def: scroll_def_id,
+                    factor: factor.parsed().clone(),
+                },
+            );
         }
 
         // Convert sound channels to notes

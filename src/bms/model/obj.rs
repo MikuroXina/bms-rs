@@ -5,7 +5,7 @@ use crate::bms::command::{
     channel::{Channel, NoteChannelId},
     time::{ObjTime, Track},
 };
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, ParseFloatError};
 
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
@@ -51,8 +51,10 @@ impl WavObj {
 pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
+    /// The ID of the BPM definition this object references.
+    pub def: ObjId,
     /// The BPM to be.
-    pub bpm: StringValue<FinF64>,
+    pub bpm: Result<FinF64, ParseFloatError>,
 }
 
 impl PartialEq for BpmChangeObj {
@@ -111,10 +113,12 @@ impl Ord for SectionLenChangeObj {
 pub struct StopObj {
     /// Time to start the stop.
     pub time: ObjTime,
+    /// The ID of the STOP definition this object references.
+    pub def: ObjId,
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: StringValue<FinF64>,
+    pub duration: Result<FinF64, ParseFloatError>,
 }
 
 impl PartialEq for StopObj {
@@ -221,8 +225,10 @@ impl BgaLayer {
 pub struct ScrollingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
+    /// The ID of the SCROLL definition this object references.
+    pub def: ObjId,
     /// The scrolling factor to be.
-    pub factor: StringValue<FinF64>,
+    pub factor: Result<FinF64, ParseFloatError>,
 }
 
 impl PartialEq for ScrollingFactorObj {
@@ -251,8 +257,10 @@ impl Ord for ScrollingFactorObj {
 pub struct SpeedObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
+    /// The ID of the SPEED definition this object references.
+    pub def: ObjId,
     /// The spacing factor to be.
-    pub factor: StringValue<FinF64>,
+    pub factor: Result<FinF64, ParseFloatError>,
 }
 
 impl PartialEq for SpeedObj {
@@ -325,8 +333,10 @@ pub struct KeyVolumeObj {
 pub struct SeekObj {
     /// The time which the seek event is on.
     pub time: ObjTime,
+    /// The ID of the SEEK definition this object references.
+    pub def: ObjId,
     /// The seek position value.
-    pub position: StringValue<FinF64>,
+    pub position: Result<FinF64, ParseFloatError>,
 }
 
 /// An object to display text.

@@ -9,6 +9,8 @@ use std::{
 
 use super::parse::ParseWarning;
 
+use strict_num_extended::FinF64;
+
 pub mod channel;
 pub mod graphics;
 pub mod minor_command;
@@ -254,10 +256,7 @@ impl StringValue<strict_num_extended::FinF64> {
     /// Converts to f64 value for compatibility with existing code
     #[must_use]
     pub fn as_f64(&self) -> Option<f64> {
-        self.value
-            .as_ref()
-            .ok()
-            .map(strict_num_extended::FinF64::get)
+        self.value.as_ref().ok().map(FinF64::get)
     }
 
     /// Converts to u64 value for random number generation

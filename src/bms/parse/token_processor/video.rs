@@ -140,12 +140,19 @@ impl VideoProcessor {
             let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, seek_id) in pairs {
-                let position = video
-                    .seek_defs
-                    .get(&seek_id)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                video.push_seek_event(SeekObj { time, position }, prompter)?;
+                video.push_seek_event(
+                    SeekObj {
+                        time,
+                        def: seek_id,
+                        position: video
+                            .seek_defs
+                            .get(&seek_id)
+                            .ok_or(ParseWarning::UndefinedObject(seek_id))?
+                            .parsed()
+                            .clone(),
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

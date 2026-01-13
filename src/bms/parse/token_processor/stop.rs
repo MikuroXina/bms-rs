@@ -156,12 +156,16 @@ impl StopProcessor {
             for (time, obj) in pairs {
                 // Record used STOP id for validity checks
                 objects.stop_ids_used.insert(obj);
-                let duration = objects
-                    .stop_defs
-                    .get(&obj)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_stop(StopObj { time, duration });
+                objects.push_stop(StopObj {
+                    time,
+                    def: obj,
+                    duration: objects
+                        .stop_defs
+                        .get(&obj)
+                        .ok_or(ParseWarning::UndefinedObject(obj))?
+                        .parsed()
+                        .clone(),
+                });
             }
         }
         Ok(warnings)

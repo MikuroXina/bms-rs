@@ -9,8 +9,7 @@ use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::FinF64;
 
 use crate::chart_process::types::{
-    AllEventsIndex, BmpId, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, WavId,
-    YCoordinate,
+    AllEventsIndex, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, YCoordinate,
 };
 
 use crate::chart_process::{ChartEvent, ControlEvent};

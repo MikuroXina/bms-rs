@@ -3,6 +3,8 @@ use std::str::FromStr;
 
 use std::path::Path;
 
+use strict_num_extended::FinF64;
+
 // BMS source with various conflicts
 const SOURCE_WITH_CONFLICTS: &str = r#"
     // BPM definition conflicts
@@ -112,7 +114,7 @@ fn test_always_use_older() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01) - check the BPM value
-    assert_eq!(bpm_change_0.bpm, StringValue::from_str("120").unwrap());
+    assert_eq!(bpm_change_0.bpm.as_ref().ok().map(FinF64::get), Some(120.0));
 }
 
 /// Test `AlwaysUseNewer` behavior with various conflict types
@@ -189,7 +191,7 @@ fn test_always_use_newer() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
-    assert_eq!(bpm_change_0.bpm, StringValue::from_str("160").unwrap());
+    assert_eq!(bpm_change_0.bpm.as_ref().ok().map(FinF64::get), Some(160.0));
 }
 
 /// Test `AlwaysWarnAndUseOlder` behavior with various conflict types
@@ -272,7 +274,7 @@ fn test_always_warn_and_use_older() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01)
-    assert_eq!(bpm_change_0.bpm, StringValue::from_str("120").unwrap());
+    assert_eq!(bpm_change_0.bpm.as_ref().ok().map(FinF64::get), Some(120.0));
 }
 
 /// Test `AlwaysWarnAndUseNewer` behavior with various conflict types
@@ -355,5 +357,5 @@ fn test_always_warn_and_use_newer() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
-    assert_eq!(bpm_change_0.bpm, StringValue::from_str("160").unwrap());
+    assert_eq!(bpm_change_0.bpm.as_ref().ok().map(FinF64::get), Some(160.0));
 }

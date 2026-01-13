@@ -776,7 +776,7 @@ fn test_bmson_visible_events_duration_matches_reaction_time() {
     let diff = (time_to_cross - expected_time).unwrap().abs();
 
     assert!(
-        diff < strict_num_extended::PositiveF64::new(1.0).unwrap(), // Allow 1ms error margin
+        diff < strict_num_extended::NonNegativeF64::new(1.0).unwrap(), // Allow 1ms error margin
         "Expected time_to_cross ≈ reaction_time (600ms), got {:.6}s, diff: {:.6}s",
         time_to_cross.as_f64(),
         diff.as_f64()
@@ -849,7 +849,7 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
         (*visible_window_y_ratio_0_5.as_ref() / *visible_window_y_ratio_1.as_ref()).unwrap();
     assert!(
         (ratio - FinF64::new(0.5).unwrap()).unwrap().abs()
-            < strict_num_extended::PositiveF64::new(1.0).unwrap(),
+            < strict_num_extended::NonNegativeF64::new(1.0).unwrap(),
         "Expected visible_window_y to halve when playback_ratio halves, ratio: {:.2}",
         ratio.as_f64()
     );
@@ -864,7 +864,7 @@ fn test_bmson_visible_events_duration_with_playback_ratio() {
     let diff = (time_to_cross - expected_time).unwrap().abs();
 
     assert!(
-        diff < strict_num_extended::PositiveF64::new(1.0).unwrap(),
+        diff < strict_num_extended::NonNegativeF64::new(1.0).unwrap(),
         "Expected time_to_cross ≈ reaction_time even with playback_ratio=0.5, got {:.6}s",
         time_to_cross.as_f64()
     );
@@ -933,7 +933,7 @@ fn test_visible_events_with_boundary_conditions() {
 
     assert!(
         (actual_ratio - expected_ratio).unwrap().abs()
-            < strict_num_extended::PositiveF64::new(1.0).unwrap(),
+            < strict_num_extended::NonNegativeF64::new(1.0).unwrap(),
         "visible_window_y should scale linearly with playback_ratio"
     );
 }

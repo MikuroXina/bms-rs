@@ -113,12 +113,19 @@ impl SpeedProcessor {
             let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
-                let factor = objects
-                    .speed_defs
-                    .get(&obj)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
+                objects.push_speed_factor_change(
+                    SpeedObj {
+                        time,
+                        def: obj,
+                        factor: objects
+                            .speed_defs
+                            .get(&obj)
+                            .ok_or(ParseWarning::UndefinedObject(obj))?
+                            .parsed()
+                            .clone(),
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

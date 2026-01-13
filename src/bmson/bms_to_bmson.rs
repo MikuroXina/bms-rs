@@ -103,12 +103,19 @@ impl Bms {
             .values()
             .map(|bpm_change| BpmEvent {
                 y: converter.get_pulses_at(bpm_change.time),
-                bpm: FinF64::new(bpm_change.bpm.as_f64().unwrap_or(120.0))
-                    .ok()
-                    .unwrap_or_else(|| {
-                        warnings.push(BmsToBmsonWarning::InvalidBpm);
-                        finite(120.0)
-                    }),
+                bpm: FinF64::new(
+                    bpm_change
+                        .bpm
+                        .as_ref()
+                        .ok()
+                        .map(FinF64::get)
+                        .unwrap_or(120.0),
+                )
+                .ok()
+                .unwrap_or_else(|| {
+                    warnings.push(BmsToBmsonWarning::InvalidBpm);
+                    finite(120.0)
+                }),
             })
             .collect();
 
@@ -117,10 +124,14 @@ impl Bms {
             .stops
             .values()
             .filter_map(|stop| {
-                stop.duration.as_f64().map(|f64_value| StopEvent {
-                    y: converter.get_pulses_at(stop.time),
-                    duration: f64_value as u64,
-                })
+                stop.duration
+                    .as_ref()
+                    .ok()
+                    .map(FinF64::get)
+                    .map(|f64_value| StopEvent {
+                        y: converter.get_pulses_at(stop.time),
+                        duration: f64_value as u64,
+                    })
             })
             .collect();
 
@@ -346,7 +357,9 @@ impl Bms {
             .scrolling_factor_changes
             .values()
             .filter_map(|scroll| {
-                let Some(rate) = FinF64::new(scroll.factor.as_f64().unwrap_or(1.0)).ok() else {
+                let Some(rate) =
+                    FinF64::new(scroll.factor.as_ref().ok().map(FinF64::get).unwrap_or(1.0)).ok()
+                else {
                     warnings.push(BmsToBmsonWarning::InvalidScrollingFactor);
                     return None;
                 };

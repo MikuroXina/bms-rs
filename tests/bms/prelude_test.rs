@@ -67,7 +67,8 @@ fn test_prelude_imports() {
     };
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
-        bpm: StringValue::from_str("120").unwrap(),
+        def: _obj_id,
+        bpm: StringValue::from_str("120").unwrap().parsed().clone(),
     };
     let _section_len_change_obj = SectionLenChangeObj {
         track: _track,
@@ -75,7 +76,8 @@ fn test_prelude_imports() {
     };
     let _stop_obj = StopObj {
         time: _obj_time,
-        duration: StringValue::from_str("1").unwrap(),
+        def: _obj_id,
+        duration: StringValue::from_str("1").unwrap().parsed().clone(),
     };
     let _bga_obj = BgaObj {
         time: _obj_time,
@@ -84,11 +86,13 @@ fn test_prelude_imports() {
     };
     let _scrolling_factor_obj = ScrollingFactorObj {
         time: _obj_time,
-        factor: StringValue::from_str("1").unwrap(),
+        def: _obj_id,
+        factor: StringValue::from_str("1").unwrap().parsed().clone(),
     };
     let _speed_obj = SpeedObj {
         time: _obj_time,
-        factor: StringValue::from_str("1").unwrap(),
+        def: _obj_id,
+        factor: StringValue::from_str("1").unwrap().parsed().clone(),
     };
 
     // Test prompt types

@@ -255,7 +255,7 @@ impl BaseBpmGenerator<Bms> for MinBpmGenerator {
                 bms.bpm
                     .bpm_changes
                     .values()
-                    .filter_map(|change| change.bpm.as_f64()),
+                    .filter_map(|change| change.bpm.as_ref().ok().map(FinF64::get)),
             )
             .filter_map(|v| FinF64::new(v).ok())
             .min()
@@ -274,7 +274,7 @@ impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
                 bms.bpm
                     .bpm_changes
                     .values()
-                    .filter_map(|change| change.bpm.as_f64()),
+                    .filter_map(|change| change.bpm.as_ref().ok().map(FinF64::get)),
             )
             .filter_map(|v| FinF64::new(v).ok())
             .max()

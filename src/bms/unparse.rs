@@ -804,7 +804,13 @@ impl Bms {
                     name: format!("BPM{id}").into(),
                     args: bpm.to_string().into(),
                 },
-                |ev: &'a BpmChangeObj| ev.bpm.as_str(),
+                |ev: &'a BpmChangeObj| {
+                    self.bpm
+                        .bpm_defs
+                        .get(&ev.def)
+                        .map(super::command::StringValue::as_str)
+                        .unwrap_or("120")
+                },
                 &mut bpm_manager,
             )),
             |_ev| Channel::BpmChange,
@@ -834,7 +840,13 @@ impl Bms {
                     name: format!("STOP{id}").into(),
                     args: duration.to_string().into(),
                 },
-                |ev: &'a StopObj| ev.duration.as_str(),
+                |ev: &'a StopObj| {
+                    self.stop
+                        .stop_defs
+                        .get(&ev.def)
+                        .map(super::command::StringValue::as_str)
+                        .unwrap_or("0")
+                },
                 &mut stop_manager,
             )),
             |_ev| Channel::Stop,
@@ -860,7 +872,13 @@ impl Bms {
                     name: format!("SCROLL{id}").into(),
                     args: factor.to_string().into(),
                 },
-                |ev: &'a ScrollingFactorObj| ev.factor.as_str(),
+                |ev: &'a ScrollingFactorObj| {
+                    self.scroll
+                        .scroll_defs
+                        .get(&ev.def)
+                        .map(super::command::StringValue::as_str)
+                        .unwrap_or("1")
+                },
                 &mut scroll_manager,
             )),
             |_ev| Channel::Scroll,
@@ -886,7 +904,13 @@ impl Bms {
                     name: format!("SPEED{id}").into(),
                     args: factor.to_string().into(),
                 },
-                |ev: &'a SpeedObj| ev.factor.as_str(),
+                |ev: &'a SpeedObj| {
+                    self.speed
+                        .speed_defs
+                        .get(&ev.def)
+                        .map(super::command::StringValue::as_str)
+                        .unwrap_or("1")
+                },
                 &mut speed_manager,
             )),
             |_ev| Channel::Speed,
@@ -1173,7 +1197,13 @@ impl Bms {
                         name: format!("SEEK{id}").into(),
                         args: position.to_string().into(),
                     },
-                    |ev: &'a SeekObj| ev.position.as_str(),
+                    |ev: &'a SeekObj| {
+                        self.video
+                            .seek_defs
+                            .get(&ev.def)
+                            .map(super::command::StringValue::as_str)
+                            .unwrap_or("0")
+                    },
                     &mut seek_manager,
                 )),
                 |_ev| Channel::Seek,

@@ -104,14 +104,16 @@ impl BpmObjects {
             }
             Entry::Occupied(mut entry) => {
                 let existing = entry.get();
-                let older_bpm_val = StringValue::from_result(FinF64::new(*existing as f64));
-                let newer_bpm_val = StringValue::from_result(FinF64::new(bpm_change as f64));
+                let older_bpm_val = Ok(FinF64::new(*existing as f64).unwrap());
+                let newer_bpm_val = Ok(FinF64::new(bpm_change as f64).unwrap());
                 let older = BpmChangeObj {
                     time,
+                    def: ObjId::null(),
                     bpm: older_bpm_val,
                 };
                 let newer = BpmChangeObj {
                     time,
+                    def: ObjId::null(),
                     bpm: newer_bpm_val,
                 };
                 prompt_handler

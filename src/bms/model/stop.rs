@@ -37,11 +37,13 @@ impl StopObjects {
                 // Sum two durations
                 let sum = existing
                     .duration
-                    .as_f64()
-                    .zip(stop.duration.as_f64())
+                    .as_ref()
+                    .ok()
+                    .map(FinF64::get)
+                    .zip(stop.duration.as_ref().ok().map(FinF64::get))
                     .map(|(a, b)| a + b)
                     .unwrap_or(0.0);
-                existing.duration = StringValue::from_result(FinF64::new(sum));
+                existing.duration = Ok(FinF64::new(sum).unwrap());
             })
             .or_insert_with(|| stop);
     }

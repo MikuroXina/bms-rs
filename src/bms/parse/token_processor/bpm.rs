@@ -134,12 +134,19 @@ impl BpmProcessor {
             for (time, obj) in pairs {
                 // Record used BPM change id for validity checks
                 objects.bpm_change_ids_used.insert(obj);
-                let bpm = objects
-                    .bpm_defs
-                    .get(&obj)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)?;
+                objects.push_bpm_change(
+                    BpmChangeObj {
+                        time,
+                        def: obj,
+                        bpm: objects
+                            .bpm_defs
+                            .get(&obj)
+                            .ok_or(ParseWarning::UndefinedObject(obj))?
+                            .parsed()
+                            .clone(),
+                    },
+                    prompter,
+                )?;
             }
         }
         if channel == Channel::BpmChangeU8 {
