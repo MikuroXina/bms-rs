@@ -435,9 +435,9 @@ dependencies = [
 
 [[package]]
 name = "strict-num-extended"
-version = "0.4.3"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9db05569a4e946d27b880c7b441423a337063fdd7e55201dba7c2caeea3181d"
+checksum = "d49f27dcb514205e9c737a0df3a84c2a54388c9eb0050533e0ac3a715cc7cfb1"
 dependencies = [
  "serde",
  "strict-num-extended-macros",
@@ -445,9 +445,9 @@ dependencies = [
 
 [[package]]
 name = "strict-num-extended-macros"
-version = "0.4.3"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a4861a7bc1848b0a35f1f4e08365881c5170fbcc24f7338d5ac9bb97bd3ef1d"
+checksum = "08aca6646c5b7e8e8e89349e845167bf052be901018088b17ace443fa7bced0a"
 dependencies = [
  "proc-macro2",
  "quote",

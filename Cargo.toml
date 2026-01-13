@@ -33,7 +33,7 @@ rand = { version = "0.9", optional = true }
 ariadne = { version = "0.6", optional = true }
 chumsky = { version = "0.12", optional = true, features = ["serde"] }
 gametime = { version = "0.7", features = ["global_reference"] }
-strict-num-extended = { version = "0.4", features = ["serde"] }
+strict-num-extended = { version = "0.5", features = ["serde"] }
 
 [dev-dependencies]
 pretty_assertions = "1"
