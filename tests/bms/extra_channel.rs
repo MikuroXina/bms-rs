@@ -75,22 +75,23 @@ fn test_channel_text() {
     );
 
     assert_eq!(bms.text.text_events.len(), 4);
-    assert_eq!(
-        bms.text.text_events.get(&ObjTime::start_of(1.into())),
-        Some(&TextObj {
-            time: ObjTime::start_of(1.into()),
-            def_id: ObjId::try_from("01", false).unwrap(),
-            text: "Hello World".to_string(),
-        })
-    );
-    assert_eq!(
-        bms.text.text_events.get(&ObjTime::start_of(2.into())),
-        Some(&TextObj {
-            time: ObjTime::start_of(2.into()),
-            def_id: ObjId::try_from("02", false).unwrap(),
-            text: "Test Message".to_string(),
-        })
-    );
+    let text_obj_1 = bms
+        .text
+        .text_events
+        .get(&ObjTime::start_of(1.into()))
+        .unwrap();
+    assert_eq!(text_obj_1.time, ObjTime::start_of(1.into()));
+    assert_eq!(text_obj_1.text, "Hello World");
+    assert_eq!(text_obj_1.def_id(), &ObjId::try_from("01", false).unwrap());
+
+    let text_obj_2 = bms
+        .text
+        .text_events
+        .get(&ObjTime::start_of(2.into()))
+        .unwrap();
+    assert_eq!(text_obj_2.time, ObjTime::start_of(2.into()));
+    assert_eq!(text_obj_2.text, "Test Message");
+    assert_eq!(text_obj_2.def_id(), &ObjId::try_from("02", false).unwrap());
 }
 
 #[test]
@@ -123,32 +124,35 @@ fn test_channel_judge() {
     );
 
     assert_eq!(bms.judge.judge_events.len(), 4);
+    let judge_obj_1 = bms
+        .judge
+        .judge_events
+        .get(&ObjTime::start_of(1.into()))
+        .unwrap();
+    assert_eq!(judge_obj_1.time, ObjTime::start_of(1.into()));
+    assert_eq!(judge_obj_1.judge_level, JudgeLevel::Easy);
+    assert_eq!(judge_obj_1.def_id(), &ObjId::try_from("01", false).unwrap());
+
+    let judge_obj_2 = bms
+        .judge
+        .judge_events
+        .get(&ObjTime::start_of(2.into()))
+        .unwrap();
+    assert_eq!(judge_obj_2.time, ObjTime::start_of(2.into()));
+    assert_eq!(judge_obj_2.judge_level, JudgeLevel::Normal);
+    assert_eq!(judge_obj_2.def_id(), &ObjId::try_from("02", false).unwrap());
+
+    let judge_obj_3 = bms
+        .judge
+        .judge_events
+        .get(&ObjTime::new(2, 1, 2).expect("2 should be a valid denominator"))
+        .unwrap();
     assert_eq!(
-        bms.judge.judge_events.get(&ObjTime::start_of(1.into())),
-        Some(&JudgeObj {
-            time: ObjTime::start_of(1.into()),
-            def_id: ObjId::try_from("01", false).unwrap(),
-            judge_level: JudgeLevel::Easy,
-        })
+        judge_obj_3.time,
+        ObjTime::new(2, 1, 2).expect("2 should be a valid denominator")
     );
-    assert_eq!(
-        bms.judge.judge_events.get(&ObjTime::start_of(2.into())),
-        Some(&JudgeObj {
-            time: ObjTime::start_of(2.into()),
-            def_id: ObjId::try_from("02", false).unwrap(),
-            judge_level: JudgeLevel::Normal,
-        })
-    );
-    assert_eq!(
-        bms.judge
-            .judge_events
-            .get(&ObjTime::new(2, 1, 2).expect("2 should be a valid denominator")),
-        Some(&JudgeObj {
-            time: ObjTime::new(2, 1, 2).expect("2 should be a valid denominator"),
-            def_id: ObjId::try_from("01", false).unwrap(),
-            judge_level: JudgeLevel::Easy,
-        })
-    );
+    assert_eq!(judge_obj_3.judge_level, JudgeLevel::Easy);
+    assert_eq!(judge_obj_3.def_id(), &ObjId::try_from("01", false).unwrap());
 }
 
 #[test]
@@ -265,82 +269,98 @@ fn test_bga_argb_channels() {
     assert_eq!(bms.bmp.bga_argb_changes.len(), 4);
 
     // Check BgaBaseArgb (A1) - Base layer with red color
+    let bga_argb_base = bms
+        .bmp
+        .bga_argb_changes
+        .get(&BgaLayer::Base)
+        .unwrap()
+        .get(&ObjTime::start_of(1.into()))
+        .unwrap();
+    assert_eq!(bga_argb_base.time, ObjTime::start_of(1.into()));
+    assert_eq!(bga_argb_base.layer, BgaLayer::Base);
     assert_eq!(
-        bms.bmp
-            .bga_argb_changes
-            .get(&BgaLayer::Base)
-            .unwrap()
-            .get(&ObjTime::start_of(1.into())),
-        Some(&BgaArgbObj {
-            time: ObjTime::start_of(1.into()),
-            layer: BgaLayer::Base,
-            def_id: ObjId::try_from("01", false).unwrap(),
-            argb: Argb {
-                alpha: 255,
-                red: 0,
-                green: 0,
-                blue: 255,
-            },
-        })
+        bga_argb_base.argb,
+        Argb {
+            alpha: 255,
+            red: 0,
+            green: 0,
+            blue: 255,
+        }
+    );
+    assert_eq!(
+        bga_argb_base.def_id(),
+        &ObjId::try_from("01", false).unwrap()
     );
 
     // Check BgaLayerArgb (A2) - Overlay layer with green color
+    let bga_argb_overlay = bms
+        .bmp
+        .bga_argb_changes
+        .get(&BgaLayer::Overlay)
+        .unwrap()
+        .get(&ObjTime::start_of(1.into()))
+        .unwrap();
+    assert_eq!(bga_argb_overlay.time, ObjTime::start_of(1.into()));
+    assert_eq!(bga_argb_overlay.layer, BgaLayer::Overlay);
     assert_eq!(
-        bms.bmp
-            .bga_argb_changes
-            .get(&BgaLayer::Overlay)
-            .unwrap()
-            .get(&ObjTime::start_of(1.into())),
-        Some(&BgaArgbObj {
-            time: ObjTime::start_of(1.into()),
-            layer: BgaLayer::Overlay,
-            def_id: ObjId::try_from("02", false).unwrap(),
-            argb: Argb {
-                alpha: 0,
-                red: 255,
-                green: 0,
-                blue: 255,
-            },
-        })
+        bga_argb_overlay.argb,
+        Argb {
+            alpha: 0,
+            red: 255,
+            green: 0,
+            blue: 255,
+        }
+    );
+    assert_eq!(
+        bga_argb_overlay.def_id(),
+        &ObjId::try_from("02", false).unwrap()
     );
 
     // Check BgaLayer2Argb (A3) - Overlay2 layer with blue color
+    let bga_argb_overlay2 = bms
+        .bmp
+        .bga_argb_changes
+        .get(&BgaLayer::Overlay2)
+        .unwrap()
+        .get(&ObjTime::start_of(1.into()))
+        .unwrap();
+    assert_eq!(bga_argb_overlay2.time, ObjTime::start_of(1.into()));
+    assert_eq!(bga_argb_overlay2.layer, BgaLayer::Overlay2);
     assert_eq!(
-        bms.bmp
-            .bga_argb_changes
-            .get(&BgaLayer::Overlay2)
-            .unwrap()
-            .get(&ObjTime::start_of(1.into())),
-        Some(&BgaArgbObj {
-            time: ObjTime::start_of(1.into()),
-            layer: BgaLayer::Overlay2,
-            def_id: ObjId::try_from("03", false).unwrap(),
-            argb: Argb {
-                alpha: 0,
-                red: 0,
-                green: 255,
-                blue: 255,
-            },
-        })
+        bga_argb_overlay2.argb,
+        Argb {
+            alpha: 0,
+            red: 0,
+            green: 255,
+            blue: 255,
+        }
+    );
+    assert_eq!(
+        bga_argb_overlay2.def_id(),
+        &ObjId::try_from("03", false).unwrap()
     );
 
     // Check BgaPoorArgb (A4) - Poor layer with yellow color
+    let bga_argb_poor = bms
+        .bmp
+        .bga_argb_changes
+        .get(&BgaLayer::Poor)
+        .unwrap()
+        .get(&ObjTime::start_of(1.into()))
+        .unwrap();
+    assert_eq!(bga_argb_poor.time, ObjTime::start_of(1.into()));
+    assert_eq!(bga_argb_poor.layer, BgaLayer::Poor);
     assert_eq!(
-        bms.bmp
-            .bga_argb_changes
-            .get(&BgaLayer::Poor)
-            .unwrap()
-            .get(&ObjTime::start_of(1.into())),
-        Some(&BgaArgbObj {
-            time: ObjTime::start_of(1.into()),
-            layer: BgaLayer::Poor,
-            def_id: ObjId::try_from("04", false).unwrap(),
-            argb: Argb {
-                alpha: 255,
-                red: 255,
-                green: 0,
-                blue: 255,
-            },
-        })
+        bga_argb_poor.argb,
+        Argb {
+            alpha: 255,
+            red: 255,
+            green: 0,
+            blue: 255,
+        }
+    );
+    assert_eq!(
+        bga_argb_poor.def_id(),
+        &ObjId::try_from("04", false).unwrap()
     );
 }

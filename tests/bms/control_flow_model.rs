@@ -73,12 +73,11 @@ fn test_nested_random_structure() {
     // Check content of branch 1 (should have note 112 and a nested random)
     assert_eq!(
         branch1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("22", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 1, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2)).to_channel_id(),
+            ObjId::try_from("22", false).unwrap(),
+        )]
     );
     assert_eq!(branch1.sub.randomized.len(), 1);
 
@@ -106,12 +105,11 @@ fn test_nested_random_structure() {
             .all_notes()
             .cloned()
             .collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("55", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 1, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5)).to_channel_id(),
+            ObjId::try_from("55", false).unwrap(),
+        )]
     );
 
     // Nested Branch 2
@@ -126,11 +124,11 @@ fn test_nested_random_structure() {
             .all_notes()
             .cloned()
             .collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: NoteChannelId::try_from(['1', '6']).unwrap(),
-            wav_id: ObjId::try_from("66", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 2, 4).unwrap(),
+            NoteChannelId::try_from(['1', '6']).unwrap(),
+            ObjId::try_from("66", false).unwrap(),
+        )]
     );
 
     // Branch 2 of outer random
@@ -140,12 +138,11 @@ fn test_nested_random_structure() {
         .expect("expected random branch 2");
     assert_eq!(
         branch2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("33", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 2, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3)).to_channel_id(),
+            ObjId::try_from("33", false).unwrap(),
+        )]
     );
 
     let rnd_strings_outer = random_obj
@@ -290,12 +287,11 @@ fn test_nested_switch_structure() {
     assert_eq!(case1.sub.randomized.len(), 1);
     assert_eq!(
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("22", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 1, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2)).to_channel_id(),
+            ObjId::try_from("22", false).unwrap(),
+        )]
     );
 
     // Nested Switch
@@ -322,12 +318,11 @@ fn test_nested_switch_structure() {
             .all_notes()
             .cloned()
             .collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("55", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 1, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5)).to_channel_id(),
+            ObjId::try_from("55", false).unwrap(),
+        )]
     );
 
     // Nested Case 2
@@ -342,11 +337,11 @@ fn test_nested_switch_structure() {
             .all_notes()
             .cloned()
             .collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: NoteChannelId::try_from(['1', '6']).unwrap(),
-            wav_id: ObjId::try_from("66", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 2, 4).unwrap(),
+            NoteChannelId::try_from(['1', '6']).unwrap(),
+            ObjId::try_from("66", false).unwrap(),
+        )]
     );
 
     // Case 2
@@ -356,12 +351,11 @@ fn test_nested_switch_structure() {
         .expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("33", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 2, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3)).to_channel_id(),
+            ObjId::try_from("33", false).unwrap(),
+        )]
     );
 
     let sw_strings_outer = switch_obj
@@ -654,12 +648,11 @@ fn test_switch_fallthrough_one_skip() {
         .expect("expected switch case 1");
     assert_eq!(
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("22", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 1, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2)).to_channel_id(),
+            ObjId::try_from("22", false).unwrap(),
+        )]
     );
 
     let case2 = sw
@@ -668,12 +661,11 @@ fn test_switch_fallthrough_one_skip() {
         .expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("33", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 2, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3)).to_channel_id(),
+            ObjId::try_from("33", false).unwrap(),
+        )]
     );
 
     let sw_tokens = sw.export_as_switch::<KeyLayoutBeat>();
@@ -761,12 +753,11 @@ fn test_switch_default_then_case_override() {
         .expect("expected switch case 1");
     assert_eq!(
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("22", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 1, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2)).to_channel_id(),
+            ObjId::try_from("22", false).unwrap(),
+        )]
     );
 
     let case2 = sw
@@ -775,12 +766,11 @@ fn test_switch_default_then_case_override() {
         .expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("33", false).unwrap(),
-        }]
+        vec![WavObj::new(
+            ObjTime::new(1, 2, 4).unwrap(),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3)).to_channel_id(),
+            ObjId::try_from("33", false).unwrap(),
+        )]
     );
 
     let sw_tokens = sw.export_as_switch::<KeyLayoutBeat>();

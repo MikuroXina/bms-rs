@@ -45,30 +45,30 @@ fn nested_random() {
         SRC,
         RngMock([BigUint::from(1u64)]),
         vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            WavObj::new(
+                ObjTime::start_of(1.into()),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                id11,
+            ),
+            WavObj::new(
+                ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+                id22,
+            ),
+            WavObj::new(
+                ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                     .to_channel_id(),
-                wav_id: id55,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                id55,
+            ),
+            WavObj::new(
+                ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
-                wav_id: id44,
-            },
+                id44,
+            ),
         ],
     );
 
@@ -76,34 +76,30 @@ fn nested_random() {
         SRC,
         RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
         vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            WavObj::new(
+                ObjTime::start_of(1.into()),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                id11,
+            ),
+            WavObj::new(
+                ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(
-                    PlayerSide::Player1,
-                    NoteKind::Visible,
-                    Key::Scratch(1),
-                )
-                .to_channel_id(),
-                wav_id: id66,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                id22,
+            ),
+            WavObj::new(
+                ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Scratch(1))
                     .to_channel_id(),
-                wav_id: id44,
-            },
+                id66,
+            ),
+            WavObj::new(
+                ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    .to_channel_id(),
+                id44,
+            ),
         ],
     );
 
@@ -111,24 +107,24 @@ fn nested_random() {
         SRC,
         RngMock([BigUint::from(2u64)]),
         vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            WavObj::new(
+                ObjTime::start_of(1.into()),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                id11,
+            ),
+            WavObj::new(
+                ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                id33,
+            ),
+            WavObj::new(
+                ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
-                wav_id: id44,
-            },
+                id44,
+            ),
         ],
     );
 }

@@ -63,7 +63,7 @@ impl Notes {
     /// To filter out dangling objects, use:
     /// ```rust
     /// # let notes = bms_rs::bms::model::Notes::default();
-    /// notes.all_notes().filter(|obj| !obj.wav_id.is_null())
+    /// notes.all_notes().filter(|obj| !obj.wav_id().is_null())
     /// # ;
     /// ```
     pub fn all_notes(&self) -> impl Iterator<Item = &WavObj> {
@@ -82,7 +82,7 @@ impl Notes {
     /// To filter out dangling objects, use:
     /// ```rust
     /// # let notes = bms_rs::bms::model::Notes::default();
-    /// notes.all_entries().filter(|(_, obj)| !obj.wav_id.is_null())
+    /// notes.all_entries().filter(|(_, obj)| !obj.wav_id().is_null())
     /// # ;
     /// ```
     pub fn all_entries(&self) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)> {
@@ -113,7 +113,7 @@ impl Notes {
     /// To filter out dangling objects, use:
     /// ```rust
     /// # let notes = bms_rs::bms::model::Notes::default();
-    /// notes.all_notes_insertion_order().filter(|obj| !obj.wav_id.is_null())
+    /// notes.all_notes_insertion_order().filter(|obj| !obj.wav_id().is_null())
     /// # ;
     /// ```
     pub fn all_notes_insertion_order(&self) -> impl Iterator<Item = &WavObj> {
@@ -133,7 +133,7 @@ impl Notes {
     /// ```rust
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
-    /// notes.playables::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
+    /// notes.playables::<KeyLayoutBeat>().filter(|obj| !obj.wav_id().is_null())
     /// # ;
     /// ```
     pub fn playables<T>(&self) -> impl Iterator<Item = &WavObj>
@@ -160,7 +160,7 @@ impl Notes {
     /// ```rust
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
-    /// notes.displayables::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
+    /// notes.displayables::<KeyLayoutBeat>().filter(|obj| !obj.wav_id().is_null())
     /// # ;
     /// ```
     pub fn displayables<T>(&self) -> impl Iterator<Item = &WavObj>
@@ -187,7 +187,7 @@ impl Notes {
     /// ```rust
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
-    /// notes.bgms::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
+    /// notes.bgms::<KeyLayoutBeat>().filter(|obj| !obj.wav_id().is_null())
     /// # ;
     /// ```
     pub fn bgms<T>(&self) -> impl Iterator<Item = &WavObj>
@@ -215,7 +215,7 @@ impl Notes {
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
     /// let channel_id = NoteChannelId::try_from(['0', '1']).unwrap();
-    /// notes.notes_on::<KeyLayoutBeat>(channel_id).filter(|(_, obj)| !obj.wav_id.is_null());
+    /// notes.notes_on::<KeyLayoutBeat>(channel_id).filter(|(_, obj)| !obj.wav_id().is_null());
     /// ```
     pub fn notes_on<T>(
         &self,
@@ -250,7 +250,7 @@ impl Notes {
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
     /// let time_span = ObjTime::new(1, 0, 4).unwrap()..ObjTime::new(2, 0, 4).unwrap();
-    /// notes.notes_in(time_span).filter(|(_, obj)| !obj.wav_id.is_null());
+    /// notes.notes_in(time_span).filter(|(_, obj)| !obj.wav_id().is_null());
     /// # ;
     /// ```
     pub fn notes_in<R: std::ops::RangeBounds<ObjTime>>(

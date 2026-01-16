@@ -59,40 +59,16 @@ fn test_prelude_imports() {
     };
 
     // Test model::obj types
-    let _obj = WavObj {
-        offset: _obj_time,
-        channel_id: NoteChannelId::bgm(),
-        wav_id: _obj_id,
-    };
-    let _bpm_change_obj = BpmChangeObj {
-        time: _obj_time,
-        def_id: _obj_id,
-        bpm: Decimal::from(120),
-    };
+    let _obj = WavObj::new(_obj_time, NoteChannelId::bgm(), _obj_id);
+    let _bpm_change_obj = BpmChangeObj::new(_obj_time, _obj_id, Decimal::from(120));
     let _section_len_change_obj = SectionLenChangeObj {
         track: _track,
         length: Decimal::from(4),
     };
-    let _stop_obj = StopObj {
-        time: _obj_time,
-        def_id: _obj_id,
-        duration: Decimal::one(),
-    };
-    let _bga_obj = BgaObj {
-        time: _obj_time,
-        layer: BgaLayer::Base,
-        id: _obj_id,
-    };
-    let _scrolling_factor_obj = ScrollingFactorObj {
-        time: _obj_time,
-        def_id: _obj_id,
-        factor: Decimal::one(),
-    };
-    let _speed_obj = SpeedObj {
-        time: _obj_time,
-        def_id: _obj_id,
-        factor: Decimal::one(),
-    };
+    let _stop_obj = StopObj::new(_obj_time, _obj_id, Decimal::one());
+    let _bga_obj = BgaObj::new(_obj_time, _obj_id, BgaLayer::Base);
+    let _scrolling_factor_obj = ScrollingFactorObj::new(_obj_time, _obj_id, Decimal::one());
+    let _speed_obj = SpeedObj::new(_obj_time, _obj_id, Decimal::one());
 
     // Test prompt types
     let _duplication_workaround = DuplicationWorkaround::UseOlder;
