@@ -66,6 +66,7 @@ fn test_prelude_imports() {
     };
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
+        def_id: _obj_id,
         bpm: Decimal::from(120),
     };
     let _section_len_change_obj = SectionLenChangeObj {
@@ -74,6 +75,7 @@ fn test_prelude_imports() {
     };
     let _stop_obj = StopObj {
         time: _obj_time,
+        def_id: _obj_id,
         duration: Decimal::one(),
     };
     let _bga_obj = BgaObj {
@@ -83,10 +85,12 @@ fn test_prelude_imports() {
     };
     let _scrolling_factor_obj = ScrollingFactorObj {
         time: _obj_time,
+        def_id: _obj_id,
         factor: Decimal::one(),
     };
     let _speed_obj = SpeedObj {
         time: _obj_time,
+        def_id: _obj_id,
         factor: Decimal::one(),
     };
 

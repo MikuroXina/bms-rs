@@ -103,10 +103,12 @@ impl BpmObjects {
                 let existing = entry.get();
                 let older = BpmChangeObj {
                     time,
+                    def_id: ObjId::null(),
                     bpm: Decimal::from(*existing),
                 };
                 let newer = BpmChangeObj {
                     time,
+                    def_id: ObjId::null(),
                     bpm: Decimal::from(bpm_change),
                 };
                 prompt_handler

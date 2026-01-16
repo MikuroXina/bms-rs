@@ -469,7 +469,12 @@ impl BmpProcessor {
                         .cloned()
                         .ok_or(ParseWarning::UndefinedObject(argb_id))?;
                     objects.push_bga_argb_change(
-                        BgaArgbObj { time, layer, argb },
+                        BgaArgbObj {
+                            time,
+                            layer,
+                            def_id: argb_id,
+                            argb,
+                        },
                         channel,
                         prompter,
                     )?;
@@ -485,7 +490,14 @@ impl BmpProcessor {
                         .get(&keybound_id)
                         .cloned()
                         .ok_or(ParseWarning::UndefinedObject(keybound_id))?;
-                    objects.push_bga_keybound_event(BgaKeyboundObj { time, event }, prompter)?;
+                    objects.push_bga_keybound_event(
+                        BgaKeyboundObj {
+                            time,
+                            def_id: keybound_id,
+                            event,
+                        },
+                        prompter,
+                    )?;
                 }
             }
             _ => {}

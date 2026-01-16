@@ -142,6 +142,7 @@ impl JudgeProcessor {
                 objects.push_judge_event(
                     JudgeObj {
                         time,
+                        def_id: judge_id,
                         judge_level: exrank_def.judge_level,
                     },
                     prompter,

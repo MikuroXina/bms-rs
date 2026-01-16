@@ -111,7 +111,14 @@ impl TextProcessor {
                     .get(&text_id)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(text_id))?;
-                objects.push_text_event(TextObj { time, text }, prompter)?;
+                objects.push_text_event(
+                    TextObj {
+                        time,
+                        def_id: text_id,
+                        text,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

@@ -115,7 +115,14 @@ impl SpeedProcessor {
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
+                objects.push_speed_factor_change(
+                    SpeedObj {
+                        time,
+                        def_id: obj,
+                        factor,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

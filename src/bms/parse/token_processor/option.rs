@@ -116,7 +116,14 @@ impl OptionProcessor {
                     .get(&option_id)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(option_id))?;
-                objects.push_option_event(OptionObj { time, option }, prompter)?;
+                objects.push_option_event(
+                    OptionObj {
+                        time,
+                        def_id: option_id,
+                        option,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

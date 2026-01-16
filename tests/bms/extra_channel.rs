@@ -79,6 +79,7 @@ fn test_channel_text() {
         bms.text.text_events.get(&ObjTime::start_of(1.into())),
         Some(&TextObj {
             time: ObjTime::start_of(1.into()),
+            def_id: ObjId::try_from("01", false).unwrap(),
             text: "Hello World".to_string(),
         })
     );
@@ -86,6 +87,7 @@ fn test_channel_text() {
         bms.text.text_events.get(&ObjTime::start_of(2.into())),
         Some(&TextObj {
             time: ObjTime::start_of(2.into()),
+            def_id: ObjId::try_from("02", false).unwrap(),
             text: "Test Message".to_string(),
         })
     );
@@ -125,6 +127,7 @@ fn test_channel_judge() {
         bms.judge.judge_events.get(&ObjTime::start_of(1.into())),
         Some(&JudgeObj {
             time: ObjTime::start_of(1.into()),
+            def_id: ObjId::try_from("01", false).unwrap(),
             judge_level: JudgeLevel::Easy,
         })
     );
@@ -132,6 +135,7 @@ fn test_channel_judge() {
         bms.judge.judge_events.get(&ObjTime::start_of(2.into())),
         Some(&JudgeObj {
             time: ObjTime::start_of(2.into()),
+            def_id: ObjId::try_from("02", false).unwrap(),
             judge_level: JudgeLevel::Normal,
         })
     );
@@ -141,6 +145,7 @@ fn test_channel_judge() {
             .get(&ObjTime::new(2, 1, 2).expect("2 should be a valid denominator")),
         Some(&JudgeObj {
             time: ObjTime::new(2, 1, 2).expect("2 should be a valid denominator"),
+            def_id: ObjId::try_from("01", false).unwrap(),
             judge_level: JudgeLevel::Easy,
         })
     );
@@ -269,6 +274,7 @@ fn test_bga_argb_channels() {
         Some(&BgaArgbObj {
             time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Base,
+            def_id: ObjId::try_from("01", false).unwrap(),
             argb: Argb {
                 alpha: 255,
                 red: 0,
@@ -288,6 +294,7 @@ fn test_bga_argb_channels() {
         Some(&BgaArgbObj {
             time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Overlay,
+            def_id: ObjId::try_from("02", false).unwrap(),
             argb: Argb {
                 alpha: 0,
                 red: 255,
@@ -307,6 +314,7 @@ fn test_bga_argb_channels() {
         Some(&BgaArgbObj {
             time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Overlay2,
+            def_id: ObjId::try_from("03", false).unwrap(),
             argb: Argb {
                 alpha: 0,
                 red: 0,
@@ -326,6 +334,7 @@ fn test_bga_argb_channels() {
         Some(&BgaArgbObj {
             time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Poor,
+            def_id: ObjId::try_from("04", false).unwrap(),
             argb: Argb {
                 alpha: 255,
                 red: 255,

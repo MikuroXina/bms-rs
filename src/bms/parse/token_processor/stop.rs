@@ -159,7 +159,11 @@ impl StopProcessor {
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_stop(StopObj { time, duration });
+                objects.push_stop(StopObj {
+                    time,
+                    def_id: obj,
+                    duration,
+                });
             }
         }
         Ok(warnings)

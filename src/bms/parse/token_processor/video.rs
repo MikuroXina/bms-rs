@@ -151,7 +151,14 @@ impl VideoProcessor {
                     .get(&seek_id)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                video.push_seek_event(SeekObj { time, position }, prompter)?;
+                video.push_seek_event(
+                    SeekObj {
+                        time,
+                        def_id: seek_id,
+                        position,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

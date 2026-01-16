@@ -115,8 +115,14 @@ impl ScrollProcessor {
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects
-                    .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)?;
+                objects.push_scrolling_factor_change(
+                    ScrollingFactorObj {
+                        time,
+                        def_id: obj,
+                        factor,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

@@ -136,7 +136,14 @@ impl BpmProcessor {
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)?;
+                objects.push_bpm_change(
+                    BpmChangeObj {
+                        time,
+                        def_id: obj,
+                        bpm,
+                    },
+                    prompter,
+                )?;
             }
         }
         if channel == Channel::BpmChangeU8 {

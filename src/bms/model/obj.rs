@@ -53,6 +53,8 @@ impl WavObj {
 pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
+    /// The object ID referencing the BPM definition.
+    pub def_id: ObjId,
     /// The BPM to be.
     pub bpm: Decimal,
 }
@@ -113,6 +115,8 @@ impl Ord for SectionLenChangeObj {
 pub struct StopObj {
     /// Time to start the stop.
     pub time: ObjTime,
+    /// The object ID referencing the stop definition.
+    pub def_id: ObjId,
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
@@ -223,6 +227,8 @@ impl BgaLayer {
 pub struct ScrollingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
+    /// The object ID referencing the scrolling factor definition.
+    pub def_id: ObjId,
     /// The scrolling factor to be.
     pub factor: Decimal,
 }
@@ -253,6 +259,8 @@ impl Ord for ScrollingFactorObj {
 pub struct SpeedObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
+    /// The object ID referencing the speed definition.
+    pub def_id: ObjId,
     /// The spacing factor to be.
     pub factor: Decimal,
 }
@@ -297,6 +305,8 @@ pub struct BgaArgbObj {
     pub time: ObjTime,
     /// The BGA layer to change ARGB color for.
     pub layer: BgaLayer,
+    /// The object ID referencing the ARGB definition.
+    pub def_id: ObjId,
     /// The ARGB color value (A,R,G,B each [0-255]).
     pub argb: Argb,
 }
@@ -327,6 +337,8 @@ pub struct KeyVolumeObj {
 pub struct SeekObj {
     /// The time which the seek event is on.
     pub time: ObjTime,
+    /// The object ID referencing the seek definition.
+    pub def_id: ObjId,
     /// The seek position value.
     pub position: Decimal,
 }
@@ -337,6 +349,8 @@ pub struct SeekObj {
 pub struct TextObj {
     /// The time which the text is displayed.
     pub time: ObjTime,
+    /// The object ID referencing the text definition.
+    pub def_id: ObjId,
     /// The text content.
     pub text: String,
 }
@@ -347,6 +361,8 @@ pub struct TextObj {
 pub struct JudgeObj {
     /// The time which the judge change is on.
     pub time: ObjTime,
+    /// The object ID referencing the judge level definition.
+    pub def_id: ObjId,
     /// The judge level.
     pub judge_level: JudgeLevel,
 }
@@ -357,6 +373,8 @@ pub struct JudgeObj {
 pub struct BgaKeyboundObj {
     /// The time which the BGA keybound change is on.
     pub time: ObjTime,
+    /// The object ID referencing the BGA keybound definition.
+    pub def_id: ObjId,
     /// The BGA keybound event.
     pub event: SwBgaEvent,
 }
@@ -367,6 +385,8 @@ pub struct BgaKeyboundObj {
 pub struct OptionObj {
     /// The time which the option change is on.
     pub time: ObjTime,
+    /// The object ID referencing the option definition.
+    pub def_id: ObjId,
     /// The option content.
     pub option: String,
 }
