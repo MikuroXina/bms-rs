@@ -453,7 +453,6 @@ pub fn precompute_activate_times(
         let delta_y_value = delta_y.value();
         let delta_nanos = (delta_y_value * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
             / cur_bpm)
-            .round()
             .to_u64()
             .unwrap_or(0);
         total_nanos = total_nanos.saturating_add(delta_nanos);
@@ -470,7 +469,6 @@ pub fn precompute_activate_times(
                 let dur_nanos =
                     (dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
                         / bpm_at_stop)
-                        .round()
                         .to_u64()
                         .unwrap_or(0);
                 total_nanos = total_nanos.saturating_add(dur_nanos);

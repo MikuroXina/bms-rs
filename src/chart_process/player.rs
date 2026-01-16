@@ -383,14 +383,14 @@ impl ChartPlayer {
                 // Advance directly to the end
                 let delta_y = (cur_vel * Decimal::from(remaining_time.as_nanos().max(0)))
                     / Decimal::from(NANOS_PER_SECOND);
-                cur_y = cur_y_now + YCoordinate::new(delta_y.round());
+                cur_y = cur_y_now + YCoordinate::new(delta_y);
                 break;
             }
 
             let Some(event_y) = next_event_y else {
                 let delta_y = (cur_vel * Decimal::from(remaining_time.as_nanos().max(0)))
                     / Decimal::from(NANOS_PER_SECOND);
-                cur_y = cur_y_now + YCoordinate::new(delta_y.round());
+                cur_y = cur_y_now + YCoordinate::new(delta_y);
                 break;
             };
 
@@ -408,7 +408,6 @@ impl ChartPlayer {
             if cur_vel > Decimal::zero() {
                 let time_to_event_nanos = ((distance.value() / &cur_vel)
                     * Decimal::from(NANOS_PER_SECOND))
-                .round()
                 .to_u64()
                 .unwrap_or(0);
                 let time_to_event =

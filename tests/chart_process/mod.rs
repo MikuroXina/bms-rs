@@ -3,3 +3,4 @@
 pub mod bms_processor;
 pub mod bmson_processor;
 pub mod edge_cases;
+pub mod update_consistency;
