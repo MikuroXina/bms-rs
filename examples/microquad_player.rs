@@ -18,7 +18,7 @@ use gametime::{TimeSpan, TimeStamp};
 use macroquad::prelude::Color;
 use num::ToPrimitive;
 use rayon::prelude::*;
-use rodio::{Decoder, OutputStream, Sink, Source};
+use rodio::{Decoder, OutputStream, Source};
 
 #[macroquad::main("BMS Player")]
 async fn main() -> Result<(), String> {
@@ -56,7 +56,8 @@ async fn main() -> Result<(), String> {
     println!("Player started");
 
     // 6.5. Initialize audio playback system
-    let audio_system = AudioPlaybackSystem::new()?;
+    let (_stream, stream_handle) =
+        OutputStream::try_default().map_err(|e| format!("Failed to open audio: {}", e))?;
     println!("Audio system initialized");
 
     // 7. Main loop
@@ -94,7 +95,11 @@ async fn main() -> Result<(), String> {
             if let Some(id) = wav_id
                 && let Some(audio) = audio_data_map.get(id)
             {
-                audio_system.play_once(audio);
+                // Create a new sink for each audio to play simultaneously
+                if let Ok(sink) = rodio::Sink::try_new(&stream_handle) {
+                    sink.append(audio.create_source());
+                    sink.detach(); // Let the audio play in background
+                }
             }
         }
 
@@ -197,34 +202,6 @@ impl Source for AudioSource {
 
     fn total_duration(&self) -> Option<std::time::Duration> {
         None
-    }
-}
-
-/// Audio playback system
-struct AudioPlaybackSystem {
-    /// rodio output stream (must be kept alive)
-    _stream: OutputStream,
-    /// Stream handle (for creating sinks)
-    stream_handle: rodio::OutputStreamHandle,
-}
-
-impl AudioPlaybackSystem {
-    /// Create a new audio playback system
-    fn new() -> Result<Self, String> {
-        let (stream, stream_handle) =
-            OutputStream::try_default().map_err(|e| format!("Failed to open audio: {}", e))?;
-
-        Ok(Self {
-            _stream: stream,
-            stream_handle,
-        })
-    }
-
-    /// Play audio once
-    fn play_once(&self, audio: &AudioData) {
-        let sink = Sink::try_new(&self.stream_handle).expect("Failed to create audio sink");
-        sink.append(audio.create_source());
-        sink.detach(); // Let the sink play in background and auto-cleanup
     }
 }
 
