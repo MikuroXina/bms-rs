@@ -223,7 +223,7 @@ async fn load_audio_files(
     audio_files: &HashMap<WavId, PathBuf>,
     base_path: &Path,
 ) -> HashMap<WavId, macroquad::audio::Sound> {
-    use futures::future::join_all;
+    use futures_concurrency::prelude::*;
 
     // Create concurrent loading tasks
     let loading_tasks = audio_files.iter().map(|(wav_id, path)| {
@@ -267,7 +267,8 @@ async fn load_audio_files(
     });
 
     // Execute all tasks concurrently
-    let results = join_all(loading_tasks).await;
+    let loading_tasks_vec: Vec<_> = loading_tasks.collect();
+    let results = loading_tasks_vec.join().await;
 
     // Collect successful results
     let sounds: HashMap<WavId, macroquad::audio::Sound> = results.into_iter().flatten().collect();
