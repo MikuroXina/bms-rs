@@ -146,7 +146,7 @@ fn load_chart(path: &Path) -> Result<(ParsedChart, BaseBpm), String> {
         .ok_or("Invalid file extension")?;
 
     let (chart, base_bpm) = match extension.to_lowercase().as_str() {
-        "bms" | "bme" | "bml" => {
+        "bms" | "bme" | "bml" | "pms" => {
             // Parse using BmsProcessor
             let output = parse_bms(&content, default_config());
             let bms = output.bms.map_err(|e| format!("Parse error: {:?}", e))?;
@@ -160,7 +160,7 @@ fn load_chart(path: &Path) -> Result<(ParsedChart, BaseBpm), String> {
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
             (chart, base_bpm)
         }
-        "json" => {
+        "bmson" => {
             // BMSON format
             #[cfg(feature = "bmson")]
             {
