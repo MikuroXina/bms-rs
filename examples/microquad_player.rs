@@ -14,7 +14,6 @@ struct AudioData {
 }
 
 use std::fs::File;
-use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -26,7 +25,7 @@ use macroquad::prelude::Color;
 use num::ToPrimitive;
 use rayon::prelude::*;
 use rodio::buffer::SamplesBuffer;
-use rodio::{Decoder, OutputStream, Source};
+use rodio::{Decoder, Source};
 
 #[macroquad::main("BMS Player")]
 async fn main() -> Result<(), String> {
@@ -64,8 +63,8 @@ async fn main() -> Result<(), String> {
     println!("Player started");
 
     // 6.5. Initialize audio playback system
-    let (_stream, stream_handle) =
-        OutputStream::try_default().map_err(|e| format!("Failed to open audio: {}", e))?;
+    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
+        .map_err(|e| format!("Failed to open audio: {}", e))?;
     println!("Audio system initialized");
 
     // 7. Main loop
@@ -110,10 +109,9 @@ async fn main() -> Result<(), String> {
                     audio.sample_rate,
                     audio.samples.iter().copied().collect::<Vec<f32>>(),
                 );
-                if let Ok(sink) = rodio::Sink::try_new(&stream_handle) {
-                    sink.append(source);
-                    sink.detach();
-                }
+                let sink = rodio::Sink::connect_new(stream_handle.mixer());
+                sink.append(source);
+                sink.detach();
             }
         }
 
@@ -245,14 +243,14 @@ fn load_audio_to_memory(path: &Path) -> Result<AudioData, String> {
     let file = File::open(path).map_err(|e| format!("Failed to open: {}", e))?;
 
     // Create decoder and get metadata
-    let decoder = Decoder::new(BufReader::new(file))
-        .map_err(|e| format!("Failed to create decoder: {}", e))?;
+    let decoder =
+        Decoder::try_from(file).map_err(|e| format!("Failed to create decoder: {}", e))?;
 
     let channels = decoder.channels();
     let sample_rate = decoder.sample_rate();
 
     // Collect all samples into memory
-    let samples: Vec<f32> = decoder.convert_samples().collect();
+    let samples: Vec<f32> = decoder.collect();
 
     Ok(AudioData {
         samples: samples.into(),
