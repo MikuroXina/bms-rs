@@ -1,3 +1,4 @@
+use bms_rs::test_helpers::*;
 use bms_rs::bms::prelude::*;
 use num::BigUint;
 use pretty_assertions::assert_eq;
@@ -120,25 +121,25 @@ fn nested_switch() {
         SRC,
         RngMock([BigUint::from(1u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 id22,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                     .to_channel_id(),
                 id55,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -151,25 +152,25 @@ fn nested_switch() {
         SRC,
         RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 id22,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Scratch(1))
                     .to_channel_id(),
                 id66,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -182,19 +183,19 @@ fn nested_switch() {
         SRC,
         RngMock([BigUint::from(2u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 id33,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -246,25 +247,25 @@ fn nested_random_in_switch() {
         SRC,
         RngMock([BigUint::from(1u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 id22,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                     .to_channel_id(),
                 id55,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -277,25 +278,25 @@ fn nested_random_in_switch() {
         SRC,
         RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 id22,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Scratch(1))
                     .to_channel_id(),
                 id66,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -308,19 +309,19 @@ fn nested_random_in_switch() {
         SRC,
         RngMock([BigUint::from(2u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 id33,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -372,25 +373,25 @@ fn nested_switch_in_random() {
         SRC,
         RngMock([BigUint::from(1u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 id22,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                     .to_channel_id(),
                 id55,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -403,25 +404,25 @@ fn nested_switch_in_random() {
         SRC,
         RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 id22,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Scratch(1))
                     .to_channel_id(),
                 id66,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -434,19 +435,19 @@ fn nested_switch_in_random() {
         SRC,
         RngMock([BigUint::from(2u64)]),
         vec![
-            WavObj::new(
+            wav_obj(
                 ObjTime::start_of(1.into()),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 id11,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 id33,
             ),
-            WavObj::new(
+            wav_obj(
                 ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
@@ -488,7 +489,7 @@ fn test_switch_insane() {
             #SKIP
     #ENDSW
     ";
-    let expected = vec![WavObj::new(
+    let expected = vec![wav_obj(
         ObjTime::new(0, 1, 2).expect("2 should be a valid denominator"),
         KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3)).to_channel_id(),
         ObjId::try_from("55", false).unwrap(),

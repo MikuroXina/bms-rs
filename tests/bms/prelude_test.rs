@@ -1,3 +1,4 @@
+use bms_rs::test_helpers::*;
 use bms_rs::bms::prelude::*;
 use num::{BigUint, One};
 
@@ -59,16 +60,16 @@ fn test_prelude_imports() {
     };
 
     // Test model::obj types
-    let _obj = WavObj::new(_obj_time, NoteChannelId::bgm(), _obj_id);
-    let _bpm_change_obj = BpmChangeObj::new(_obj_time, _obj_id, Decimal::from(120));
+    let _obj = wav_obj(_obj_time, NoteChannelId::bgm(), _obj_id);
+    let _bpm_change_obj = bpm_change_obj(_obj_time, _obj_id, Decimal::from(120));
     let _section_len_change_obj = SectionLenChangeObj {
         track: _track,
         length: Decimal::from(4),
     };
-    let _stop_obj = StopObj::new(_obj_time, _obj_id, Decimal::one());
-    let _bga_obj = BgaObj::new(_obj_time, _obj_id, BgaLayer::Base);
-    let _scrolling_factor_obj = ScrollingFactorObj::new(_obj_time, _obj_id, Decimal::one());
-    let _speed_obj = SpeedObj::new(_obj_time, _obj_id, Decimal::one());
+    let _stop_obj = stop_obj(_obj_time, _obj_id, Decimal::one());
+    let _bga_obj = bga_obj(_obj_time, _obj_id, BgaLayer::Base);
+    let _scrolling_factor_obj = scrolling_factor_obj(_obj_time, _obj_id, Decimal::one());
+    let _speed_obj = speed_obj(_obj_time, _obj_id, Decimal::one());
 
     // Test prompt types
     let _duplication_workaround = DuplicationWorkaround::UseOlder;

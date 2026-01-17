@@ -43,7 +43,7 @@ impl Ord for WavObj {
 impl WavObj {
     /// Creates a new WAV object
     #[must_use]
-    pub const fn new(offset: ObjTime, channel_id: NoteChannelId, wav_id: ObjId) -> Self {
+    pub(crate) const fn new(offset: ObjTime, channel_id: NoteChannelId, wav_id: ObjId) -> Self {
         Self {
             offset,
             channel_id,
@@ -96,7 +96,7 @@ impl Ord for BpmChangeObj {
 impl BpmChangeObj {
     /// Creates a new BPM change object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, bpm: Decimal) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, bpm: Decimal) -> Self {
         Self { time, def_id, bpm }
     }
 }
@@ -169,7 +169,7 @@ impl Ord for StopObj {
 impl StopObj {
     /// Creates a new stop object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, duration: Decimal) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, duration: Decimal) -> Self {
         Self {
             time,
             def_id,
@@ -214,7 +214,7 @@ impl Ord for BgaObj {
 impl BgaObj {
     /// Creates a new BGA object
     #[must_use]
-    pub const fn new(time: ObjTime, id: ObjId, layer: BgaLayer) -> Self {
+    pub(crate) const fn new(time: ObjTime, id: ObjId, layer: BgaLayer) -> Self {
         Self { time, id, layer }
     }
 }
@@ -301,7 +301,7 @@ impl Ord for ScrollingFactorObj {
 impl ScrollingFactorObj {
     /// Creates a new scrolling factor object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, factor: Decimal) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, factor: Decimal) -> Self {
         Self {
             time,
             def_id,
@@ -346,7 +346,7 @@ impl Ord for SpeedObj {
 impl SpeedObj {
     /// Creates a new speed object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, factor: Decimal) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, factor: Decimal) -> Self {
         Self {
             time,
             def_id,
@@ -385,7 +385,7 @@ pub struct BgaArgbObj {
 impl BgaArgbObj {
     /// Creates a new BGA ARGB object
     #[must_use]
-    pub const fn new(time: ObjTime, layer: BgaLayer, def_id: ObjId, argb: Argb) -> Self {
+    pub(crate) const fn new(time: ObjTime, layer: BgaLayer, def_id: ObjId, argb: Argb) -> Self {
         Self {
             time,
             layer,
@@ -431,7 +431,7 @@ pub struct SeekObj {
 impl SeekObj {
     /// Creates a new seek object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, position: Decimal) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, position: Decimal) -> Self {
         Self {
             time,
             def_id,
@@ -456,7 +456,7 @@ pub struct TextObj {
 impl TextObj {
     /// Creates a new text object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, text: String) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, text: String) -> Self {
         Self { time, def_id, text }
     }
 }
@@ -477,7 +477,7 @@ pub struct JudgeObj {
 impl JudgeObj {
     /// Creates a new judge object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, judge_level: JudgeLevel) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, judge_level: JudgeLevel) -> Self {
         Self {
             time,
             def_id,
@@ -502,7 +502,7 @@ pub struct BgaKeyboundObj {
 impl BgaKeyboundObj {
     /// Creates a new BGA keybound object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, event: SwBgaEvent) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, event: SwBgaEvent) -> Self {
         Self {
             time,
             def_id,
@@ -527,7 +527,7 @@ pub struct OptionObj {
 impl OptionObj {
     /// Creates a new option object
     #[must_use]
-    pub const fn new(time: ObjTime, def_id: ObjId, option: String) -> Self {
+    pub(crate) const fn new(time: ObjTime, def_id: ObjId, option: String) -> Self {
         Self {
             time,
             def_id,
