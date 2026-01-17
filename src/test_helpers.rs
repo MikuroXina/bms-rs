@@ -3,6 +3,7 @@
 //! These functions are provided for testing purposes only.
 //! They allow test code to create model objects without exposing
 //! the internal constructors publicly.
+#![doc(hidden)]
 
 use crate::bms::{
     Decimal,
