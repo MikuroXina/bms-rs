@@ -6,6 +6,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Audio data structure containing samples and metadata
+struct AudioData {
+    samples: Arc<[f32]>,
+    channels: u16,
+    sample_rate: u32,
+}
+
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -18,6 +25,7 @@ use gametime::{TimeSpan, TimeStamp};
 use macroquad::prelude::Color;
 use num::ToPrimitive;
 use rayon::prelude::*;
+use rodio::buffer::SamplesBuffer;
 use rodio::{Decoder, OutputStream, Source};
 
 #[macroquad::main("BMS Player")]
@@ -96,9 +104,15 @@ async fn main() -> Result<(), String> {
                 && let Some(audio) = audio_data_map.get(id)
             {
                 // Create a new sink for each audio to play simultaneously
+                // Create SamplesBuffer from Arc<Vec<f32>>
+                let source = SamplesBuffer::new(
+                    audio.channels,
+                    audio.sample_rate,
+                    audio.samples.iter().copied().collect::<Vec<f32>>(),
+                );
                 if let Ok(sink) = rodio::Sink::try_new(&stream_handle) {
-                    sink.append(audio.create_source());
-                    sink.detach(); // Let the audio play in background
+                    sink.append(source);
+                    sink.detach();
                 }
             }
         }
@@ -132,77 +146,6 @@ struct Config {
     /// Reaction time (milliseconds)
     #[arg(short, long, default_value = "500", value_name = "MILLISECONDS")]
     reaction_time_ms: u64,
-}
-
-/// Preloaded audio data (fully loaded into memory)
-struct AudioData {
-    /// PCM audio sample data
-    samples: Arc<[f32]>,
-    /// Sample rate
-    sample_rate: u32,
-    /// Number of channels
-    channels: u16,
-}
-
-impl AudioData {
-    /// Create a reusable rodio Source from memory data
-    /// Each call creates a new source by cloning the Arc
-    #[must_use]
-    fn create_source(&self) -> impl Source<Item = f32> + Send + 'static {
-        // Clone the Arc to get shared ownership
-        let samples_clone = Arc::clone(&self.samples);
-
-        // Create a custom source that owns the Arc
-        AudioSource::new(samples_clone, self.sample_rate, self.channels)
-    }
-}
-
-/// Custom audio source that owns its data and implements Source trait
-struct AudioSource {
-    samples: Arc<[f32]>,
-    index: usize,
-    sample_rate: u32,
-    channels: u16,
-}
-
-impl AudioSource {
-    #[must_use]
-    const fn new(samples: Arc<[f32]>, sample_rate: u32, channels: u16) -> Self {
-        Self {
-            samples,
-            index: 0,
-            sample_rate,
-            channels,
-        }
-    }
-}
-
-impl Iterator for AudioSource {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.samples.get(self.index).copied().inspect(|_| {
-            self.index += 1;
-        })
-    }
-}
-
-impl Source for AudioSource {
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate
-    }
-
-    fn channels(&self) -> u16 {
-        self.channels
-    }
-
-    fn current_frame_len(&self) -> Option<usize> {
-        None
-    }
-
-    fn total_duration(&self) -> Option<std::time::Duration> {
-        None
-    }
 }
 
 /// Load chart file
@@ -305,16 +248,16 @@ fn load_audio_to_memory(path: &Path) -> Result<AudioData, String> {
     let decoder = Decoder::new(BufReader::new(file))
         .map_err(|e| format!("Failed to create decoder: {}", e))?;
 
-    let sample_rate = decoder.sample_rate();
     let channels = decoder.channels();
+    let sample_rate = decoder.sample_rate();
 
     // Collect all samples into memory
     let samples: Vec<f32> = decoder.convert_samples().collect();
 
     Ok(AudioData {
         samples: samples.into(),
-        sample_rate,
         channels,
+        sample_rate,
     })
 }
 
