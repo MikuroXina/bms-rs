@@ -11,8 +11,10 @@ use crate::bms::{
 
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
+use getset::Getters;
+
 /// An object playing sound on the score.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WavObj {
     /// The time offset in the track.
@@ -20,6 +22,7 @@ pub struct WavObj {
     /// The key, or lane, where the object is placed.
     pub channel_id: NoteChannelId,
     /// The `#WAVxx` id to be rung on play.
+    #[getset(get = "pub")]
     pub(crate) wav_id: ObjId,
 }
 
@@ -48,12 +51,6 @@ impl WavObj {
         }
     }
 
-    /// Gets the WAV ID reference
-    #[must_use]
-    pub const fn wav_id(&self) -> &ObjId {
-        &self.wav_id
-    }
-
     pub(crate) fn dangling() -> Self {
         Self {
             offset: ObjTime::start_of(1.into()),
@@ -64,12 +61,13 @@ impl WavObj {
 }
 
 /// An object to change the BPM of the score.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The object ID referencing the BPM definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The BPM to be.
     pub bpm: Decimal,
@@ -100,12 +98,6 @@ impl BpmChangeObj {
     #[must_use]
     pub const fn new(time: ObjTime, def_id: ObjId, bpm: Decimal) -> Self {
         Self { time, def_id, bpm }
-    }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
     }
 }
 
@@ -140,12 +132,13 @@ impl Ord for SectionLenChangeObj {
 }
 
 /// An object to stop scrolling of score.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StopObj {
     /// Time to start the stop.
     pub time: ObjTime,
     /// The object ID referencing the stop definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// Object duration how long stops scrolling of score.
     ///
@@ -183,21 +176,16 @@ impl StopObj {
             duration,
         }
     }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
-    }
 }
 
 /// An object to change the image for BGA (background animation).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgaObj {
     /// Time to start to display the image.
     pub time: ObjTime,
     /// Identifier represents the image/video file registered in [`Header`].
+    #[getset(get = "pub")]
     pub(crate) id: ObjId,
     /// Layer to display.
     pub layer: BgaLayer,
@@ -228,12 +216,6 @@ impl BgaObj {
     #[must_use]
     pub const fn new(time: ObjTime, id: ObjId, layer: BgaLayer) -> Self {
         Self { time, id, layer }
-    }
-
-    /// Gets the BGA ID reference
-    #[must_use]
-    pub const fn id(&self) -> &ObjId {
-        &self.id
     }
 }
 
@@ -284,12 +266,13 @@ impl BgaLayer {
 }
 
 /// An object to change scrolling factor of the score.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScrollingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The object ID referencing the scrolling factor definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The scrolling factor to be.
     pub factor: Decimal,
@@ -325,21 +308,16 @@ impl ScrollingFactorObj {
             factor,
         }
     }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
-    }
 }
 
 /// An object to change spacing factor among notes with linear interpolation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpeedObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The object ID referencing the speed definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The spacing factor to be.
     pub factor: Decimal,
@@ -375,12 +353,6 @@ impl SpeedObj {
             factor,
         }
     }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
-    }
 }
 
 /// An object to change the opacity of BGA layers.
@@ -396,7 +368,7 @@ pub struct BgaOpacityObj {
 }
 
 /// An object to change the ARGB color of BGA layers.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgaArgbObj {
     /// The time which the ARGB change is on.
@@ -404,6 +376,7 @@ pub struct BgaArgbObj {
     /// The BGA layer to change ARGB color for.
     pub layer: BgaLayer,
     /// The object ID referencing the ARGB definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The ARGB color value (A,R,G,B each [0-255]).
     pub argb: Argb,
@@ -419,12 +392,6 @@ impl BgaArgbObj {
             def_id,
             argb,
         }
-    }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
     }
 }
 
@@ -449,12 +416,13 @@ pub struct KeyVolumeObj {
 }
 
 /// An object to seek video position.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SeekObj {
     /// The time which the seek event is on.
     pub time: ObjTime,
     /// The object ID referencing the seek definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The seek position value.
     pub position: Decimal,
@@ -470,21 +438,16 @@ impl SeekObj {
             position,
         }
     }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
-    }
 }
 
 /// An object to display text.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TextObj {
     /// The time which the text is displayed.
     pub time: ObjTime,
     /// The object ID referencing the text definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The text content.
     pub text: String,
@@ -496,21 +459,16 @@ impl TextObj {
     pub const fn new(time: ObjTime, def_id: ObjId, text: String) -> Self {
         Self { time, def_id, text }
     }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
-    }
 }
 
 /// An object to change judge level.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct JudgeObj {
     /// The time which the judge change is on.
     pub time: ObjTime,
     /// The object ID referencing the judge level definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The judge level.
     pub judge_level: JudgeLevel,
@@ -526,21 +484,16 @@ impl JudgeObj {
             judge_level,
         }
     }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
-    }
 }
 
 /// An object to change BGA keybound.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgaKeyboundObj {
     /// The time which the BGA keybound change is on.
     pub time: ObjTime,
     /// The object ID referencing the BGA keybound definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The BGA keybound event.
     pub event: SwBgaEvent,
@@ -556,21 +509,16 @@ impl BgaKeyboundObj {
             event,
         }
     }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
-    }
 }
 
 /// An object to change option.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OptionObj {
     /// The time which the option change is on.
     pub time: ObjTime,
     /// The object ID referencing the option definition.
+    #[getset(get = "pub")]
     pub(crate) def_id: ObjId,
     /// The option content.
     pub option: String,
@@ -585,11 +533,5 @@ impl OptionObj {
             def_id,
             option,
         }
-    }
-
-    /// Gets the object ID reference
-    #[must_use]
-    pub const fn def_id(&self) -> &ObjId {
-        &self.def_id
     }
 }
