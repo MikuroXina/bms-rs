@@ -132,7 +132,7 @@ struct Config {
     chart_path: PathBuf,
 
     /// Reaction time (milliseconds)
-    #[arg(short, long, default_value = "500", value_name = "MILLISECONDS")]
+    #[arg(short, long, default_value = "550", value_name = "MILLISECONDS")]
     reaction_time_ms: u64,
 }
 
