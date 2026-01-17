@@ -4,7 +4,10 @@
 //! Uses the microquad framework for visualization and audio playback.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use std::fs::File;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -14,6 +17,8 @@ use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
 use macroquad::prelude::Color;
 use num::ToPrimitive;
+use rayon::prelude::*;
+use rodio::{Decoder, OutputStream, Sink, Source};
 
 #[macroquad::main("BMS Player")]
 async fn main() -> Result<(), String> {
@@ -37,15 +42,22 @@ async fn main() -> Result<(), String> {
     let reaction_time = TimeSpan::from_duration(Duration::from_millis(config.reaction_time_ms));
     let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
 
-    // 5. Preload audio (get audio list from ParsedChart)
+    // 5. Preload audio in parallel using rayon
     println!("Loading audio files...");
-    let sounds = load_audio_files(chart.resources().wav_files(), base_path).await;
-    println!("Audio loading completed");
+    let audio_data_map = load_audio_files_parallel(chart.resources().wav_files(), base_path);
+    println!(
+        "Audio loading completed: {} files loaded",
+        audio_data_map.len()
+    );
 
     // 6. Start ChartPlayer
     let start_time = TimeStamp::now();
     let mut chart_player = ChartPlayer::start(chart, visible_range, start_time);
     println!("Player started");
+
+    // 6.5. Initialize audio playback system
+    let audio_system = AudioPlaybackSystem::new()?;
+    println!("Audio system initialized");
 
     // 7. Main loop
     println!("Starting playback...");
@@ -72,7 +84,7 @@ async fn main() -> Result<(), String> {
             next_print_time += TimeSpan::SECOND;
         }
 
-        // Process all triggered events
+        // Process all triggered events (play audio once per event)
         for event in &events {
             let wav_id = match event.event() {
                 ChartEvent::Note { wav_id, .. } | ChartEvent::Bgm { wav_id } => wav_id,
@@ -80,9 +92,9 @@ async fn main() -> Result<(), String> {
             };
 
             if let Some(id) = wav_id
-                && let Some(sound) = sounds.get(id)
+                && let Some(audio) = audio_data_map.get(id)
             {
-                macroquad::audio::play_sound_once(sound);
+                audio_system.play_once(audio);
             }
         }
 
@@ -115,6 +127,105 @@ struct Config {
     /// Reaction time (milliseconds)
     #[arg(short, long, default_value = "500", value_name = "MILLISECONDS")]
     reaction_time_ms: u64,
+}
+
+/// Preloaded audio data (fully loaded into memory)
+struct AudioData {
+    /// PCM audio sample data
+    samples: Arc<[f32]>,
+    /// Sample rate
+    sample_rate: u32,
+    /// Number of channels
+    channels: u16,
+}
+
+impl AudioData {
+    /// Create a reusable rodio Source from memory data
+    /// Each call creates a new source by cloning the Arc
+    #[must_use]
+    fn create_source(&self) -> impl Source<Item = f32> + Send + 'static {
+        // Clone the Arc to get shared ownership
+        let samples_clone = Arc::clone(&self.samples);
+
+        // Create a custom source that owns the Arc
+        AudioSource::new(samples_clone, self.sample_rate, self.channels)
+    }
+}
+
+/// Custom audio source that owns its data and implements Source trait
+struct AudioSource {
+    samples: Arc<[f32]>,
+    index: usize,
+    sample_rate: u32,
+    channels: u16,
+}
+
+impl AudioSource {
+    #[must_use]
+    const fn new(samples: Arc<[f32]>, sample_rate: u32, channels: u16) -> Self {
+        Self {
+            samples,
+            index: 0,
+            sample_rate,
+            channels,
+        }
+    }
+}
+
+impl Iterator for AudioSource {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.samples.get(self.index).copied().inspect(|_| {
+            self.index += 1;
+        })
+    }
+}
+
+impl Source for AudioSource {
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
+
+    fn channels(&self) -> u16 {
+        self.channels
+    }
+
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn total_duration(&self) -> Option<std::time::Duration> {
+        None
+    }
+}
+
+/// Audio playback system
+struct AudioPlaybackSystem {
+    /// rodio output stream (must be kept alive)
+    _stream: OutputStream,
+    /// Stream handle (for creating sinks)
+    stream_handle: rodio::OutputStreamHandle,
+}
+
+impl AudioPlaybackSystem {
+    /// Create a new audio playback system
+    fn new() -> Result<Self, String> {
+        let (stream, stream_handle) =
+            OutputStream::try_default().map_err(|e| format!("Failed to open audio: {}", e))?;
+
+        Ok(Self {
+            _stream: stream,
+            stream_handle,
+        })
+    }
+
+    /// Play audio once
+    fn play_once(&self, audio: &AudioData) {
+        let sink = Sink::try_new(&self.stream_handle).expect("Failed to create audio sink");
+        sink.append(audio.create_source());
+        sink.detach(); // Let the sink play in background and auto-cleanup
+    }
 }
 
 /// Load chart file
@@ -209,7 +320,28 @@ fn find_audio_with_extensions(path: &Path, extensions: &[&str]) -> Option<PathBu
     None
 }
 
-/// Preload all audio from `ChartPlayer` audio file mapping (parallel loading)
+/// Load a single audio file into memory
+fn load_audio_to_memory(path: &Path) -> Result<AudioData, String> {
+    let file = File::open(path).map_err(|e| format!("Failed to open: {}", e))?;
+
+    // Create decoder and get metadata
+    let decoder = Decoder::new(BufReader::new(file))
+        .map_err(|e| format!("Failed to create decoder: {}", e))?;
+
+    let sample_rate = decoder.sample_rate();
+    let channels = decoder.channels();
+
+    // Collect all samples into memory
+    let samples: Vec<f32> = decoder.convert_samples().collect();
+
+    Ok(AudioData {
+        samples: samples.into(),
+        sample_rate,
+        channels,
+    })
+}
+
+/// Preload all audio files in parallel using rayon
 ///
 /// # Arguments
 ///
@@ -219,70 +351,31 @@ fn find_audio_with_extensions(path: &Path, extensions: &[&str]) -> Option<PathBu
 /// # Returns
 ///
 /// Returns loaded audio mapping, failed audio files will be skipped.
-async fn load_audio_files(
+fn load_audio_files_parallel(
     audio_files: &HashMap<WavId, PathBuf>,
     base_path: &Path,
-) -> HashMap<WavId, macroquad::audio::Sound> {
-    use futures_concurrency::prelude::*;
+) -> HashMap<WavId, AudioData> {
+    audio_files
+        .par_iter()
+        .filter_map(|(wav_id, path)| {
+            let full_path = base_path.join(path);
 
-    // Create concurrent loading tasks
-    let loading_tasks = audio_files.iter().map(|(wav_id, path)| {
-        let full_path = base_path.join(path);
-        async move {
-            // Search by extension order: ogg, flac, wav, mp3
-            let found = find_audio_with_extensions(&full_path, &["ogg", "flac", "wav", "mp3"]);
+            // Find file with extension fallback
+            let found_path =
+                find_audio_with_extensions(&full_path, &["ogg", "flac", "wav", "mp3"])?;
 
-            match found {
-                Some(actual_path) => {
-                    // If found path differs from original path, print info
-                    if actual_path != full_path {
-                        eprintln!(
-                            "Audio file {:?} not found, using {:?} instead (ID: {:?})",
-                            full_path, actual_path, wav_id
-                        );
-                    }
-
-                    let path_str = actual_path.to_str().unwrap_or("");
-                    match macroquad::audio::load_sound(path_str).await {
-                        Ok(sound) => Some((*wav_id, sound)),
-                        Err(e) => {
-                            eprintln!(
-                                "Warning: Failed to load audio {:?} (ID: {:?}): {:?}",
-                                actual_path, wav_id, e
-                            );
-                            None
-                        }
-                    }
-                }
-                None => {
-                    // If all extensions fail, print warning
+            match load_audio_to_memory(&found_path) {
+                Ok(data) => Some((*wav_id, data)),
+                Err(e) => {
                     eprintln!(
-                        "Warning: Audio file not found: {:?} (ID: {:?})",
-                        full_path, wav_id
+                        "Warning: Failed to load audio {:?} (ID: {:?}): {}",
+                        found_path, wav_id, e
                     );
                     None
                 }
             }
-        }
-    });
-
-    // Execute all tasks concurrently
-    let loading_tasks_vec: Vec<_> = loading_tasks.collect();
-    let results = loading_tasks_vec.join().await;
-
-    // Collect successful results
-    let sounds: HashMap<WavId, macroquad::audio::Sound> = results.into_iter().flatten().collect();
-
-    let loaded_count = sounds.len();
-    let total_count = audio_files.len();
-    if loaded_count < total_count {
-        eprintln!(
-            "Warning: {}/{} audio files loaded successfully",
-            loaded_count, total_count
-        );
-    }
-
-    sounds
+        })
+        .collect()
 }
 
 // Screen size configuration

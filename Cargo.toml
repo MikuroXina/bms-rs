@@ -37,12 +37,13 @@ strict-num-extended = { version = "0.5", features = ["serde"] }
 
 [dev-dependencies]
 pretty_assertions = "1"
-macroquad = { version = "0.4", features = ["audio"] }
+macroquad = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 encoding_rs = "0.8"
 clap = { version = "4", features = ["derive"] }
-futures-concurrency = "7"
+rodio = { version = "0.19", features = ["wav", "vorbis", "flac", "mp3"] }
+rayon = "1.10"
 
 [[example]]
 name = "diagnostics_example"
