@@ -8,9 +8,7 @@ use std::sync::Arc;
 
 /// Audio data structure containing samples and metadata
 struct AudioData {
-    samples: Arc<[f32]>,
-    channels: u16,
-    sample_rate: u32,
+    buffer: Arc<SamplesBuffer>,
 }
 
 use std::fs::File;
@@ -102,16 +100,8 @@ async fn main() -> Result<(), String> {
             if let Some(id) = wav_id
                 && let Some(audio) = audio_data_map.get(id)
             {
-                // Create a new sink for each audio to play simultaneously
-                // Create SamplesBuffer from Arc<Vec<f32>>
-                let source = SamplesBuffer::new(
-                    audio.channels,
-                    audio.sample_rate,
-                    audio.samples.iter().copied().collect::<Vec<f32>>(),
-                );
-                let sink = rodio::Sink::connect_new(stream_handle.mixer());
-                sink.append(source);
-                sink.detach();
+                // Directly add to mixer for zero-copy playback
+                stream_handle.mixer().add((*audio.buffer).clone());
             }
         }
 
@@ -252,11 +242,10 @@ fn load_audio_to_memory(path: &Path) -> Result<AudioData, String> {
     // Collect all samples into memory
     let samples: Vec<f32> = decoder.collect();
 
-    Ok(AudioData {
-        samples: samples.into(),
-        channels,
-        sample_rate,
-    })
+    // Create SamplesBuffer and wrap with Arc
+    let buffer = Arc::new(SamplesBuffer::new(channels, sample_rate, samples));
+
+    Ok(AudioData { buffer })
 }
 
 /// Preload all audio files in parallel using rayon
