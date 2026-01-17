@@ -303,10 +303,10 @@ const COLOR_BG: Color = Color::from_rgba(30, 30, 30, 255);
 const COLOR_TRACK_LINE: Color = Color::from_rgba(100, 100, 100, 255);
 const COLOR_JUDGMENT_LINE: Color = Color::from_rgba(255, 255, 255, 255);
 const COLOR_BAR_LINE: Color = Color::from_rgba(80, 80, 80, 180);
-const COLOR_NOTE_NORMAL: Color = Color::from_rgba(0, 200, 255, 255);
-const COLOR_NOTE_LONG: Color = Color::from_rgba(0, 150, 255, 200);
-const COLOR_NOTE_SCRATCH: Color = Color::from_rgba(255, 200, 0, 255);
-const COLOR_NOTE_MINE: Color = Color::from_rgba(255, 0, 0, 255);
+const COLOR_NOTE_WHITE: Color = Color::from_rgba(255, 255, 255, 255);
+const COLOR_NOTE_BLUE: Color = Color::from_rgba(100, 149, 237, 255);
+const COLOR_NOTE_SCRATCH: Color = Color::from_rgba(255, 0, 0, 255);
+const COLOR_NOTE_MINE: Color = Color::from_rgba(255, 255, 0, 255);
 
 /// Get all supported keys (7+1k layout)
 #[must_use]
@@ -431,7 +431,9 @@ fn render_notes(player: &mut ChartPlayer, _events: &[PlayheadEvent]) {
             // Select color based on track type
             let color = match key {
                 Key::Scratch(_) => COLOR_NOTE_SCRATCH,
-                _ => COLOR_NOTE_NORMAL,
+                Key::Key(n) if n % 2 == 1 => COLOR_NOTE_WHITE,
+                Key::Key(_) => COLOR_NOTE_BLUE,
+                _ => COLOR_NOTE_WHITE,
             };
 
             // Draw notes
@@ -455,7 +457,7 @@ fn render_notes(player: &mut ChartPlayer, _events: &[PlayheadEvent]) {
                         y_end,
                         TRACK_WIDTH - 4.0,
                         height.max(5.0),
-                        COLOR_NOTE_LONG,
+                        color,
                     );
 
                     // Long note head
