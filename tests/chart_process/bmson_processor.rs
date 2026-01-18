@@ -9,10 +9,7 @@ use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
 
-use super::assert_time_close;
-
-/// Unified time precision evaluation constant: 1 microsecond (unit: seconds)
-const MICROSECOND_EPSILON: f64 = 1e-6;
+use super::{MICROSECOND_EPSILON, assert_time_close};
 
 #[test]
 fn test_bmson_continue_duration_references_bpm_and_stop() {

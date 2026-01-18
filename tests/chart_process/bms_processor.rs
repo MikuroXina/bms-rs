@@ -10,10 +10,7 @@ use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
 
-use super::assert_time_close;
-
-/// Unified time precision evaluation constant: 1 microsecond (unit: seconds)
-const MICROSECOND_EPSILON: f64 = 1e-6;
+use super::{MICROSECOND_EPSILON, assert_time_close};
 
 /// Parse BMS source and return the BMS struct, asserting no warnings.
 fn parse_bms_no_warnings<T, P, R, M>(source: &str, config: ParseConfig<T, P, R, M>) -> Bms
