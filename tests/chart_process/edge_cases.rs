@@ -493,7 +493,6 @@ fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
 
     let expected_events = vec![
         (YCoordinate::from(1.0), Key::Key(1), Some(WavId::new(1))),
-        (YCoordinate::from(1.0), Key::Key(3), Some(WavId::new(1))),
         (YCoordinate::from(1.0), Key::Key(2), Some(WavId::new(2))),
         (YCoordinate::from(1.0), Key::Key(3), Some(WavId::new(3))),
         (YCoordinate::from(1.0), Key::Key(4), Some(WavId::new(4))),

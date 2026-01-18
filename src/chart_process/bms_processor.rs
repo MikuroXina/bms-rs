@@ -266,12 +266,58 @@ impl AllEventsIndex {
         };
 
         // Note / Wav arrival events
+        let mut note_events: Vec<(YCoordinate, WavObj)> = Vec::new();
         for obj in bms.notes().all_notes() {
             let y = get_event_y(obj.offset);
-            let event = event_for_note_static::<T>(bms, y_memo, obj);
+            note_events.push((y, obj.clone()));
+        }
 
+        // Collapse multiple notes on the same key in zero-length sections
+        let mut zero_length_key_tracker: std::collections::HashMap<
+            (YCoordinate, (PlayerSide, Key)),
+            usize,
+        > = std::collections::HashMap::new();
+
+        for (i, (y, obj)) in note_events.iter().enumerate() {
+            let is_zero_length_section = zero_length_tracks.contains(&obj.offset.track());
+            let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
+
+            if let Some((side, key, _)) = lane
+                && is_zero_length_section
+            {
+                let key_identifier = (y.clone(), (side, key));
+                zero_length_key_tracker.insert(key_identifier, i);
+            }
+        }
+
+        let mut seen_indices: std::collections::HashSet<usize> = std::collections::HashSet::new();
+        for (i, (y, obj)) in note_events.iter().enumerate() {
+            let is_zero_length_section = zero_length_tracks.contains(&obj.offset.track());
+            let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
+
+            if let Some((side, key, _)) = lane {
+                if is_zero_length_section {
+                    let key_identifier = (y.clone(), (side, key));
+                    if let Some(&idx) = zero_length_key_tracker.get(&key_identifier)
+                        && idx == i
+                    {
+                        seen_indices.insert(i);
+                    }
+                } else {
+                    seen_indices.insert(i);
+                }
+            } else {
+                seen_indices.insert(i);
+            }
+        }
+
+        for (i, (y, obj)) in note_events.iter().enumerate() {
+            if !seen_indices.contains(&i) {
+                continue;
+            }
+            let event = event_for_note_static::<T>(bms, y_memo, obj);
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            events_map.entry(y.clone()).or_default().push(evp);
         }
 
         // BPM change events
