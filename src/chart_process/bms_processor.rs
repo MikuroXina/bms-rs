@@ -43,15 +43,6 @@ impl BmsProcessor {
         // Pre-calculate Y coordinate by tracks
         let y_memo = YMemo::new(bms);
 
-        // Identify zero-length sections
-        let zero_length_tracks: std::collections::HashSet<Track> = bms
-            .section_len
-            .section_len_changes
-            .iter()
-            .filter(|(_, change)| change.length.is_zero())
-            .map(|(&track, _)| track)
-            .collect();
-
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
             .bpm
@@ -75,10 +66,10 @@ impl BmsProcessor {
             .collect();
 
         let (all_events, flow_events_by_y) =
-            AllEventsIndex::precompute_all_events::<T>(bms, &y_memo, &zero_length_tracks);
+            AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
         // Precompute activate times
-        let all_events = precompute_activate_times(bms, &all_events, &y_memo, &zero_length_tracks);
+        let all_events = precompute_activate_times(bms, &all_events, &y_memo);
 
         ParsedChart::new(
             ChartResources::new(wav_files, bmp_files),
@@ -145,6 +136,7 @@ pub struct YMemo {
     /// Y coordinates memoization by track, which modified its length
     y_by_track: BTreeMap<Track, Decimal>,
     speed_changes: BTreeMap<ObjTime, SpeedObj>,
+    zero_length_tracks: std::collections::HashSet<Track>,
 }
 
 impl YMemo {
@@ -159,14 +151,28 @@ impl YMemo {
             y_by_track.insert(track, y.clone());
             last_track = track.0;
         }
+
+        let zero_length_tracks: std::collections::HashSet<Track> = bms
+            .section_len
+            .section_len_changes
+            .iter()
+            .filter(|(_, change)| change.length.is_zero())
+            .map(|(&track, _)| track)
+            .collect();
+
         Self {
             y_by_track,
             speed_changes: bms.speed.speed_factor_changes.clone(),
+            zero_length_tracks,
         }
     }
 
     // Finds Y coordinate at `time` efficiently
     fn get_y(&self, time: ObjTime) -> YCoordinate {
+        if self.zero_length_tracks.contains(&time.track()) {
+            return self.get_section_start_y(time.track());
+        }
+
         let section_y = {
             let track = time.track();
             if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last() {
@@ -206,19 +212,6 @@ impl YMemo {
             .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
         YCoordinate(section_y * factor)
     }
-
-    // Gets Y coordinate, applying zero-length section handling if needed
-    fn get_y_with_zero_length_handling(
-        &self,
-        time: ObjTime,
-        zero_length_tracks: &std::collections::HashSet<Track>,
-    ) -> YCoordinate {
-        if zero_length_tracks.contains(&time.track()) {
-            self.get_section_start_y(time.track())
-        } else {
-            self.get_y(time)
-        }
-    }
 }
 
 impl AllEventsIndex {
@@ -229,15 +222,12 @@ impl AllEventsIndex {
     pub fn precompute_all_events<T: KeyLayoutMapper>(
         bms: &Bms,
         y_memo: &YMemo,
-        zero_length_tracks: &std::collections::HashSet<Track>,
     ) -> (Self, BTreeMap<YCoordinate, Vec<FlowEvent>>) {
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
-        let get_event_y = |time: ObjTime| -> YCoordinate {
-            y_memo.get_y_with_zero_length_handling(time, zero_length_tracks)
-        };
+        let get_event_y = |time: ObjTime| -> YCoordinate { y_memo.get_y(time) };
 
         let note_events: Vec<(YCoordinate, WavObj)> = bms
             .notes()
@@ -251,7 +241,7 @@ impl AllEventsIndex {
         > = std::collections::HashMap::new();
 
         for (i, (y, obj)) in note_events.iter().enumerate() {
-            let is_zero_length_section = zero_length_tracks.contains(&obj.offset.track());
+            let is_zero_length_section = y_memo.zero_length_tracks.contains(&obj.offset.track());
             let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
 
             if let Some((side, key, _)) = lane
@@ -262,7 +252,7 @@ impl AllEventsIndex {
         }
 
         for (i, (y, obj)) in note_events.iter().enumerate() {
-            let is_zero_length_section = zero_length_tracks.contains(&obj.offset.track());
+            let is_zero_length_section = y_memo.zero_length_tracks.contains(&obj.offset.track());
             let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
             let should_include = match lane {
                 Some((side, key, _)) if is_zero_length_section => {
@@ -545,7 +535,6 @@ pub fn precompute_activate_times(
     bms: &Bms,
     all_events: &AllEventsIndex,
     y_memo: &YMemo,
-    zero_length_tracks: &std::collections::HashSet<Track>,
 ) -> AllEventsIndex {
     use std::collections::{BTreeMap, BTreeSet};
     let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
@@ -563,7 +552,7 @@ pub fn precompute_activate_times(
         .bpm_changes
         .values()
         .map(|change| {
-            let y = y_memo.get_y_with_zero_length_handling(change.time, zero_length_tracks);
+            let y = y_memo.get_y(change.time);
             (y, change.bpm.clone())
         })
         .collect();
@@ -574,7 +563,7 @@ pub fn precompute_activate_times(
         .stops
         .values()
         .map(|st| {
-            let sy = y_memo.get_y_with_zero_length_handling(st.time, zero_length_tracks);
+            let sy = y_memo.get_y(st.time);
             (sy, st.duration.clone())
         })
         .sorted_by_key(|(y, _)| y.clone())
