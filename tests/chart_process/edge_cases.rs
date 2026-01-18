@@ -497,6 +497,16 @@ fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
         (YCoordinate::from(1.0), Key::Key(2), Some(WavId::new(2))),
         (YCoordinate::from(1.5), Key::Key(3), Some(WavId::new(3))),
         (YCoordinate::from(2.0), Key::Key(4), Some(WavId::new(4))),
+
+        // FIXME:
+        // https://github.com/MikuroXina/bms-rs/pull/311
+        // I want to select the 4th: Treat `#xxx02:0.0` as zero length section, preserving objects in the whole section, and treat them as in the same time position.
+        // WAV11 -> WavId::new(1), WAV12 -> WavId::new(2), WAV13 -> WavId::new(3), WAV14 -> WavId::new(4)
+        // The result should be
+        // (YCoordinate::from(1.0), Key::Key(1), Some(WavId::new(1))),
+        // (YCoordinate::from(1.0), Key::Key(2), Some(WavId::new(2))),
+        // (YCoordinate::from(1.0), Key::Key(3), Some(WavId::new(3))),
+        // (YCoordinate::from(1.0), Key::Key(4), Some(WavId::new(4))),
     ];
 
     assert_eq!(note_events, expected_events);
