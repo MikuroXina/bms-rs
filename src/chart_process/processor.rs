@@ -445,7 +445,9 @@ impl ParsedChart {
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::{AllEventsIndex, ChartEvent, ChartEventId, PlayheadEvent, TimeSpan, YCoordinate};
+    use super::AllEventsIndex;
+    use super::ChartEventId;
+    use crate::chart_process::{ChartEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
         let y_coord = YCoordinate::from(y);
