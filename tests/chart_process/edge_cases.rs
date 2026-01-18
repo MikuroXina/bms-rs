@@ -18,6 +18,8 @@ use bms_rs::bms::prelude::*;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
 
+use super::assert_time_close;
+
 /// Parse BMS source and return the BMS struct, asserting no warnings.
 fn parse_bms_no_warnings<T, P, R, M>(source: &str, config: ParseConfig<T, P, R, M>) -> Bms
 where
@@ -255,15 +257,28 @@ fn test_bms_very_small_section_no_division_by_zero() {
         // Ensure no NaN or infinite values caused by division by zero
         let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
         let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+
+        // display_ratio should be a valid number in [0.0, 1.0] range
         assert!(
-            ratio_start.is_finite(),
-            "display_ratio start should be finite with very small section length, got {}",
+            (0.0..=1.0).contains(&ratio_start),
+            "display_ratio start should be in [0.0, 1.0] range with very small section length, got {}",
             ratio_start
         );
         assert!(
-            ratio_end.is_finite(),
-            "display_ratio end should be finite with very small section length, got {}",
+            (0.0..=1.0).contains(&ratio_end),
+            "display_ratio end should be in [0.0, 1.0] range with very small section length, got {}",
             ratio_end
+        );
+
+        // ratio_start and ratio_end should be very close (for short notes)
+        // The difference should be negligible for single notes without long keysounds
+        let ratio_diff = (ratio_start - ratio_end).abs();
+        assert!(
+            ratio_diff < 1e-6,
+            "display_ratio range should be very small for short notes, got start={}, end={}, diff={}",
+            ratio_start,
+            ratio_end,
+            ratio_diff
         );
     }
 
@@ -343,10 +358,17 @@ fn test_bmson_edge_cases_no_division_by_zero() {
     let events = processor.visible_events();
     for (_ev, ratio_range) in events {
         let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
-        assert!(
-            ratio_start.is_finite(),
-            "display_ratio should be finite when event_y == current_y, got {}",
-            ratio_start
+        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+        // When event_y == current_y (note at y=0, current_y=0), display_ratio should be 1.0
+        assert_time_close(
+            1.0,
+            ratio_start,
+            "display_ratio start when event_y == current_y",
+        );
+        assert_time_close(
+            1.0,
+            ratio_end,
+            "display_ratio end when event_y == current_y",
         );
     }
 }
