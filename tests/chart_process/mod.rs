@@ -10,7 +10,7 @@ pub mod edge_cases;
 pub mod update_consistency;
 
 /// Unified time precision evaluation constant: 1 microsecond (unit: seconds)
-pub(super) const MICROSECOND_EPSILON: f64 = 1e-6;
+const MICROSECOND_EPSILON: f64 = 1e-6;
 
 /// Assert that two floating-point time values are equal within 1 microsecond error margin
 ///
