@@ -5,6 +5,7 @@ use std::{
     path::PathBuf,
 };
 
+use itertools::Itertools;
 use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
@@ -59,8 +60,6 @@ impl BmsProcessor {
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
 
-        let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
-
         // Precompute resource maps
         let wav_files: HashMap<WavId, PathBuf> = bms
             .wav
@@ -75,29 +74,8 @@ impl BmsProcessor {
             .map(|(obj_id, bmp)| (BmpId::from(obj_id.as_u16() as usize), bmp.file.clone()))
             .collect();
 
-        // Pre-index flow events by y
-        let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
-        for change in bms.bpm.bpm_changes.values() {
-            let y = y_memo.get_y_with_zero_length_handling(change.time, &zero_length_tracks);
-            flow_events_by_y
-                .entry(y)
-                .or_default()
-                .push(FlowEvent::Bpm(change.bpm.clone()));
-        }
-        for change in bms.scroll.scrolling_factor_changes.values() {
-            let y = y_memo.get_y_with_zero_length_handling(change.time, &zero_length_tracks);
-            flow_events_by_y
-                .entry(y)
-                .or_default()
-                .push(FlowEvent::Scroll(change.factor.clone()));
-        }
-        for change in bms.speed.speed_factor_changes.values() {
-            let y = y_memo.get_y_with_zero_length_handling(change.time, &zero_length_tracks);
-            flow_events_by_y
-                .entry(y)
-                .or_default()
-                .push(FlowEvent::Speed(change.factor.clone()));
-        }
+        let (all_events, flow_events_by_y) =
+            AllEventsIndex::precompute_all_events::<T>(bms, &y_memo, &zero_length_tracks);
 
         // Precompute activate times
         let all_events = precompute_activate_times(bms, &all_events, &y_memo, &zero_length_tracks);
@@ -246,33 +224,27 @@ impl YMemo {
 impl AllEventsIndex {
     /// Precompute all events, store grouped by Y coordinate
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
+    /// Returns (events index, flow events by y)
     #[must_use]
-    pub fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms, y_memo: &YMemo) -> Self {
+    pub fn precompute_all_events<T: KeyLayoutMapper>(
+        bms: &Bms,
+        y_memo: &YMemo,
+        zero_length_tracks: &std::collections::HashSet<Track>,
+    ) -> (Self, BTreeMap<YCoordinate, Vec<FlowEvent>>) {
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
-        // Identify zero-length sections
-        let zero_length_tracks: std::collections::HashSet<Track> = bms
-            .section_len
-            .section_len_changes
-            .iter()
-            .filter(|(_, change)| change.length.is_zero())
-            .map(|(&track, _)| track)
-            .collect();
-
-        // Helper function to get Y coordinate, handling zero-length sections
         let get_event_y = |time: ObjTime| -> YCoordinate {
-            y_memo.get_y_with_zero_length_handling(time, &zero_length_tracks)
+            y_memo.get_y_with_zero_length_handling(time, zero_length_tracks)
         };
 
-        // Note / Wav arrival events
-        let mut note_events: Vec<(YCoordinate, WavObj)> = Vec::new();
-        for obj in bms.notes().all_notes() {
-            let y = get_event_y(obj.offset);
-            note_events.push((y, obj.clone()));
-        }
+        let note_events: Vec<(YCoordinate, WavObj)> = bms
+            .notes()
+            .all_notes()
+            .map(|obj| (get_event_y(obj.offset), obj.clone()))
+            .collect();
 
-        // Collapse multiple notes on the same key in zero-length sections
         let mut zero_length_key_tracker: std::collections::HashMap<
             (YCoordinate, (PlayerSide, Key)),
             usize,
@@ -285,50 +257,45 @@ impl AllEventsIndex {
             if let Some((side, key, _)) = lane
                 && is_zero_length_section
             {
-                let key_identifier = (y.clone(), (side, key));
-                zero_length_key_tracker.insert(key_identifier, i);
+                zero_length_key_tracker.insert((y.clone(), (side, key)), i);
             }
         }
 
-        let mut seen_indices: std::collections::HashSet<usize> = std::collections::HashSet::new();
         for (i, (y, obj)) in note_events.iter().enumerate() {
             let is_zero_length_section = zero_length_tracks.contains(&obj.offset.track());
             let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
-
-            if let Some((side, key, _)) = lane {
-                if is_zero_length_section {
-                    let key_identifier = (y.clone(), (side, key));
-                    if let Some(&idx) = zero_length_key_tracker.get(&key_identifier)
-                        && idx == i
-                    {
-                        seen_indices.insert(i);
-                    }
-                } else {
-                    seen_indices.insert(i);
+            let should_include = match lane {
+                Some((side, key, _)) if is_zero_length_section => {
+                    zero_length_key_tracker.get(&(y.clone(), (side, key))) == Some(&i)
                 }
-            } else {
-                seen_indices.insert(i);
+                _ => true,
+            };
+
+            if should_include {
+                let event = event_for_note_static::<T>(bms, y_memo, obj);
+                let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
+                events_map.entry(y.clone()).or_default().push(evp);
             }
         }
 
-        for (i, (y, obj)) in note_events.iter().enumerate() {
-            if !seen_indices.contains(&i) {
-                continue;
-            }
-            let event = event_for_note_static::<T>(bms, y_memo, obj);
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y.clone()).or_default().push(evp);
-        }
-
-        // BPM change events
         for change in bms.bpm.bpm_changes.values() {
             let y = get_event_y(change.time);
             let event = ChartEvent::BpmChange {
                 bpm: change.bpm.clone(),
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            flow_events_by_y
+                .entry(y.clone())
+                .or_default()
+                .push(FlowEvent::Bpm(change.bpm.clone()));
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         // Scroll change events
@@ -337,9 +304,19 @@ impl AllEventsIndex {
             let event = ChartEvent::ScrollChange {
                 factor: change.factor.clone(),
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            flow_events_by_y
+                .entry(y.clone())
+                .or_default()
+                .push(FlowEvent::Scroll(change.factor.clone()));
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         // Speed change events
@@ -348,9 +325,19 @@ impl AllEventsIndex {
             let event = ChartEvent::SpeedChange {
                 factor: change.factor.clone(),
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            flow_events_by_y
+                .entry(y.clone())
+                .or_default()
+                .push(FlowEvent::Speed(change.factor.clone()));
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         // Stop events
@@ -359,9 +346,15 @@ impl AllEventsIndex {
             let event = ChartEvent::Stop {
                 duration: convert_stop_duration_to_beats(&stop.duration),
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         // BGA change events
@@ -372,9 +365,15 @@ impl AllEventsIndex {
                 layer: bga_obj.layer,
                 bmp_id: Some(BmpId::from(bmp_index)),
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         // BGA opacity change events (requires minor-command feature)
@@ -386,9 +385,15 @@ impl AllEventsIndex {
                     layer: *layer,
                     opacity: opacity_obj.opacity,
                 };
-
-                let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-                events_map.entry(y).or_default().push(evp);
+                events_map
+                    .entry(y.clone())
+                    .or_default()
+                    .push(PlayheadEvent::new(
+                        id_gen.next_id(),
+                        y.clone(),
+                        event,
+                        TimeSpan::ZERO,
+                    ));
             }
         }
 
@@ -400,9 +405,15 @@ impl AllEventsIndex {
                     layer: *layer,
                     argb: argb_obj.argb,
                 };
-
-                let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-                events_map.entry(y).or_default().push(evp);
+                events_map
+                    .entry(y.clone())
+                    .or_default()
+                    .push(PlayheadEvent::new(
+                        id_gen.next_id(),
+                        y.clone(),
+                        event,
+                        TimeSpan::ZERO,
+                    ));
             }
         }
 
@@ -412,9 +423,15 @@ impl AllEventsIndex {
             let event = ChartEvent::BgmVolumeChange {
                 volume: bgm_volume_obj.volume,
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         // KEY volume change events
@@ -423,9 +440,15 @@ impl AllEventsIndex {
             let event = ChartEvent::KeyVolumeChange {
                 volume: key_volume_obj.volume,
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         // Text display events
@@ -434,9 +457,15 @@ impl AllEventsIndex {
             let event = ChartEvent::TextDisplay {
                 text: text_obj.text.clone(),
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         // Judge level change events
@@ -445,51 +474,68 @@ impl AllEventsIndex {
             let event = ChartEvent::JudgeLevelChange {
                 level: judge_obj.judge_level,
             };
-
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-            events_map.entry(y).or_default().push(evp);
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
-        // Minor-command feature events
+        for seek_obj in bms.video.seek_events.values() {
+            let y = get_event_y(seek_obj.time);
+            let event = ChartEvent::VideoSeek {
+                seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
+            };
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
+        }
 
-        {
-            // Video seek events
-            for seek_obj in bms.video.seek_events.values() {
-                let y = get_event_y(seek_obj.time);
-                let event = ChartEvent::VideoSeek {
-                    seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
-                };
+        for bga_keybound_obj in bms.bmp.bga_keybound_events.values() {
+            let y = get_event_y(bga_keybound_obj.time);
+            let event = ChartEvent::BgaKeybound {
+                event: bga_keybound_obj.event.clone(),
+            };
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
+        }
 
-                let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-                events_map.entry(y).or_default().push(evp);
-            }
-
-            // BGA key binding events
-            for bga_keybound_obj in bms.bmp.bga_keybound_events.values() {
-                let y = get_event_y(bga_keybound_obj.time);
-                let event = ChartEvent::BgaKeybound {
-                    event: bga_keybound_obj.event.clone(),
-                };
-
-                let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-                events_map.entry(y).or_default().push(evp);
-            }
-
-            // Option change events
-            for option_obj in bms.option.option_events.values() {
-                let y = get_event_y(option_obj.time);
-                let event = ChartEvent::OptionChange {
-                    option: option_obj.option.clone(),
-                };
-
-                let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
-                events_map.entry(y).or_default().push(evp);
-            }
+        for option_obj in bms.option.option_events.values() {
+            let y = get_event_y(option_obj.time);
+            let event = ChartEvent::OptionChange {
+                option: option_obj.option.clone(),
+            };
+            events_map
+                .entry(y.clone())
+                .or_default()
+                .push(PlayheadEvent::new(
+                    id_gen.next_id(),
+                    y.clone(),
+                    event,
+                    TimeSpan::ZERO,
+                ));
         }
 
         BmsProcessor::generate_barlines_for_bms(bms, y_memo, &mut events_map, &mut id_gen);
         let pre_index = Self::new(events_map);
-        precompute_activate_times(bms, &pre_index, y_memo, &zero_length_tracks)
+        (pre_index, flow_events_by_y)
     }
 }
 
@@ -506,15 +552,13 @@ pub fn precompute_activate_times(
     points.insert(YCoordinate::zero());
     points.extend(all_events.as_by_y().keys().cloned());
 
-    let mut bpm_map: BTreeMap<YCoordinate, Decimal> = BTreeMap::new();
     let init_bpm = bms
         .bpm
         .bpm
         .as_ref()
         .cloned()
         .unwrap_or_else(|| Decimal::from(120));
-    bpm_map.insert(YCoordinate::zero(), init_bpm.clone());
-    let bpm_pairs: Vec<(YCoordinate, Decimal)> = bms
+    let bpm_changes: Vec<(YCoordinate, Decimal)> = bms
         .bpm
         .bpm_changes
         .values()
@@ -523,10 +567,9 @@ pub fn precompute_activate_times(
             (y, change.bpm.clone())
         })
         .collect();
-    bpm_map.extend(bpm_pairs.iter().cloned());
-    points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
+    points.extend(bpm_changes.iter().map(|(y, _)| y.clone()));
 
-    let mut stop_list: Vec<(YCoordinate, Decimal)> = bms
+    let stop_list: Vec<(YCoordinate, Decimal)> = bms
         .stop
         .stops
         .values()
@@ -534,54 +577,67 @@ pub fn precompute_activate_times(
             let sy = y_memo.get_y_with_zero_length_handling(st.time, zero_length_tracks);
             (sy, st.duration.clone())
         })
+        .sorted_by_key(|(y, _)| y.clone())
         .collect();
-    stop_list.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut bpm_map: BTreeMap<YCoordinate, Decimal> = BTreeMap::new();
+    bpm_map.insert(YCoordinate::zero(), init_bpm.clone());
+    bpm_map.extend(bpm_changes.iter().cloned());
 
     let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
     let mut total_nanos: u64 = 0;
     let mut prev = YCoordinate::zero();
     cum_map.insert(prev.clone(), 0);
-    let mut cur_bpm = bpm_map
-        .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
-        .next_back()
-        .map(|(_, b)| b.clone())
-        .unwrap_or_else(|| init_bpm.clone());
+    let mut cur_bpm = init_bpm.clone();
     let mut stop_idx = 0usize;
-    for curr in points.into_iter() {
+    let mut bpm_iter = bpm_changes.iter().peekable();
+
+    for curr in points {
         if curr <= prev {
             continue;
         }
+
+        while let Some(&(change_y, _)) = bpm_iter.peek() {
+            if *change_y > curr {
+                break;
+            }
+            if *change_y <= curr {
+                cur_bpm = bpm_map
+                    .range(..=change_y)
+                    .next_back()
+                    .map(|(_, b)| b.clone())
+                    .unwrap_or_else(|| init_bpm.clone());
+                bpm_iter.next();
+            }
+        }
+
         let delta_y = curr.clone() - prev.clone();
-        let delta_y_value = delta_y.value();
-        let delta_nanos = (delta_y_value * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-            / cur_bpm)
+        let delta_nanos =
+            (delta_y.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
+                / cur_bpm.clone())
             .to_u64()
             .unwrap_or(0);
         total_nanos = total_nanos.saturating_add(delta_nanos);
+
         while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
             if sy >= &curr {
                 break;
             }
             if sy > &prev {
                 let bpm_at_stop = bpm_map
-                    .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(sy)))
+                    .range(..=sy)
                     .next_back()
                     .map(|(_, b)| b.clone())
                     .unwrap_or_else(|| init_bpm.clone());
-                let dur_nanos =
-                    (dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-                        / bpm_at_stop)
-                        .to_u64()
-                        .unwrap_or(0);
+                let dur_nanos = (dur_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
+                    / bpm_at_stop)
+                    .to_u64()
+                    .unwrap_or(0);
                 total_nanos = total_nanos.saturating_add(dur_nanos);
             }
             stop_idx += 1;
         }
-        cur_bpm = bpm_map
-            .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
-            .next_back()
-            .map(|(_, b)| b.clone())
-            .unwrap_or_else(|| init_bpm.clone());
+
         cum_map.insert(curr.clone(), total_nanos);
         prev = curr;
     }
