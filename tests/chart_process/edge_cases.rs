@@ -12,8 +12,7 @@ use std::time::Duration;
 use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive};
 
-use bms_rs::bms::Decimal;
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
+use bms_rs::bms::command::channel::Key;
 use bms_rs::bms::prelude::*;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
@@ -458,4 +457,47 @@ fn test_bmson_edge_cases_no_division_by_zero() {
             "display_ratio end when event_y == current_y",
         );
     }
+}
+
+#[test]
+fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
+    let bms_source = r#"
+#WAV01 test1.wav
+#WAV02 test2.wav
+#WAV03 test3.wav
+#WAV04 test4.wav
+#00202:0.0
+#00211:01
+#00212:02
+#00213:0103
+#00314:04
+"#;
+
+    let config = default_config().prompter(AlwaysUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+    let note_events: Vec<_> = chart
+        .events()
+        .as_events()
+        .iter()
+        .filter_map(|ev| {
+            if let ChartEvent::Note { key, wav_id, .. } = ev.event() {
+                Some((ev.position().clone(), *key, *wav_id))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let expected_events = vec![
+        (YCoordinate::from(1.0), Key::Key(1), Some(WavId::new(1))),
+        (YCoordinate::from(1.0), Key::Key(3), Some(WavId::new(1))),
+        (YCoordinate::from(1.0), Key::Key(2), Some(WavId::new(2))),
+        (YCoordinate::from(1.5), Key::Key(3), Some(WavId::new(3))),
+        (YCoordinate::from(2.0), Key::Key(4), Some(WavId::new(4))),
+    ];
+
+    assert_eq!(note_events, expected_events);
 }
