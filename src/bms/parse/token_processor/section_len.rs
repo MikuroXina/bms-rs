@@ -58,9 +58,9 @@ impl SectionLenProcessor {
                     ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
                 })?,
             ));
-            if length <= Decimal::from(0u64) {
+            if length < Decimal::from(0u64) {
                 return Err(ParseWarning::SyntaxError(
-                    "section length must be greater than zero".to_string(),
+                    "section length must be non-negative".to_string(),
                 ));
             }
             objects.push_section_len_change(SectionLenChangeObj { track, length }, prompter)?;
