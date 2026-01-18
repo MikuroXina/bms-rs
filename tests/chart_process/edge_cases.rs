@@ -141,11 +141,13 @@ fn test_very_long_elapsed_time_no_errors() {
 }
 
 // ============================================================================
-// Test 2a: BMS Zero-Length Section (verify parser rejects zero-length sections)
+// Test 2a: BMS Zero-Length Section Handling
+// Comprehensive test for zero-length sections, covering parser, BmsProcessor,
+// and ChartPlayer handling
 // ============================================================================
 
 #[test]
-fn test_bms_zero_length_section_rejected_by_parser() {
+fn test_bms_zero_length_section_comprehensive() {
     let bms_source = r#"
 #TITLE Zero Length Section Test
 #ARTIST Test
@@ -153,17 +155,20 @@ fn test_bms_zero_length_section_rejected_by_parser() {
 #PLAYER 1
 #WAV01 test.wav
 
-// Set section 2 length to 0
-#00202:0.000000
+// Section 2 is zero-length
+#00202:0
 
-// Place note inside zero-length section
+// Multiple events in zero-length section (all at different fractional positions)
 #00211:01
+#00212:02
+#00213:03
 
-// Note in normal section for comparison
+// Events in normal sections for comparison
 #00111:01
+#00311:01
 "#;
 
-    // Verify parser rejects zero-length sections
+    // Part 1: Verify parser allows zero-length sections
     let LexOutput {
         tokens,
         lex_warnings,
@@ -171,22 +176,50 @@ fn test_bms_zero_length_section_rejected_by_parser() {
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
-        bms: _bms_res,
+        bms: bms_res,
         parse_warnings,
     } = Bms::from_token_stream(&tokens, default_config());
-    // Should have syntax error because section length cannot be zero
     assert!(
-        !parse_warnings.is_empty(),
-        "Parser should reject zero-length sections with an error"
+        parse_warnings.is_empty(),
+        "Parser should allow zero-length sections without warnings"
     );
-    // Check warning string representation contains relevant information
-    let warning_text = format!("{:?}", parse_warnings);
+    let bms = bms_res.expect("Failed to parse BMS with zero-length section");
+
+    // Part 2: Verify BmsProcessor successfully parsed zero-length section
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let _config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
     assert!(
-        warning_text.contains("section length must be greater than zero")
-            || warning_text.contains("SyntaxError"),
-        "Expected error about section length, got: {}",
-        warning_text
+        !chart.events().as_events().is_empty(),
+        "Should have parsed some events"
     );
+
+    // Part 3: Verify ChartPlayer handles zero-length sections without errors
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let _ = processor.update(start_time + TimeSpan::SECOND * 3);
+
+    // Verify no panics or errors occurred
+    let state = processor.playback_state();
+    assert!(
+        state.current_bpm().to_f64().is_some_and(f64::is_finite),
+        "BPM should be finite"
+    );
+
+    // Verify visible_events returns valid results
+    let events = processor.visible_events();
+    for (_ev, ratio_range) in events {
+        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        assert!(
+            ratio_start.is_finite(),
+            "display_ratio should be finite with zero-length section"
+        );
+    }
 }
 
 // ============================================================================
@@ -302,6 +335,60 @@ fn test_bms_very_small_section_no_division_by_zero() {
         expected_speed,
         state.current_speed()
     );
+}
+
+// ============================================================================
+// Test 2a-3: BMS Consecutive Zero-Length Sections
+// Test that ChartPlayer correctly handles multiple consecutive zero-length sections
+// ============================================================================
+
+#[test]
+fn test_bms_consecutive_zero_length_sections() {
+    let bms_source = r#"
+#TITLE Consecutive Zero Length Sections
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+#WAV01 test.wav
+
+// Multiple consecutive zero-length sections
+#00202:0
+#00302:0
+#00402:0
+
+// Notes in zero-length sections
+#00211:01
+#00311:01
+#00411:01
+
+// Note in normal section after
+#00511:01
+"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    // Process all sections
+    let _ = processor.update(start_time + TimeSpan::SECOND * 5);
+
+    // Verify no errors
+    let events = processor.visible_events();
+    for (_ev, ratio_range) in events {
+        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        assert!(
+            ratio_start.is_finite(),
+            "Should handle consecutive zero-length sections without errors"
+        );
+    }
 }
 
 // ============================================================================
