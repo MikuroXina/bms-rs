@@ -19,6 +19,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+
+      - if: matrix.os == 'ubuntu-latest'
+        name: Install APT packages with cache
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libasound2-dev
+          version: 1.0
+
       - name: Setup rustfmt and clippy
         uses: dtolnay/rust-toolchain@v1
         with:
