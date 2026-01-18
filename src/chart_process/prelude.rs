@@ -10,12 +10,12 @@ pub use super::base_bpm::{
 };
 pub use super::player::{DisplayRatio, VisibleRangePerBpm};
 pub use super::processor::{
-    BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
+    AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
 };
 pub use super::{FlowEvent, YCoordinate};
 
 // Re-export event types
-pub use super::{ChartEvent, ControlEvent};
+pub use super::{ChartEvent, ControlEvent, PlayheadEvent};
 
 // Re-export common types from bms module
 pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
