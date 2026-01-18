@@ -39,8 +39,17 @@ impl BmsProcessor {
     /// Parse BMS file and return a `ParsedChart` containing all precomputed data.
     #[must_use]
     pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> ParsedChart {
-        // Pre-calculate the Y coordinate by tracks
+        // Pre-calculate Y coordinate by tracks
         let y_memo = YMemo::new(bms);
+
+        // Identify zero-length sections
+        let zero_length_tracks: std::collections::HashSet<Track> = bms
+            .section_len
+            .section_len_changes
+            .iter()
+            .filter(|(_, change)| change.length.is_zero())
+            .map(|(&track, _)| track)
+            .collect();
 
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
@@ -69,21 +78,21 @@ impl BmsProcessor {
         // Pre-index flow events by y
         let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         for change in bms.bpm.bpm_changes.values() {
-            let y = y_memo.get_y(change.time);
+            let y = y_memo.get_y_with_zero_length_handling(change.time, &zero_length_tracks);
             flow_events_by_y
                 .entry(y)
                 .or_default()
                 .push(FlowEvent::Bpm(change.bpm.clone()));
         }
         for change in bms.scroll.scrolling_factor_changes.values() {
-            let y = y_memo.get_y(change.time);
+            let y = y_memo.get_y_with_zero_length_handling(change.time, &zero_length_tracks);
             flow_events_by_y
                 .entry(y)
                 .or_default()
                 .push(FlowEvent::Scroll(change.factor.clone()));
         }
         for change in bms.speed.speed_factor_changes.values() {
-            let y = y_memo.get_y(change.time);
+            let y = y_memo.get_y_with_zero_length_handling(change.time, &zero_length_tracks);
             flow_events_by_y
                 .entry(y)
                 .or_default()
@@ -91,7 +100,7 @@ impl BmsProcessor {
         }
 
         // Precompute activate times
-        let all_events = precompute_activate_times(bms, &all_events, &y_memo);
+        let all_events = precompute_activate_times(bms, &all_events, &y_memo, &zero_length_tracks);
 
         ParsedChart::new(
             ChartResources::new(wav_files, bmp_files),
@@ -102,6 +111,7 @@ impl BmsProcessor {
         )
     }
 
+    /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
     pub fn generate_barlines_for_bms(
         bms: &Bms,
@@ -125,7 +135,8 @@ impl BmsProcessor {
 
         // Generate measure lines for each track, but not exceeding maximum Y value
         for track in 0..=last_obj_time.track().0 {
-            let track_y = y_memo.get_y(ObjTime::start_of(track.into()));
+            let track = Track(track);
+            let track_y = y_memo.get_section_start_y(track);
 
             if track_y <= max_y {
                 let event = ChartEvent::BarLine;
@@ -181,8 +192,8 @@ impl YMemo {
         let section_y = {
             let track = time.track();
             if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last() {
-                let passed_sections = track.0 - last_track.0;
-                &Decimal::from(passed_sections) + last_y
+                let passed_sections = (track.0 - last_track.0).saturating_sub(1);
+                Decimal::from(passed_sections) + last_y.clone()
             } else {
                 // there is no sections modified its length until
                 Decimal::from(track.0)
@@ -200,6 +211,36 @@ impl YMemo {
             .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
         YCoordinate((section_y + fraction) * factor)
     }
+
+    // Gets the Y coordinate at the start of a track/section (without fraction)
+    fn get_section_start_y(&self, track: Track) -> YCoordinate {
+        let section_y = if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last()
+        {
+            let passed_sections = track.0 - last_track.0;
+            Decimal::from(passed_sections) + last_y.clone()
+        } else {
+            Decimal::from(track.0)
+        };
+        let factor = self
+            .speed_changes
+            .range(..=ObjTime::start_of(track))
+            .last()
+            .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
+        YCoordinate(section_y * factor)
+    }
+
+    // Gets Y coordinate, applying zero-length section handling if needed
+    fn get_y_with_zero_length_handling(
+        &self,
+        time: ObjTime,
+        zero_length_tracks: &std::collections::HashSet<Track>,
+    ) -> YCoordinate {
+        if zero_length_tracks.contains(&time.track()) {
+            self.get_section_start_y(time.track())
+        } else {
+            self.get_y(time)
+        }
+    }
 }
 
 impl AllEventsIndex {
@@ -210,9 +251,23 @@ impl AllEventsIndex {
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
+        // Identify zero-length sections
+        let zero_length_tracks: std::collections::HashSet<Track> = bms
+            .section_len
+            .section_len_changes
+            .iter()
+            .filter(|(_, change)| change.length.is_zero())
+            .map(|(&track, _)| track)
+            .collect();
+
+        // Helper function to get Y coordinate, handling zero-length sections
+        let get_event_y = |time: ObjTime| -> YCoordinate {
+            y_memo.get_y_with_zero_length_handling(time, &zero_length_tracks)
+        };
+
         // Note / Wav arrival events
         for obj in bms.notes().all_notes() {
-            let y = y_memo.get_y(obj.offset);
+            let y = get_event_y(obj.offset);
             let event = event_for_note_static::<T>(bms, y_memo, obj);
 
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
@@ -221,7 +276,7 @@ impl AllEventsIndex {
 
         // BPM change events
         for change in bms.bpm.bpm_changes.values() {
-            let y = y_memo.get_y(change.time);
+            let y = get_event_y(change.time);
             let event = ChartEvent::BpmChange {
                 bpm: change.bpm.clone(),
             };
@@ -232,7 +287,7 @@ impl AllEventsIndex {
 
         // Scroll change events
         for change in bms.scroll.scrolling_factor_changes.values() {
-            let y = y_memo.get_y(change.time);
+            let y = get_event_y(change.time);
             let event = ChartEvent::ScrollChange {
                 factor: change.factor.clone(),
             };
@@ -243,7 +298,7 @@ impl AllEventsIndex {
 
         // Speed change events
         for change in bms.speed.speed_factor_changes.values() {
-            let y = y_memo.get_y(change.time);
+            let y = get_event_y(change.time);
             let event = ChartEvent::SpeedChange {
                 factor: change.factor.clone(),
             };
@@ -254,7 +309,7 @@ impl AllEventsIndex {
 
         // Stop events
         for stop in bms.stop.stops.values() {
-            let y = y_memo.get_y(stop.time);
+            let y = get_event_y(stop.time);
             let event = ChartEvent::Stop {
                 duration: convert_stop_duration_to_beats(&stop.duration),
             };
@@ -265,7 +320,7 @@ impl AllEventsIndex {
 
         // BGA change events
         for bga_obj in bms.bmp.bga_changes.values() {
-            let y = y_memo.get_y(bga_obj.time);
+            let y = get_event_y(bga_obj.time);
             let bmp_index = bga_obj.id.as_u16() as usize;
             let event = ChartEvent::BgaChange {
                 layer: bga_obj.layer,
@@ -280,7 +335,7 @@ impl AllEventsIndex {
 
         for (layer, opacity_changes) in &bms.bmp.bga_opacity_changes {
             for opacity_obj in opacity_changes.values() {
-                let y = y_memo.get_y(opacity_obj.time);
+                let y = get_event_y(opacity_obj.time);
                 let event = ChartEvent::BgaOpacityChange {
                     layer: *layer,
                     opacity: opacity_obj.opacity,
@@ -294,7 +349,7 @@ impl AllEventsIndex {
         // BGA ARGB color change events (requires minor-command feature)
         for (layer, argb_changes) in &bms.bmp.bga_argb_changes {
             for argb_obj in argb_changes.values() {
-                let y = y_memo.get_y(argb_obj.time);
+                let y = get_event_y(argb_obj.time);
                 let event = ChartEvent::BgaArgbChange {
                     layer: *layer,
                     argb: argb_obj.argb,
@@ -307,7 +362,7 @@ impl AllEventsIndex {
 
         // BGM volume change events
         for bgm_volume_obj in bms.volume.bgm_volume_changes.values() {
-            let y = y_memo.get_y(bgm_volume_obj.time);
+            let y = get_event_y(bgm_volume_obj.time);
             let event = ChartEvent::BgmVolumeChange {
                 volume: bgm_volume_obj.volume,
             };
@@ -318,7 +373,7 @@ impl AllEventsIndex {
 
         // KEY volume change events
         for key_volume_obj in bms.volume.key_volume_changes.values() {
-            let y = y_memo.get_y(key_volume_obj.time);
+            let y = get_event_y(key_volume_obj.time);
             let event = ChartEvent::KeyVolumeChange {
                 volume: key_volume_obj.volume,
             };
@@ -329,7 +384,7 @@ impl AllEventsIndex {
 
         // Text display events
         for text_obj in bms.text.text_events.values() {
-            let y = y_memo.get_y(text_obj.time);
+            let y = get_event_y(text_obj.time);
             let event = ChartEvent::TextDisplay {
                 text: text_obj.text.clone(),
             };
@@ -340,7 +395,7 @@ impl AllEventsIndex {
 
         // Judge level change events
         for judge_obj in bms.judge.judge_events.values() {
-            let y = y_memo.get_y(judge_obj.time);
+            let y = get_event_y(judge_obj.time);
             let event = ChartEvent::JudgeLevelChange {
                 level: judge_obj.judge_level,
             };
@@ -354,7 +409,7 @@ impl AllEventsIndex {
         {
             // Video seek events
             for seek_obj in bms.video.seek_events.values() {
-                let y = y_memo.get_y(seek_obj.time);
+                let y = get_event_y(seek_obj.time);
                 let event = ChartEvent::VideoSeek {
                     seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
                 };
@@ -365,7 +420,7 @@ impl AllEventsIndex {
 
             // BGA key binding events
             for bga_keybound_obj in bms.bmp.bga_keybound_events.values() {
-                let y = y_memo.get_y(bga_keybound_obj.time);
+                let y = get_event_y(bga_keybound_obj.time);
                 let event = ChartEvent::BgaKeybound {
                     event: bga_keybound_obj.event.clone(),
                 };
@@ -376,7 +431,7 @@ impl AllEventsIndex {
 
             // Option change events
             for option_obj in bms.option.option_events.values() {
-                let y = y_memo.get_y(option_obj.time);
+                let y = get_event_y(option_obj.time);
                 let event = ChartEvent::OptionChange {
                     option: option_obj.option.clone(),
                 };
@@ -388,7 +443,7 @@ impl AllEventsIndex {
 
         BmsProcessor::generate_barlines_for_bms(bms, y_memo, &mut events_map, &mut id_gen);
         let pre_index = Self::new(events_map);
-        precompute_activate_times(bms, &pre_index, y_memo)
+        precompute_activate_times(bms, &pre_index, y_memo, &zero_length_tracks)
     }
 }
 
@@ -398,6 +453,7 @@ pub fn precompute_activate_times(
     bms: &Bms,
     all_events: &AllEventsIndex,
     y_memo: &YMemo,
+    zero_length_tracks: &std::collections::HashSet<Track>,
 ) -> AllEventsIndex {
     use std::collections::{BTreeMap, BTreeSet};
     let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
@@ -417,7 +473,7 @@ pub fn precompute_activate_times(
         .bpm_changes
         .values()
         .map(|change| {
-            let y = y_memo.get_y(change.time);
+            let y = y_memo.get_y_with_zero_length_handling(change.time, zero_length_tracks);
             (y, change.bpm.clone())
         })
         .collect();
@@ -429,7 +485,7 @@ pub fn precompute_activate_times(
         .stops
         .values()
         .map(|st| {
-            let sy = y_memo.get_y(st.time);
+            let sy = y_memo.get_y_with_zero_length_handling(st.time, zero_length_tracks);
             (sy, st.duration.clone())
         })
         .collect();
