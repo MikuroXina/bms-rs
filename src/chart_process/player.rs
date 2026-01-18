@@ -9,9 +9,10 @@ use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
-use crate::chart_process::types::{
-    AllEventsIndex, DisplayRatio, FlowEvent, PlayheadEvent, VisibleRangePerBpm, YCoordinate,
-};
+use crate::chart_process::PlayheadEvent;
+use crate::chart_process::processor::AllEventsIndex;
+use crate::chart_process::types::FlowEvent;
+use crate::chart_process::types::{DisplayRatio, VisibleRangePerBpm, YCoordinate};
 use crate::chart_process::{ChartEvent, ControlEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
@@ -73,7 +74,7 @@ impl ChartPlayer {
     /// ```
     #[must_use]
     pub fn start(
-        mut chart: crate::chart_process::types::ParsedChart,
+        mut chart: crate::chart_process::processor::ParsedChart,
         visible_range_per_bpm: VisibleRangePerBpm,
         start_time: TimeStamp,
     ) -> Self {
@@ -581,7 +582,8 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart_process::types::{BaseBpm, ChartResources, ParsedChart};
+    use crate::chart_process::base_bpm::BaseBpm;
+    use crate::chart_process::processor::{ChartResources, ParsedChart};
 
     #[test]
     fn test_velocity_caching() {

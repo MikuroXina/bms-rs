@@ -4,11 +4,14 @@
 //! allowing users to import all needed items in one go.
 
 // Re-export types
-pub use super::types::{
-    BaseBpm, BaseBpmGenerator, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources,
-    DisplayRatio, FlowEvent, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, ParsedChart,
-    StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
+pub use super::base_bpm::{
+    BaseBpm, BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator,
+    StartBpmGenerator,
 };
+pub use super::processor::{
+    BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
+};
+pub use super::types::{DisplayRatio, FlowEvent, VisibleRangePerBpm, YCoordinate};
 
 // Re-export event types
 pub use super::{ChartEvent, ControlEvent};
@@ -19,11 +22,11 @@ pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 pub use crate::bms::prelude::SwBgaEvent;
 
 // Re-export BmsProcessor from bms_processor module
-pub use super::bms_processor::BmsProcessor;
+pub use super::processor::bms_processor;
 
 // Re-export BmsonProcessor from bmson_processor module
 #[cfg(feature = "bmson")]
-pub use super::bmson_processor::BmsonProcessor;
+pub use super::processor::bmson_processor;
 
 // Re-export ChartPlayer
 pub use super::player::{ChartPlayer, PlaybackState};

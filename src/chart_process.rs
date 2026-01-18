@@ -13,10 +13,11 @@ use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
-use crate::chart_process::types::{BmpId, VisibleRangePerBpm, WavId, YCoordinate};
+use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
+use crate::chart_process::types::{VisibleRangePerBpm, YCoordinate};
 
-pub mod bms_processor;
-pub mod bmson_processor;
+pub mod base_bpm;
+pub mod processor;
 
 // Type definition module
 pub mod types;
@@ -182,4 +183,75 @@ pub enum ControlEvent {
         /// Playback ratio (>= 0)
         ratio: Decimal,
     },
+}
+
+/// Timeline event and position wrapper type.
+///
+/// Represents an event in chart playback and its position on the timeline.
+#[derive(Debug, Clone)]
+pub struct PlayheadEvent {
+    /// Event identifier
+    pub id: ChartEventId,
+    /// Event position on timeline (y coordinate)
+    pub position: YCoordinate,
+    /// Chart event
+    pub event: ChartEvent,
+    /// Activate time since chart playback started
+    pub activate_time: TimeSpan,
+}
+
+impl PlayheadEvent {
+    /// Create a new `ChartEventWithPosition`
+    #[must_use]
+    pub const fn new(
+        id: ChartEventId,
+        position: YCoordinate,
+        event: ChartEvent,
+        activate_time: TimeSpan,
+    ) -> Self {
+        Self {
+            position,
+            event,
+            id,
+            activate_time,
+        }
+    }
+
+    /// Get event identifier
+    #[must_use]
+    pub const fn id(&self) -> ChartEventId {
+        self.id
+    }
+
+    /// Get event position
+    #[must_use]
+    pub const fn position(&self) -> &YCoordinate {
+        &self.position
+    }
+
+    /// Get chart event
+    #[must_use]
+    pub const fn event(&self) -> &ChartEvent {
+        &self.event
+    }
+
+    /// Get activate time
+    #[must_use]
+    pub const fn activate_time(&self) -> &TimeSpan {
+        &self.activate_time
+    }
+}
+
+impl PartialEq for PlayheadEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for PlayheadEvent {}
+
+impl std::hash::Hash for PlayheadEvent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
