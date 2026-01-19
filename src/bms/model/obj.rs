@@ -221,7 +221,7 @@ impl BgaLayer {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScrollingFactorObj {
-    /// The time to begin the change of BPM.
+    /// The time to begin the change of scrolling factor.
     pub time: ObjTime,
     /// The scrolling factor to be.
     pub factor: Decimal,
@@ -251,7 +251,7 @@ impl Ord for ScrollingFactorObj {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpeedObj {
-    /// The time to begin the change of BPM.
+    /// The time to begin the change of spacing factor.
     pub time: ObjTime,
     /// The spacing factor to be.
     pub factor: Decimal,

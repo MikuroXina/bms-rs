@@ -1,4 +1,7 @@
-//! This module introduces struct [`BmpObjects`], which manages definitions and events of background image animation (BGI).
+//! This module introduces struct [`BmpObjects`], which manages definitions and events of BGA (Background Animation) and BGI (Background Image).
+//!
+//! BGA includes layers for base images, overlay images, and poor (miss) images. This module also handles
+//! extended BGA commands like `#BGA`, `#@BGA`, `#SWBGA`, `#ARGB`, and opacity/color changes.
 
 use std::{
     collections::{BTreeMap, HashMap, btree_map::Entry},
@@ -13,7 +16,7 @@ use crate::bms::{
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-/// This aggregate manages definitions and events of background image animation (BGI).
+/// This aggregate manages definitions and events of BGA (Background Animation) and BGI (Background Image).
 pub struct BmpObjects {
     /// The BMP file paths corresponding to the id of the background image/video object.
     pub bmp_files: HashMap<ObjId, Bmp>,
@@ -41,7 +44,7 @@ pub struct BmpObjects {
 }
 
 impl BmpObjects {
-    /// Gets the time of the last BPM change object.
+    /// Gets the time of the last BGA change object.
     #[must_use]
     pub fn last_obj_time(&self) -> Option<ObjTime> {
         self.bga_changes.last_key_value().map(|(&time, _)| time)

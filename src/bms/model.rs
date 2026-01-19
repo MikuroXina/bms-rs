@@ -41,7 +41,7 @@ use self::{option::OptionObjects, resources::Resources};
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms {
-    /// Manager of background image animation.
+    /// Manager of BGA (Background Animation) and BGI (Background Image) definitions and events.
     pub bmp: BmpObjects,
     /// Manager of BPM events.
     pub bpm: BpmObjects,

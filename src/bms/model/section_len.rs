@@ -11,7 +11,7 @@ use crate::bms::{
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// This aggregate manages events of section length change.
 pub struct SectionLenObjects {
-    /// Section length change events, indexed by track. `#SECLEN`
+    /// Section length change events, indexed by track. `#xxx02`
     pub section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
 }
 
