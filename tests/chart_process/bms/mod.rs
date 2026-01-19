@@ -617,6 +617,46 @@ fn test_bms_stop_timing_with_bpm_changes() {
 }
 
 #[test]
+fn test_bms_zero_length_section_parser_allows_no_warnings() {
+    let bms_source = r#"
+#TITLE Zero Length Section Test
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+#WAV01 test.wav
+
+// Section 2 is zero-length
+#00202:0
+
+// Multiple events in zero-length section (all at different fractional positions)
+#00211:01
+#00212:02
+#00213:03
+
+// Events in normal sections for comparison
+#00111:01
+#00311:01
+"#;
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(bms_source);
+    assert_eq!(lex_warnings, vec![]);
+
+    let ParseOutput {
+        bms: bms_res,
+        parse_warnings,
+    } = Bms::from_token_stream(&tokens, default_config());
+    assert!(
+        parse_warnings.is_empty(),
+        "Parser should allow zero-length sections without warnings, got: {:?}",
+        parse_warnings
+    );
+    let _bms = bms_res.expect("Failed to parse BMS with zero-length section");
+}
+
+#[test]
 fn test_bms_zero_length_section_comprehensive() {
     let bms_source = r#"
 #TITLE Zero Length Section Test
