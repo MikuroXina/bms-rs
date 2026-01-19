@@ -85,5 +85,5 @@ This will be placed as:
 
 ### Special Cases
 
-- `#XXX02:0.0`: [Impls of players](https://hitkey.nekokan.dyndns.info/diary1705.php#D170529). See [PR 311](https://github.com/MikuroXina/bms-rs/pull/311) for the impl in this library: Treat as zero length section, preserving objects in the whole section, and treat them as in the same time position.
+- `#XXX02:0`: [Impls of players](https://hitkey.nekokan.dyndns.info/diary1705.php#D170529). See [PR 311](https://github.com/MikuroXina/bms-rs/pull/311) for the impl in this library: Treat as zero length section, preserving objects in the whole section, and treat them as in the same time position.
 
