@@ -65,8 +65,7 @@ impl BmsProcessor {
             .map(|(obj_id, bmp)| (BmpId::from(obj_id.as_u16() as usize), bmp.file.clone()))
             .collect();
 
-        let (all_events, flow_events_by_y) =
-            AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
+        let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
         // Precompute activate times
         let all_events = precompute_activate_times(bms, &all_events, &y_memo);
@@ -74,7 +73,7 @@ impl BmsProcessor {
         ParsedChart::new(
             ChartResources::new(wav_files, bmp_files),
             all_events,
-            flow_events_by_y,
+            y_memo.flow_events().clone(),
             init_bpm,
             Decimal::one(),
         )
@@ -137,6 +136,8 @@ pub struct YMemo {
     y_by_track: BTreeMap<Track, Decimal>,
     speed_changes: BTreeMap<ObjTime, SpeedObj>,
     zero_length_tracks: std::collections::HashSet<Track>,
+    /// Flow events that affect playback speed/scroll, organized by Y coordinate
+    flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
 }
 
 impl YMemo {
@@ -160,10 +161,63 @@ impl YMemo {
             .map(|(&track, _)| track)
             .collect();
 
+        // Populate flow events by Y coordinate
+        let get_event_y = |time: ObjTime| -> YCoordinate {
+            let section_y =
+                if let Some((&track_last, track_y)) = y_by_track.range(..=&time.track()).last() {
+                    let passed_sections = (time.track().0 - track_last.0).saturating_sub(1);
+                    Decimal::from(passed_sections) + track_y.clone()
+                } else {
+                    Decimal::from(time.track().0)
+                };
+            let fraction = if time.denominator().get() > 0 {
+                Decimal::from(time.numerator()) / Decimal::from(time.denominator().get())
+            } else {
+                Default::default()
+            };
+            let factor = bms
+                .speed
+                .speed_factor_changes
+                .range(..=time)
+                .last()
+                .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
+            YCoordinate((section_y + fraction) * factor)
+        };
+
+        let mut flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
+
+        // BPM changes
+        for change in bms.bpm.bpm_changes.values() {
+            let event_y = get_event_y(change.time);
+            flow_events
+                .entry(event_y)
+                .or_default()
+                .push(FlowEvent::Bpm(change.bpm.clone()));
+        }
+
+        // Scroll changes
+        for change in bms.scroll.scrolling_factor_changes.values() {
+            let event_y = get_event_y(change.time);
+            flow_events
+                .entry(event_y)
+                .or_default()
+                .push(FlowEvent::Scroll(change.factor.clone()));
+        }
+
+        // Speed changes
+        for change in bms.speed.speed_factor_changes.values() {
+            let event_y = get_event_y(change.time);
+            flow_events
+                .entry(event_y)
+                .or_default()
+                .push(FlowEvent::Speed(change.factor.clone()));
+        }
+
         Self {
             y_by_track,
             speed_changes: bms.speed.speed_factor_changes.clone(),
             zero_length_tracks,
+            flow_events,
         }
     }
 
@@ -212,19 +266,20 @@ impl YMemo {
             .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
         YCoordinate(section_y * factor)
     }
+
+    /// Get flow events organized by Y coordinate
+    #[must_use]
+    pub const fn flow_events(&self) -> &BTreeMap<YCoordinate, Vec<FlowEvent>> {
+        &self.flow_events
+    }
 }
 
 impl AllEventsIndex {
     /// Precompute all events, store grouped by Y coordinate
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
-    /// Returns (events index, flow events by y)
     #[must_use]
-    pub fn precompute_all_events<T: KeyLayoutMapper>(
-        bms: &Bms,
-        y_memo: &YMemo,
-    ) -> (Self, BTreeMap<YCoordinate, Vec<FlowEvent>>) {
+    pub fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms, y_memo: &YMemo) -> Self {
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
-        let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
         let get_event_y = |time: ObjTime| -> YCoordinate { y_memo.get_y(time) };
@@ -273,10 +328,6 @@ impl AllEventsIndex {
             let event = ChartEvent::BpmChange {
                 bpm: change.bpm.clone(),
             };
-            flow_events_by_y
-                .entry(y.clone())
-                .or_default()
-                .push(FlowEvent::Bpm(change.bpm.clone()));
             events_map
                 .entry(y.clone())
                 .or_default()
@@ -294,10 +345,6 @@ impl AllEventsIndex {
             let event = ChartEvent::ScrollChange {
                 factor: change.factor.clone(),
             };
-            flow_events_by_y
-                .entry(y.clone())
-                .or_default()
-                .push(FlowEvent::Scroll(change.factor.clone()));
             events_map
                 .entry(y.clone())
                 .or_default()
@@ -315,10 +362,6 @@ impl AllEventsIndex {
             let event = ChartEvent::SpeedChange {
                 factor: change.factor.clone(),
             };
-            flow_events_by_y
-                .entry(y.clone())
-                .or_default()
-                .push(FlowEvent::Speed(change.factor.clone()));
             events_map
                 .entry(y.clone())
                 .or_default()
@@ -524,8 +567,7 @@ impl AllEventsIndex {
         }
 
         BmsProcessor::generate_barlines_for_bms(bms, y_memo, &mut events_map, &mut id_gen);
-        let pre_index = Self::new(events_map);
-        (pre_index, flow_events_by_y)
+        Self::new(events_map)
     }
 }
 
@@ -579,25 +621,14 @@ pub fn precompute_activate_times(
     cum_map.insert(prev.clone(), 0);
     let mut cur_bpm = init_bpm.clone();
     let mut stop_idx = 0usize;
-    let mut bpm_iter = bpm_changes.iter().peekable();
 
     for curr in points {
         if curr <= prev {
             continue;
         }
 
-        while let Some(&(change_y, _)) = bpm_iter.peek() {
-            if *change_y > curr {
-                break;
-            }
-            if *change_y <= curr {
-                cur_bpm = bpm_map
-                    .range(..=change_y)
-                    .next_back()
-                    .map(|(_, b)| b.clone())
-                    .unwrap_or_else(|| init_bpm.clone());
-                bpm_iter.next();
-            }
+        if let Some((_, bpm)) = bpm_map.range(..=&curr).next_back() {
+            cur_bpm = bpm.clone();
         }
 
         let delta_y = curr.clone() - prev.clone();
