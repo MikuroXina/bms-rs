@@ -308,7 +308,7 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for ManualBpmGenerator {
 /// Y coordinate wrapper type, using arbitrary precision decimal numbers.
 ///
 /// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct YCoordinate(pub Decimal);
 
 impl AsRef<Decimal> for YCoordinate {
