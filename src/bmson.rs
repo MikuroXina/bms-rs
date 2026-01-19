@@ -14,10 +14,11 @@
 //!
 //! # Layered Notes
 //!
-//! In case that notes (not BGM) from different sound channels exist on the same (key and pulse) position:
+//! When notes (not BGM) from different sound channels exist on the same (key and pulse) position:
 //!
-//! - When its length is not equal to each other, yo should treat as an error and warn to a player.
-//! - Otherwise your player may fusion the notes. That means when a player hit the key, two sounds will be played.
+//! - If their lengths are not equal, treat this as an error and warn the player.
+//! - Otherwise, the player may fuse the notes. When a player hits the key, the sound slice from each sound channel is played.
+//!   This is similar to multiplex WAV definitions in BMS.
 //!
 //! # Differences from BMS
 //!
@@ -295,7 +296,21 @@ pub struct Note {
     pub x: Option<NonZeroU8>,
     /// Length of pulses of the note. It will be a normal note if zero, otherwise a long note.
     pub l: u64,
-    /// Continuation flag. It will continue to ring rest of the file when play if `true`, otherwise it will play from start.
+    /// Continuation flag. Controls whether the audio restarts at this note position.
+    ///
+    /// - `false`: The audio will restart from the beginning at this note position.
+    /// - `true`: The audio will continue from where it left off (no restart).
+    ///
+    /// This affects the slicing algorithm for sound playback:
+    /// 1. All pulse numbers in the sound channel are collected (duplicates discarded).
+    /// 2. Pulse numbers are converted to metric time (seconds).
+    /// 3. When a note with `c: false` is encountered, the audio restarts.
+    /// 4. Audio is sliced using the calculated time points.
+    ///
+    /// **Polyphony**: Each slice has a polyphony of 1. If multiple notes share the same slice
+    /// (triggered simultaneously), the slice should not sound louder than normal.
+    /// However, different slices from the same sound channel can play simultaneously
+    /// (similar to BMS multiplex WAV definitions).
     pub c: bool,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
