@@ -22,12 +22,12 @@ pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 
 pub use crate::bms::prelude::SwBgaEvent;
 
-// Re-export BmsProcessor from bms_processor module
-pub use super::processor::bms_processor::BmsProcessor;
+// Re-export BmsProcessor from bms module
+pub use super::processor::bms::BmsProcessor;
 
-// Re-export BmsonProcessor from bmson_processor module
+// Re-export BmsonProcessor from bmson module
 #[cfg(feature = "bmson")]
-pub use super::processor::bmson_processor::BmsonProcessor;
+pub use super::processor::bmson::BmsonProcessor;
 
 // Re-export ChartPlayer
 pub use super::player::{ChartPlayer, PlaybackState};

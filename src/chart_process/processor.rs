@@ -8,8 +8,8 @@ use std::path::PathBuf;
 use crate::bms::Decimal;
 use crate::chart_process::{FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
-pub mod bms_processor;
-pub mod bmson_processor;
+pub mod bms;
+pub mod bmson;
 
 /// WAV audio file ID wrapper type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
