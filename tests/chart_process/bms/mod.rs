@@ -38,7 +38,7 @@ where
 fn test_bemuse_ext_basic_visible_events_functionality() {
     // Test basic visible_events functionality using bemuse_ext.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysUseOlder);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -123,7 +123,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 #[test]
 fn test_bms_visible_event_activate_time_within_reaction_window() {
     let reaction = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -155,7 +155,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
 fn test_lilith_mx_bpm_changes_affect_visible_window() {
     // Test BPM changes' effect on visible window using lilith_mx.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../bms/files/lilith_mx.bms");
+    let bms_source = include_str!("../../bms/files/lilith_mx.bms");
     let config = default_config().prompter(AlwaysUseOlder);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -200,7 +200,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     // Test DisplayRatio scaling when scroll value is 0.5 using bemuse_ext.bms file
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysUseOlder);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -323,7 +323,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 }
 #[test]
 fn test_bms_triggered_event_activate_time_equals_elapsed() {
-    let bms_source = include_str!("../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
@@ -504,7 +504,7 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 
     // Test using existing bemuse_ext.bms file which has multiple flow events
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -614,4 +614,251 @@ fn test_bms_stop_timing_with_bpm_changes() {
     let beats_96_at_180 = duration_96 / Decimal::from(48);
     assert_eq!(beats_96_at_120, beats_96_at_180);
     assert_eq!(beats_96_at_120, Decimal::from(2));
+}
+
+#[test]
+fn test_bms_zero_length_section_comprehensive() {
+    let bms_source = r#"
+#TITLE Zero Length Section Test
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+#WAV01 test.wav
+
+// Section 2 is zero-length
+#00202:0
+
+// Multiple events in zero-length section (all at different fractional positions)
+#00211:01
+#00212:02
+#00213:03
+
+// Events in normal sections for comparison
+#00111:01
+#00311:01
+"#;
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(bms_source);
+    assert_eq!(lex_warnings, vec![]);
+
+    let ParseOutput {
+        bms: bms_res,
+        parse_warnings,
+    } = Bms::from_token_stream(&tokens, default_config());
+    assert!(
+        parse_warnings.is_empty(),
+        "Parser should allow zero-length sections without warnings"
+    );
+    let bms = bms_res.expect("Failed to parse BMS with zero-length section");
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let _config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+    assert!(
+        !chart.events().as_events().is_empty(),
+        "Should have parsed some events"
+    );
+
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let _ = processor.update(start_time + TimeSpan::SECOND * 3);
+
+    let state = processor.playback_state();
+    assert!(
+        state.current_bpm().to_f64().is_some_and(f64::is_finite),
+        "BPM should be finite"
+    );
+
+    let events = processor.visible_events();
+    for (_ev, ratio_range) in events {
+        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        assert!(
+            ratio_start.is_finite(),
+            "display_ratio should be finite with zero-length section"
+        );
+    }
+}
+
+#[test]
+fn test_bms_very_small_section_no_division_by_zero() {
+    let bms_source = r#"
+#TITLE Very Small Section Test
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+#WAV01 test.wav
+
+// Set section 2 length to very small value (but greater than zero)
+#00202:0.000001
+
+// Note BEFORE the very small section (in section 1)
+#00111:01
+
+// Note INSIDE the very small section (section 2)
+#00211:01
+
+// Note AFTER the very small section (in section 3)
+#00311:01
+"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    let _ = processor.update(start_time + TimeSpan::SECOND);
+    let events1 = processor.visible_events();
+    let count1 = events1.len();
+
+    let _ = processor.update(start_time + TimeSpan::SECOND * 5);
+    let events2 = processor.visible_events();
+    let count2 = events2.len();
+
+    let _ = processor.update(start_time + TimeSpan::SECOND * 10);
+    let events3 = processor.visible_events();
+
+    assert!(
+        count1 + count2 + events3.len() > 0,
+        "Should have processed some events across all sections"
+    );
+
+    for (_ev, ratio_range) in events1.iter().chain(events2.iter()).chain(events3.iter()) {
+        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+
+        assert!(
+            (0.0..=1.0).contains(&ratio_start),
+            "display_ratio start should be in [0.0, 1.0] range"
+        );
+        assert!(
+            (0.0..=1.0).contains(&ratio_end),
+            "display_ratio end should be in [0.0, 1.0] range"
+        );
+
+        let ratio_diff = (ratio_start - ratio_end).abs();
+        assert!(
+            ratio_diff < 1e-6,
+            "display_ratio range should be very small for short notes"
+        );
+    }
+
+    let state = processor.playback_state();
+    let expected_bpm = Decimal::from(120);
+    assert_eq!(
+        *state.current_bpm(),
+        expected_bpm,
+        "BPM should be {} after processing",
+        expected_bpm,
+    );
+    let expected_speed = Decimal::one();
+    assert_eq!(
+        *state.current_speed(),
+        expected_speed,
+        "Speed should be {} after processing",
+        expected_speed,
+    );
+}
+
+#[test]
+fn test_bms_consecutive_zero_length_sections() {
+    let bms_source = r#"
+#TITLE Consecutive Zero Length Sections
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+#WAV01 test.wav
+
+// Multiple consecutive zero-length sections
+#00202:0
+#00302:0
+#00402:0
+
+// Notes in zero-length sections
+#00211:01
+#00311:01
+#00411:01
+
+// Note in normal section after
+#00511:01
+"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let config = default_config().prompter(AlwaysWarnAndUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    let _ = processor.update(start_time + TimeSpan::SECOND * 5);
+
+    let events = processor.visible_events();
+    for (_ev, ratio_range) in events {
+        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        assert!(
+            ratio_start.is_finite(),
+            "Should handle consecutive zero-length sections without errors"
+        );
+    }
+}
+
+#[test]
+fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
+    let bms_source = r#"
+#WAV01 test1.wav
+#WAV02 test2.wav
+#WAV03 test3.wav
+#WAV04 test4.wav
+#00202:0.0
+#00211:01
+#00212:02
+#00213:0103
+#00314:04
+"#;
+
+    let config = default_config().prompter(AlwaysUseNewer);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+    let note_events: Vec<_> = chart
+        .events()
+        .as_events()
+        .iter()
+        .filter_map(|ev| {
+            if let ChartEvent::Note { key, wav_id, .. } = ev.event() {
+                Some((ev.position().clone(), *key, *wav_id))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let expected_events = vec![
+        (YCoordinate::from(1.0), Key::Key(1), Some(WavId::new(1))),
+        (YCoordinate::from(1.0), Key::Key(2), Some(WavId::new(2))),
+        (YCoordinate::from(1.0), Key::Key(3), Some(WavId::new(3))),
+        (YCoordinate::from(1.0), Key::Key(4), Some(WavId::new(4))),
+    ];
+
+    assert_eq!(note_events, expected_events);
 }

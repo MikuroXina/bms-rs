@@ -7,6 +7,7 @@ use num::{One, ToPrimitive};
 
 use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
+use bms_rs::chart_process::PlayheadEvent;
 use bms_rs::chart_process::prelude::*;
 
 use super::{MICROSECOND_EPSILON, assert_time_close};
@@ -882,5 +883,311 @@ fn test_visible_events_with_boundary_conditions() {
         expected_ratio_f64,
         actual_ratio_f64,
         "visible_window_y ratio with playback_ratio",
+    );
+}
+
+#[test]
+fn test_very_long_elapsed_time_no_errors() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Long Time Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "note.wav",
+                "notes": [
+                    { "x": 1, "y": 0, "l": 0, "c": false },
+                    { "x": 1, "y": 240, "l": 0, "c": false },
+                    { "x": 1, "y": 480, "l": 0, "c": false }
+                ]
+            }
+        ],
+        "bpm_events": [
+            { "y": 240, "bpm": 180.0 }
+        ]
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let output = parse_bmson(json);
+    let Some(bmson) = output.bmson else {
+        panic!(
+            "Failed to parse BMSON in test setup. Errors: {:?}",
+            output.errors
+        );
+    };
+
+    let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
+        panic!(
+            "Failed to generate base BPM in test setup. Info: {:?}",
+            bmson.info
+        );
+    };
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let start_time = TimeStamp::start();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    use std::time::Duration;
+
+    let thirty_days = TimeSpan::from_duration(Duration::from_secs(2592000));
+    let after_long_time = start_time + thirty_days;
+
+    let _ = processor.update(after_long_time);
+
+    let state = processor.playback_state();
+    let expected_bpm = Decimal::from(180);
+    assert_eq!(
+        *state.current_bpm(),
+        expected_bpm,
+        "BPM should be {} after 30 days",
+        expected_bpm,
+    );
+
+    let events = processor.visible_events();
+    for (ev, ratio_range) in events {
+        let activate_secs = ev.activate_time().as_secs_f64();
+        assert!(
+            activate_secs.is_finite(),
+            "activate_time should be finite after 30 days"
+        );
+
+        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+        assert!(
+            ratio_start.is_finite(),
+            "display_ratio start should be finite"
+        );
+        assert!(ratio_end.is_finite(), "display_ratio end should be finite");
+    }
+}
+
+#[test]
+fn test_bmson_edge_cases_no_division_by_zero() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Edge Cases Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "note.wav",
+                "notes": [
+                    { "x": 1, "y": 0, "l": 0, "c": false }
+                ]
+            }
+        ]
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let output = parse_bmson(json);
+    let Some(bmson) = output.bmson else {
+        panic!(
+            "Failed to parse BMSON in test setup. Errors: {:?}",
+            output.errors
+        );
+    };
+
+    let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
+        panic!(
+            "Failed to generate base BPM in test setup. Info: {:?}",
+            bmson.info
+        );
+    };
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let start_time = TimeStamp::start();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    let _ = processor.update(start_time);
+
+    let events = processor.visible_events();
+    for (_ev, ratio_range) in events {
+        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+        assert_time_close(
+            1.0,
+            ratio_start,
+            "display_ratio start when event_y == current_y",
+        );
+        assert_time_close(
+            1.0,
+            ratio_end,
+            "display_ratio end when event_y == current_y",
+        );
+    }
+}
+
+fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {
+    assert_eq!(state1.current_bpm(), state2.current_bpm(), "BPM mismatch");
+    assert_eq!(
+        state1.current_speed(),
+        state2.current_speed(),
+        "Speed mismatch"
+    );
+    assert_eq!(
+        state1.current_scroll(),
+        state2.current_scroll(),
+        "Scroll mismatch"
+    );
+    assert_eq!(
+        state1.playback_ratio(),
+        state2.playback_ratio(),
+        "Playback ratio mismatch"
+    );
+    assert_eq!(
+        state1.progressed_y().value(),
+        state2.progressed_y().value(),
+        "Y position mismatch"
+    );
+}
+
+fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
+    assert_eq!(events1.len(), events2.len(), "Event count mismatch");
+
+    let mut ev1 = events1.to_vec();
+    let mut ev2 = events2.to_vec();
+    ev1.sort_by(|a, b| {
+        a.position()
+            .value()
+            .partial_cmp(b.position().value())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    ev2.sort_by(|a, b| {
+        a.position()
+            .value()
+            .partial_cmp(b.position().value())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    for (e1, e2) in ev1.iter().zip(ev2.iter()) {
+        assert_eq!(
+            e1.position().value(),
+            e2.position().value(),
+            "Event position mismatch"
+        );
+
+        if std::mem::discriminant(e1.event()) != std::mem::discriminant(e2.event()) {
+            panic!("Event type mismatch: {:?} vs {:?}", e1.event(), e2.event());
+        }
+    }
+}
+
+#[test]
+fn test_update_consistency_extreme_many_intervals() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Extreme Intervals Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [{
+            "name": "test.wav",
+            "notes": [
+                { "x": 1, "y": 0, "l": 0, "c": false },
+                { "x": 1, "y": 240, "l": 0, "c": false },
+                { "x": 1, "y": 480, "l": 0, "c": false },
+                { "x": 1, "y": 720, "l": 0, "c": false },
+                { "x": 1, "y": 960, "l": 0, "c": false }
+            ]
+        }],
+        "bpm_events": [
+            { "y": 120, "bpm": 240.0 },
+            { "y": 360, "bpm": 60.0 },
+            { "y": 600, "bpm": 180.0 }
+        ]
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    let chart = BmsonProcessor::parse(&bmson);
+    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+
+    let start_time = TimeStamp::start();
+
+    let mut player1 = ChartPlayer::start(chart.clone(), visible_range.clone(), start_time);
+    let mut events1_total = Vec::new();
+    for i in 1..=10000 {
+        let t = start_time + TimeSpan::MICROSECOND * 100 * i;
+        let events = player1.update(t);
+        events1_total.extend(events);
+    }
+
+    let mut player2 = ChartPlayer::start(chart, visible_range, start_time);
+    let t_final = start_time + TimeSpan::SECOND;
+    let events2_total = player2.update(t_final);
+
+    assert_playback_state_equal(player1.playback_state(), player2.playback_state());
+    assert_events_equal(&events1_total, &events2_total);
+}
+
+#[test]
+fn test_update_consistency_zero_interval() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Zero Interval Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [{
+            "name": "test.wav",
+            "notes": [
+                { "x": 1, "y": 240, "l": 0, "c": false },
+                { "x": 1, "y": 480, "l": 0, "c": false }
+            ]
+        }],
+        "bpm_events": [
+            { "y": 360, "bpm": 180.0 }
+        ]
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    let chart = BmsonProcessor::parse(&bmson);
+    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+
+    let mut player = ChartPlayer::start(chart, visible_range, TimeStamp::start());
+    let start_time = TimeStamp::start();
+
+    let t = start_time + TimeSpan::MILLISECOND * 500;
+    player.update(t);
+
+    let state1 = player.playback_state().clone();
+
+    player.update(t);
+
+    let state2 = player.playback_state().clone();
+
+    assert_eq!(
+        state1, state2,
+        "Zero time interval should not change any state"
     );
 }
