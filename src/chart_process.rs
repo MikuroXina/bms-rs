@@ -13,14 +13,12 @@ use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
+use crate::chart_process::player::VisibleRangePerBpm;
 use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
-use crate::chart_process::types::{VisibleRangePerBpm, YCoordinate};
+use num::Zero;
 
 pub mod base_bpm;
 pub mod processor;
-
-// Type definition module
-pub mod types;
 
 // Player module
 pub mod player;
@@ -253,5 +251,138 @@ impl Eq for PlayheadEvent {}
 impl std::hash::Hash for PlayheadEvent {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
+    }
+}
+
+/// Flow events that affect playback speed/scroll.
+#[derive(Debug, Clone)]
+pub enum FlowEvent {
+    /// BPM change event.
+    Bpm(Decimal),
+    /// Speed factor change event (BMS only).
+    Speed(Decimal),
+    /// Scroll factor change event.
+    Scroll(Decimal),
+}
+
+/// Y coordinate wrapper type, using arbitrary precision decimal numbers.
+///
+/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct YCoordinate(pub Decimal);
+
+impl AsRef<Decimal> for YCoordinate {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
+
+impl YCoordinate {
+    /// Create a new `YCoordinate`
+    #[must_use]
+    pub const fn new(value: Decimal) -> Self {
+        Self(value)
+    }
+
+    /// Returns a reference to the contained value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
+    }
+
+    /// Creates a zero of Y coordinate.
+    #[must_use]
+    pub fn zero() -> Self {
+        Self(Decimal::zero())
+    }
+}
+
+impl From<Decimal> for YCoordinate {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<YCoordinate> for Decimal {
+    fn from(value: YCoordinate) -> Self {
+        value.0
+    }
+}
+
+impl From<f64> for YCoordinate {
+    fn from(value: f64) -> Self {
+        Self(Decimal::from(value))
+    }
+}
+
+impl std::ops::Add for YCoordinate {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl std::ops::Add for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 + &rhs.0)
+    }
+}
+
+impl std::ops::Sub for YCoordinate {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl std::ops::Sub for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 - &rhs.0)
+    }
+}
+
+impl std::ops::Mul for YCoordinate {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(self.0 * rhs.0)
+    }
+}
+
+impl std::ops::Div for YCoordinate {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self(self.0 / rhs.0)
+    }
+}
+
+impl std::ops::Div for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 / &rhs.0)
+    }
+}
+
+impl Zero for YCoordinate {
+    fn zero() -> Self {
+        Self(Decimal::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
     }
 }

@@ -8,8 +8,8 @@
 use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
+use bms_rs::chart_process::PlayheadEvent;
 use bms_rs::chart_process::prelude::*;
-use bms_rs::chart_process::types::PlayheadEvent;
 
 /// Parses BMSON JSON and returns `(ParsedChart, BaseBpm)`
 fn parse_chart(json: &str) -> (ParsedChart, BaseBpm) {

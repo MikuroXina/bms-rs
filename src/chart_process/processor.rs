@@ -6,8 +6,7 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
 use crate::bms::Decimal;
-use crate::chart_process::types::FlowEvent;
-use crate::chart_process::{PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart_process::{FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
 pub mod bms_processor;
 pub mod bmson_processor;

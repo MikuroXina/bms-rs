@@ -8,10 +8,11 @@ pub use super::base_bpm::{
     BaseBpm, BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator,
     StartBpmGenerator,
 };
+pub use super::player::{DisplayRatio, VisibleRangePerBpm};
 pub use super::processor::{
     BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
 };
-pub use super::types::{DisplayRatio, FlowEvent, VisibleRangePerBpm, YCoordinate};
+pub use super::{FlowEvent, YCoordinate};
 
 // Re-export event types
 pub use super::{ChartEvent, ControlEvent};

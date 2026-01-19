@@ -1,6 +1,9 @@
 //! Module for base BPM generation strategies and types.
 
 use crate::bms::Decimal;
+use crate::bms::prelude::Bms;
+#[cfg(feature = "bmson")]
+use crate::bmson::prelude::Bmson;
 
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {
@@ -96,5 +99,97 @@ impl From<Decimal> for BaseBpm {
 impl From<BaseBpm> for Decimal {
     fn from(value: BaseBpm) -> Self {
         value.0
+    }
+}
+
+// ---- Generators for BMS ----
+impl BaseBpmGenerator<Bms> for StartBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        bms.bpm.bpm.as_ref().cloned().map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for MinBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        bms.bpm
+            .bpm
+            .iter()
+            .cloned()
+            .chain(
+                bms.bpm
+                    .bpm_changes
+                    .values()
+                    .map(|change| change.bpm.clone()),
+            )
+            .min()
+            .map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        bms.bpm
+            .bpm
+            .iter()
+            .cloned()
+            .chain(
+                bms.bpm
+                    .bpm_changes
+                    .values()
+                    .map(|change| change.bpm.clone()),
+            )
+            .max()
+            .map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
+    fn generate(&self, _bms: &Bms) -> Option<BaseBpm> {
+        Some(BaseBpm::new(self.0.clone()))
+    }
+}
+
+// ---- Generators for BMSON ----
+#[cfg(feature = "bmson")]
+impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        Some(BaseBpm::new(Decimal::from(bmson.info.init_bpm.as_f64())))
+    }
+}
+
+#[cfg(feature = "bmson")]
+impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        std::iter::once(Decimal::from(bmson.info.init_bpm.as_f64()))
+            .chain(
+                bmson
+                    .bpm_events
+                    .iter()
+                    .map(|ev| Decimal::from(ev.bpm.as_f64())),
+            )
+            .min()
+            .map(BaseBpm::new)
+    }
+}
+
+#[cfg(feature = "bmson")]
+impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        std::iter::once(Decimal::from(bmson.info.init_bpm.as_f64()))
+            .chain(
+                bmson
+                    .bpm_events
+                    .iter()
+                    .map(|ev| Decimal::from(ev.bpm.as_f64())),
+            )
+            .max()
+            .map(BaseBpm::new)
+    }
+}
+
+#[cfg(feature = "bmson")]
+impl<'a> BaseBpmGenerator<Bmson<'a>> for ManualBpmGenerator {
+    fn generate(&self, _bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        Some(BaseBpm::new(self.0.clone()))
     }
 }

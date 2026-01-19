@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bms_rs::chart_process::prelude::*;
-use bms_rs::{bms::prelude::*, chart_process::types::PlayheadEvent};
+use bms_rs::{bms::prelude::*, chart_process::PlayheadEvent};
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
 use macroquad::prelude::Color;
