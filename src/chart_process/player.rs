@@ -268,7 +268,7 @@ impl ChartPlayer {
 
     /// Calculate velocity with caching.
     ///
-    /// Formula: `velocity = (bpm / 240) * speed * playback_ratio`
+    /// See [`crate::chart_process`] for the formula.
     pub fn calculate_velocity(&mut self, speed: &Decimal) -> Decimal {
         if self.velocity_dirty || self.cached_velocity.is_none() {
             let computed = self.compute_velocity(speed);
@@ -576,7 +576,7 @@ impl PlaybackState {
 }
 
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
-/// Formula: `visible_y_range` = `current_bpm` * `visible_range_per_bpm`
+/// See [`crate::chart_process`] for the formula.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VisibleRangePerBpm(Decimal);
 
@@ -587,8 +587,8 @@ impl AsRef<Decimal> for VisibleRangePerBpm {
 }
 
 impl VisibleRangePerBpm {
-    /// Create a new `VisibleRangePerBpm` from base BPM and reaction time
-    /// Formula: `visible_range_per_bpm` = `reaction_time_seconds` * 240 / `base_bpm`
+    /// Create a new `VisibleRangePerBpm` from base BPM and reaction time.
+    /// See [`crate::chart_process`] for the formula.
     #[must_use]
     pub fn new(
         base_bpm: &crate::chart_process::base_bpm::BaseBpm,
@@ -618,7 +618,7 @@ impl VisibleRangePerBpm {
     }
 
     /// Calculate visible window length in y units based on current BPM, speed, and playback ratio.
-    /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm * current_speed * playback_ratio / 240`
+    /// See [`crate::chart_process`] for the formula.
     /// This ensures events stay in visible window for exactly `reaction_time` duration.
     #[must_use]
     pub fn window_y(
@@ -632,9 +632,8 @@ impl VisibleRangePerBpm {
         YCoordinate::new(adjusted)
     }
 
-    /// Calculate reaction time from visible range per BPM
-    /// Formula: `reaction_time` = `visible_range_per_bpm` / `playhead_speed`
-    /// where `playhead_speed` = 1/240 (Y/sec per BPM)
+    /// Calculate reaction time from visible range per BPM.
+    /// See [`crate::chart_process`] for the formula.
     #[must_use]
     pub fn to_reaction_time(&self) -> TimeSpan {
         if self.0.is_zero() {
@@ -670,7 +669,7 @@ impl From<VisibleRangePerBpm> for Decimal {
 /// Display ratio wrapper type, representing the actual position of a note in the display area.
 ///
 /// 0 is the judgment line, 1 is the position where the note generally starts to appear.
-/// The value of this type is only affected by: current Y, Y visible range, and current Speed, Scroll values.
+/// See [`crate::chart_process`] for the formula.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub struct DisplayRatio(pub Decimal);
 
