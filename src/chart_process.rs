@@ -1,6 +1,6 @@
-//! Chart Processor
+//! # Chart Processor
 //!
-//! # Y Coordinate Definition
+//! ## Y Coordinate Definition
 //!
 //! - In the default 4/4 time signature, the length of "one measure" is 1.
 //! - BMS: When the section length is the default value, each `Track` has a length of 1. The section length comes from the `#XXX02:V` message per measure, where `V` represents the multiple of the default length (e.g., `#00302:0.5` means the 3rd measure has half the default length). Cumulative y is linearly converted with this multiple.
