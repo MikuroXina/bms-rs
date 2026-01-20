@@ -7,9 +7,9 @@
 //! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 //!
-//! # Values and Formulas
+//! ## Values and Formulas
 //!
-//! ## Core Constants
+//! ### Core Constants
 //!
 //! - `NANOS_PER_SECOND = 1_000_000_000`: Nanoseconds per second for time calculations
 //! - `BASE_VELOCITY_FACTOR = 1/240`: Base velocity factor (Y/sec per BPM)
