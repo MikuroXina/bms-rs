@@ -14,7 +14,7 @@
 //! - `NANOS_PER_SECOND = 1_000_000_000`: Nanoseconds per second for time calculations
 //! - `BASE_VELOCITY_FACTOR = 1/240`: Base velocity factor (Y/sec per BPM)
 //!
-//! ## Visible Range Configuration
+//! ### Visible Range Configuration
 //!
 //! **`VisibleRangePerBpm` creation:**
 //! ```text
@@ -33,7 +33,7 @@
 //!
 //! This ensures events stay in visible window for exactly `reaction_time` duration.
 //!
-//! ## Time Progression
+//! ### Time Progression
 //!
 //! **Velocity (Y units per second):**
 //! ```text
@@ -46,7 +46,7 @@
 //! time_to_event = distance_y / velocity * NANOS_PER_SECOND
 //! ```
 //!
-//! ## Display Coordinates
+//! ### Display Coordinates
 //!
 //! **Display ratio (0 = judgment line, 1 = appearance position):**
 //! ```text
@@ -55,7 +55,7 @@
 //!
 //! The value of this type is only affected by: current Y, Y visible range, and current Speed, Scroll values.
 //!
-//! ## Reaction Time
+//! ### Reaction Time
 //!
 //! **Calculate reaction time from visible range per BPM:**
 //! ```text
