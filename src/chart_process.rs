@@ -1,10 +1,67 @@
-//! Chart Processor
+//! # Chart Processor
 //!
-//! Unified Y coordinate definition:
+//! ## Y Coordinate Definition
+//!
 //! - In the default 4/4 time signature, the length of "one measure" is 1.
 //! - BMS: When the section length is the default value, each `Track` has a length of 1. The section length comes from the `#XXX02:V` message per measure, where `V` represents the multiple of the default length (e.g., `#00302:0.5` means the 3rd measure has half the default length). Cumulative y is linearly converted with this multiple.
 //! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
+//!
+//! ## Values and Formulas
+//!
+//! ### Core Constants
+//!
+//! - `NANOS_PER_SECOND = 1_000_000_000`: Nanoseconds per second for time calculations
+//! - `BASE_VELOCITY_FACTOR = 1/240`: Base velocity factor (Y/sec per BPM)
+//!
+//! ### Visible Range Configuration
+//!
+//! **`VisibleRangePerBpm` creation:**
+//! ```text
+//! visible_range_per_bpm = reaction_time_seconds * 240 / base_bpm
+//! ```
+//!
+//! **Simplified visible range (for display):**
+//! ```text
+//! visible_y_range = current_bpm * visible_range_per_bpm
+//! ```
+//!
+//! **Full visible window (includes speed and playback ratio):**
+//! ```text
+//! visible_window_y = current_bpm * visible_range_per_bpm * current_speed * playback_ratio / 240
+//! ```
+//!
+//! This ensures events stay in visible window for exactly `reaction_time` duration.
+//!
+//! ### Time Progression
+//!
+//! **Velocity (Y units per second):**
+//! ```text
+//! velocity = (current_bpm / 240) * current_speed * playback_ratio
+//! ```
+//!
+//! **Time integration (`step_to` algorithm):**
+//! ```text
+//! delta_y = velocity * elapsed_time_nanos / NANOS_PER_SECOND
+//! time_to_event = distance_y / velocity * NANOS_PER_SECOND
+//! ```
+//!
+//! ### Display Coordinates
+//!
+//! **Display ratio (0 = judgment line, 1 = appearance position):**
+//! ```text
+//! display_ratio = (event_y - current_y) / visible_window_y * current_scroll
+//! ```
+//!
+//! The value of this type is only affected by: current Y, Y visible range, and current Speed, Scroll values.
+//!
+//! ### Reaction Time
+//!
+//! **Calculate reaction time from visible range per BPM:**
+//! ```text
+//! reaction_time = visible_range_per_bpm / playhead_speed
+//! where playhead_speed = 1/240
+//! ```
 
 pub use gametime::TimeSpan;
 
@@ -167,7 +224,7 @@ pub enum ControlEvent {
     /// Set: visible range per BPM
     ///
     /// The visible range per BPM controls the relationship between BPM and visible Y range.
-    /// Formula: `visible_y_range` = `current_bpm` * `visible_range_per_bpm`
+    /// See module-level documentation for the formula.
     /// This replaces the old `SetDefaultVisibleYLength` event.
     SetVisibleRangePerBpm {
         /// Visible range per BPM (y coordinate units per BPM, >0)
