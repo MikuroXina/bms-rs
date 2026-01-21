@@ -10,6 +10,7 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
 use crate::chart_process::processor::AllEventsIndex;
+use crate::chart_process::processor::ChartEventId;
 use crate::chart_process::{ChartEvent, ControlEvent};
 use crate::chart_process::{FlowEvent, PlayheadEvent, YCoordinate};
 
@@ -33,6 +34,12 @@ pub struct ChartPlayer {
     // Event management
     pub(crate) preloaded_events: Vec<PlayheadEvent>,
     pub(crate) all_events: AllEventsIndex,
+
+    // Active long note cache - performance optimization
+    // Avoid traversing all past events on every update
+    active_long_notes: Vec<PlayheadEvent>,
+    active_ln_ids: HashSet<ChartEventId>,
+    last_ln_check_y: YCoordinate,
 
     // Flow event indexing
     pub(crate) flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
@@ -90,6 +97,9 @@ impl ChartPlayer {
             velocity_dirty: true,
             preloaded_events: Vec::new(),
             all_events,
+            active_long_notes: Vec::new(),
+            active_ln_ids: HashSet::new(),
+            last_ln_check_y: YCoordinate::zero(),
             flow_events_by_y: flow_events,
             playback_state: PlaybackState::new(
                 init_bpm,
@@ -454,42 +464,60 @@ impl ChartPlayer {
     }
 
     /// Update preloaded events based on current Y position.
+    ///
+    /// This method uses incremental scanning to efficiently maintain the set of
+    /// active long notes (notes that have started but not yet ended). It avoids
+    /// O(n²) cumulative complexity by tracking the last Y position checked.
     pub fn update_preloaded_events(&mut self, preload_end_y: &YCoordinate) {
-        use std::ops::Bound::{Excluded, Included, Unbounded};
+        use std::ops::Bound::{Excluded, Included};
 
         let cur_y = &self.playback_state.progressed_y;
 
-        let mut new_preloaded_events = self
+        // 1. Load future events (Y > cur_y)
+        let future_events = self
             .all_events
             .events_in_y_range((Excluded(cur_y), Included(preload_end_y)));
 
-        let mut event_ids = HashSet::new();
-        for ev in &new_preloaded_events {
-            event_ids.insert(ev.id());
-        }
+        // 2. Maintain active LNs cache (incremental scan optimization)
 
-        let past_events = self
-            .all_events
-            .events_in_y_range((Unbounded, Included(cur_y)));
-        for ev in past_events {
-            if event_ids.contains(&ev.id()) {
-                continue;
-            }
-
+        // 2.1 Remove ended LNs (end_y <= cur_y)
+        self.active_long_notes.retain(|ev| {
             if let ChartEvent::Note {
                 length: Some(length),
                 ..
             } = ev.event()
             {
-                let end_y = ev.position().clone() + length.clone();
-                if end_y > *cur_y {
-                    event_ids.insert(ev.id());
-                    new_preloaded_events.push(ev);
-                }
+                ev.position().clone() + length.clone() > *cur_y
+            } else {
+                false
+            }
+        });
+
+        // 2.2 Incrementally scan for newly started LNs
+        // Note: Use Included(last_ln_check_y) to ensure boundary events are not missed
+        // Example: When LN is at Y=0 and last_ln_check_y=0, it needs to be included
+        let new_ln_candidates = self
+            .all_events
+            .events_in_y_range((Included(&self.last_ln_check_y), Included(cur_y)));
+
+        for ev in new_ln_candidates {
+            if let ChartEvent::Note {
+                length: Some(_), ..
+            } = ev.event()
+                && self.active_ln_ids.insert(ev.id())
+            {
+                self.active_long_notes.push(ev);
             }
         }
 
-        self.preloaded_events = new_preloaded_events;
+        // Update checkpoint
+        self.last_ln_check_y = cur_y.clone();
+
+        // 3. Merge future events and active LNs
+        let mut result = future_events;
+        result.extend(self.active_long_notes.clone());
+
+        self.preloaded_events = result;
     }
 
     /// Get preloaded events.

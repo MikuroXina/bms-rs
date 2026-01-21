@@ -289,7 +289,7 @@ fn test_always_warn_and_use_newer() {
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseNewer));
     let bms = bms.unwrap();
 
-    // 应有重复定义类的警告（如 DuplicatingDef）
+    // Should have duplicate class definition warnings (e.g., DuplicatingDef)
     assert!(
         parse_warnings
             .iter()
