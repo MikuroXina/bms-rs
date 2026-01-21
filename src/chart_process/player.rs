@@ -2,7 +2,7 @@
 //!
 //! Unified player for parsed charts, managing playback state and event processing.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -455,12 +455,39 @@ impl ChartPlayer {
 
     /// Update preloaded events based on current Y position.
     pub fn update_preloaded_events(&mut self, preload_end_y: &YCoordinate) {
-        use std::ops::Bound::{Excluded, Included};
+        use std::ops::Bound::{Excluded, Included, Unbounded};
 
         let cur_y = &self.playback_state.progressed_y;
-        let new_preloaded_events = self
+
+        let mut new_preloaded_events = self
             .all_events
             .events_in_y_range((Excluded(cur_y), Included(preload_end_y)));
+
+        let mut event_ids = HashSet::new();
+        for ev in &new_preloaded_events {
+            event_ids.insert(ev.id());
+        }
+
+        let past_events = self
+            .all_events
+            .events_in_y_range((Unbounded, Included(cur_y)));
+        for ev in past_events {
+            if event_ids.contains(&ev.id()) {
+                continue;
+            }
+
+            if let ChartEvent::Note {
+                length: Some(length),
+                ..
+            } = ev.event()
+            {
+                let end_y = ev.position().clone() + length.clone();
+                if end_y > *cur_y {
+                    event_ids.insert(ev.id());
+                    new_preloaded_events.push(ev);
+                }
+            }
+        }
 
         self.preloaded_events = new_preloaded_events;
     }
