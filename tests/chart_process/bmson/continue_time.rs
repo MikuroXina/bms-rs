@@ -32,7 +32,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
         ]
     }"#;
 
-    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let reaction_time = TimeSpan::MILLISECOND * 1500;
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
 

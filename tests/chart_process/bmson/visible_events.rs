@@ -25,13 +25,13 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
             {
                 "name": "test.wav",
                 "notes": [
-                    { "x": 1, "y": 480, "l": 0, "c": false }
+                    { "x": 1, "y": 588, "l": 0, "c": false }
                 ]
             }
         ]
     }"#;
 
-    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let reaction_time = TimeSpan::MILLISECOND * 1500;
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
 

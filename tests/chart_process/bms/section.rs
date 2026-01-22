@@ -141,7 +141,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
 #00311:01
 "#;
 
-    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let reaction_time = TimeSpan::MILLISECOND * 1200;
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
