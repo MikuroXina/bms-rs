@@ -670,16 +670,6 @@ impl VisibleRangePerBpm {
             TimeSpan::from_duration(Duration::from_nanos(nanos))
         }
     }
-
-    /// Create from Decimal value (for internal use)
-    #[must_use]
-    pub(crate) fn from_decimal(value: Decimal) -> Self {
-        Self {
-            value: value.clone(),
-            base_bpm: Decimal::one(),
-            reaction_time_seconds: value / Decimal::from(240u64),
-        }
-    }
 }
 
 impl From<Decimal> for VisibleRangePerBpm {
