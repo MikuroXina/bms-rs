@@ -5,15 +5,7 @@ mod playback_state;
 mod section;
 mod visible_events;
 
-use std::str::FromStr;
-
-use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive, Zero};
-
-use bms_rs::bms::Decimal;
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
-use bms_rs::chart_process::prelude::*;
 
 use super::{MICROSECOND_EPSILON, assert_time_close};
 

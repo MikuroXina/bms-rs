@@ -130,5 +130,5 @@ fn test_visible_events_duration_matches_reaction_time() {
     let time_to_cross = visible_window_y.as_ref() / velocity;
 
     let actual_time_to_cross_f64 = time_to_cross.to_f64().unwrap_or(0.0);
-    assert_time_close(1.2, actual_time_to_cross_f64, "time_to_cross");
+    assert_time_close(0.6, actual_time_to_cross_f64, "time_to_cross");
 }

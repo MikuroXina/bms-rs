@@ -578,11 +578,15 @@ impl PlaybackState {
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
 /// See [`crate::chart_process`] for the formula.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VisibleRangePerBpm(Decimal);
+pub struct VisibleRangePerBpm {
+    value: Decimal,
+    base_bpm: Decimal,
+    reaction_time_seconds: Decimal,
+}
 
 impl AsRef<Decimal> for VisibleRangePerBpm {
     fn as_ref(&self) -> &Decimal {
-        &self.0
+        &self.value
     }
 }
 
@@ -595,26 +599,34 @@ impl VisibleRangePerBpm {
         reaction_time: TimeSpan,
     ) -> Self {
         if base_bpm.value().is_zero() {
-            Self(Decimal::zero())
+            Self {
+                value: Decimal::zero(),
+                base_bpm: Decimal::zero(),
+                reaction_time_seconds: Decimal::zero(),
+            }
         } else {
-            Self(
-                Decimal::from(reaction_time.as_nanos().max(0)) / NANOS_PER_SECOND
-                    * Decimal::from(240u64)
-                    / base_bpm.value().clone(),
-            )
+            let reaction_time_seconds =
+                Decimal::from(reaction_time.as_nanos().max(0)) / NANOS_PER_SECOND;
+            let value =
+                reaction_time_seconds.clone() * Decimal::from(240u64) / base_bpm.value().clone();
+            Self {
+                value,
+                base_bpm: base_bpm.value().clone(),
+                reaction_time_seconds,
+            }
         }
     }
 
     /// Returns a reference to the contained value.
     #[must_use]
     pub const fn value(&self) -> &Decimal {
-        &self.0
+        &self.value
     }
 
     /// Consumes self and returns the contained value.
     #[must_use]
     pub fn into_value(self) -> Decimal {
-        self.0
+        self.value
     }
 
     /// Calculate visible window length in y units based on current BPM, speed, and playback ratio.
@@ -628,7 +640,20 @@ impl VisibleRangePerBpm {
         playback_ratio: &Decimal,
     ) -> YCoordinate {
         let speed_factor = current_speed * playback_ratio;
-        let adjusted = current_bpm * self.value() * speed_factor / Decimal::from(240u64);
+
+        if current_bpm.is_zero() {
+            return YCoordinate::zero();
+        }
+
+        // Goal: time = reaction_time * base_bpm / current_bpm
+        // velocity = (current_bpm / 240) * speed_factor
+        // visible_window_y = velocity * time
+        //                  = (current_bpm / 240) * speed_factor * reaction_time * base_bpm / current_bpm
+        //                  = (speed_factor / 240) * reaction_time * base_bpm
+
+        let velocity = current_bpm.clone() / Decimal::from(240u64) * speed_factor;
+        let adjusted = velocity * self.reaction_time_seconds.clone() * self.base_bpm.clone()
+            / current_bpm.clone();
         YCoordinate::new(adjusted)
     }
 
@@ -636,11 +661,10 @@ impl VisibleRangePerBpm {
     /// See [`crate::chart_process`] for the formula.
     #[must_use]
     pub fn to_reaction_time(&self) -> TimeSpan {
-        if self.0.is_zero() {
+        if self.reaction_time_seconds.is_zero() {
             TimeSpan::ZERO
         } else {
-            let base = &self.0 * &Decimal::from(240);
-            let nanos = (&base * &Decimal::from(NANOS_PER_SECOND))
+            let nanos = (self.reaction_time_seconds.clone() * Decimal::from(NANOS_PER_SECOND))
                 .to_u64()
                 .unwrap_or(0);
             TimeSpan::from_duration(Duration::from_nanos(nanos))
@@ -649,20 +673,30 @@ impl VisibleRangePerBpm {
 
     /// Create from Decimal value (for internal use)
     #[must_use]
-    pub(crate) const fn from_decimal(value: Decimal) -> Self {
-        Self(value)
+    pub(crate) fn from_decimal(value: Decimal) -> Self {
+        Self {
+            value: value.clone(),
+            base_bpm: Decimal::one(),
+            reaction_time_seconds: value / Decimal::from(240u64),
+        }
     }
 }
 
 impl From<Decimal> for VisibleRangePerBpm {
     fn from(value: Decimal) -> Self {
-        Self::from_decimal(value)
+        let base_bpm = Decimal::one();
+        let reaction_time_seconds = value.clone() / Decimal::from(240u64);
+        Self {
+            value,
+            base_bpm,
+            reaction_time_seconds,
+        }
     }
 }
 
 impl From<VisibleRangePerBpm> for Decimal {
     fn from(value: VisibleRangePerBpm) -> Self {
-        value.0
+        value.value
     }
 }
 

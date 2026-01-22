@@ -28,10 +28,10 @@
 //!
 //! **Full visible window (includes speed and playback ratio):**
 //! ```text
-//! visible_window_y = current_bpm * visible_range_per_bpm * current_speed * playback_ratio / 240
+//! visible_window_y = (current_speed * playback_ratio / 240) * reaction_time * base_bpm
 //! ```
 //!
-//! This ensures events stay in visible window for exactly `reaction_time` duration.
+//! This ensures events stay in visible window for exactly `reaction_time * base_bpm / current_bpm` duration.
 //!
 //! ### Time Progression
 //!

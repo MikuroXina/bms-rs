@@ -6,8 +6,6 @@ use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::PlayheadEvent;
 use bms_rs::chart_process::prelude::*;
 
-use super::MICROSECOND_EPSILON;
-
 fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {
     assert_eq!(state1.current_bpm(), state2.current_bpm(), "BPM mismatch");
     assert_eq!(

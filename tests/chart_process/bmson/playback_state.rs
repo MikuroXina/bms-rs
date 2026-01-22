@@ -7,7 +7,7 @@ use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
 
-use super::{MICROSECOND_EPSILON, assert_time_close};
+use super::assert_time_close;
 
 #[test]
 fn test_bmson_restart_resets_scroll_to_one() {
