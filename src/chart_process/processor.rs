@@ -6,7 +6,7 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
 use crate::bms::Decimal;
-use crate::chart_process::{FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
 pub mod bms;
 pub mod bmson;
@@ -153,6 +153,7 @@ pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
+    ln_end_y: BTreeMap<ChartEventId, YCoordinate>,
 }
 
 impl AllEventsIndex {
@@ -196,10 +197,22 @@ impl AllEventsIndex {
             });
         }
 
+        let mut ln_end_y: BTreeMap<ChartEventId, YCoordinate> = BTreeMap::new();
+        for ev in &events {
+            if let ChartEvent::Note {
+                length: Some(length),
+                ..
+            } = ev.event()
+            {
+                ln_end_y.insert(ev.id(), ev.position().clone() + length.clone());
+            }
+        }
+
         Self {
             events,
             by_y,
             by_time,
+            ln_end_y,
         }
     }
 
@@ -318,6 +331,35 @@ impl AllEventsIndex {
             Bound::Unbounded => Bound::Unbounded,
         };
         self.events_in_time_range((start_bound, end_bound))
+    }
+
+    /// Retrieve long notes that are active at the given Y position.
+    ///
+    /// A long note is active if it has started (`start_y` <= `cur_y`) but not yet ended (`end_y` > `cur_y`).
+    /// This is useful for finding notes that are currently being held by the player.
+    ///
+    /// # Parameters
+    /// - `cur_y`: The current Y position (playback position)
+    ///
+    /// # Returns
+    /// A vector of long note events that are active at the given Y position
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Get all long notes that are currently being held
+    /// let active_notes = index.active_long_notes_at(&current_y);
+    /// ```
+    #[must_use]
+    pub fn active_long_notes_at(&self, cur_y: &YCoordinate) -> Vec<PlayheadEvent> {
+        self.ln_end_y
+            .iter()
+            .filter_map(|(&id, end_y)| {
+                self.events
+                    .iter()
+                    .find(|ev| ev.id() == id && ev.position() <= cur_y && end_y > cur_y)
+                    .cloned()
+            })
+            .collect()
     }
 }
 
