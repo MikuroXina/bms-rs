@@ -270,17 +270,16 @@ impl ChartPlayer {
     ///
     /// See [`crate::chart_process`] for the formula.
     pub fn calculate_velocity(&mut self, speed: &Decimal) -> Decimal {
-        if self.velocity_dirty || self.cached_velocity.is_none() {
-            let computed = self.compute_velocity(speed);
-            self.cached_velocity = Some(computed.clone());
-            self.velocity_dirty = false;
-            computed
-        } else if let Some(cached) = &self.cached_velocity {
-            cached.clone()
-        } else {
-            // This should not happen as we checked is_none above
-            self.compute_velocity(speed)
+        if let Some(cached) = &self.cached_velocity
+            && !self.velocity_dirty
+        {
+            return cached.clone();
         }
+
+        let computed = self.compute_velocity(speed);
+        self.cached_velocity = Some(computed.clone());
+        self.velocity_dirty = false;
+        computed
     }
 
     /// Compute velocity without caching (internal use).
@@ -289,14 +288,14 @@ impl ChartPlayer {
         let playback_ratio = self.playback_state.playback_ratio.clone();
 
         if current_bpm <= Decimal::zero() {
-            Decimal::from(f64::EPSILON)
-        } else {
-            let denom = Decimal::from(240);
-            let base = &current_bpm / &denom;
-            let v1 = base * speed.clone();
-            let v = &v1 * &playback_ratio;
-            v.max(Decimal::from(f64::EPSILON))
+            return Decimal::from(f64::EPSILON);
         }
+
+        let denom = Decimal::from(240);
+        let base = &current_bpm / &denom;
+        let v1 = base * speed.clone();
+        let v = &v1 * &playback_ratio;
+        v.max(Decimal::from(f64::EPSILON))
     }
 
     /// Mark velocity cache as dirty.
@@ -459,16 +458,11 @@ impl ChartPlayer {
 
         let cur_y = &self.playback_state.progressed_y;
 
-        let future_events = self
+        // Direct query for events in range. The modified events_in_y_range
+        // automatically handles crossing long notes.
+        self.preloaded_events = self
             .all_events
             .events_in_y_range((Excluded(cur_y), Included(preload_end_y)));
-
-        let active_lns = self.all_events.active_long_notes_at(cur_y);
-
-        let mut result = future_events;
-        result.extend(active_lns);
-
-        self.preloaded_events = result;
     }
 
     /// Get preloaded events.

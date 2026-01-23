@@ -237,23 +237,66 @@ impl AllEventsIndex {
     /// Retrieve all events within a specified Y coordinate range.
     ///
     /// This method efficiently collects events whose Y coordinates fall within
-    /// the given range bounds.
+    /// given range bounds, including long notes that cross the range boundaries.
     ///
     /// # Parameters
     /// - `range`: The Y coordinate range to query
     ///
     /// # Returns
-    /// A vector of events within the specified range
+    /// A vector of events within specified range, including long notes that
+    /// started before the range but are still active during the range
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
-        R: RangeBounds<YCoordinate>,
+        R: RangeBounds<YCoordinate> + Clone,
     {
-        self.by_y
-            .range(range)
+        // Get events within the range (original logic)
+        let mut result: Vec<PlayheadEvent> = self
+            .by_y
+            .range(range.clone())
             .flat_map(|(_, indices)| self.events.get(indices.clone()).into_iter().flatten())
             .cloned()
-            .collect()
+            .collect();
+
+        // 2. Add long notes that cross the range boundary
+        // Only check for crossing long notes when there's a clear start boundary
+        let range_start = match range.start_bound() {
+            Bound::Included(s) | Bound::Excluded(s) => s,
+            Bound::Unbounded => return result,
+        };
+
+        for (event_id, end_y) in &self.ln_end_y {
+            let Some(event) = self.events.iter().find(|ev| &ev.id() == event_id) else {
+                continue;
+            };
+
+            let ChartEvent::Note {
+                length: Some(_), ..
+            } = event.event()
+            else {
+                continue;
+            };
+
+            let start_y = event.position();
+
+            // Check if this is a crossing long note:
+            // starts before range but ends after range start
+            if start_y >= range_start || end_y <= range_start {
+                continue;
+            }
+
+            // Check if it overlaps with the query range
+            let should_include = match range.end_bound() {
+                Bound::Included(end) | Bound::Excluded(end) => end_y > end || start_y < end,
+                Bound::Unbounded => true,
+            };
+
+            if should_include {
+                result.push(event.clone());
+            }
+        }
+
+        result
     }
 
     /// Retrieve all events within a specified time range.
@@ -331,35 +374,6 @@ impl AllEventsIndex {
             Bound::Unbounded => Bound::Unbounded,
         };
         self.events_in_time_range((start_bound, end_bound))
-    }
-
-    /// Retrieve long notes that are active at the given Y position.
-    ///
-    /// A long note is active if it has started (`start_y` <= `cur_y`) but not yet ended (`end_y` > `cur_y`).
-    /// This is useful for finding notes that are currently being held by the player.
-    ///
-    /// # Parameters
-    /// - `cur_y`: The current Y position (playback position)
-    ///
-    /// # Returns
-    /// A vector of long note events that are active at the given Y position
-    ///
-    /// # Example
-    /// ```ignore
-    /// // Get all long notes that are currently being held
-    /// let active_notes = index.active_long_notes_at(&current_y);
-    /// ```
-    #[must_use]
-    pub fn active_long_notes_at(&self, cur_y: &YCoordinate) -> Vec<PlayheadEvent> {
-        self.ln_end_y
-            .iter()
-            .filter_map(|(&id, end_y)| {
-                self.events
-                    .iter()
-                    .find(|ev| ev.id() == id && ev.position() <= cur_y && end_y > cur_y)
-                    .cloned()
-            })
-            .collect()
     }
 }
 
