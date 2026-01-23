@@ -275,12 +275,11 @@ impl ChartPlayer {
             self.cached_velocity = Some(computed.clone());
             self.velocity_dirty = false;
             computed
+        } else if let Some(cached) = &self.cached_velocity {
+            cached.clone()
         } else {
-            // SAFETY: We know cached_velocity is Some because we checked is_none above
-            self.cached_velocity
-                .as_ref()
-                .expect("cached_velocity should be Some when not dirty")
-                .clone()
+            // This should not happen as we checked is_none above
+            self.compute_velocity(speed)
         }
     }
 
@@ -607,8 +606,7 @@ impl VisibleRangePerBpm {
         } else {
             let reaction_time_seconds =
                 Decimal::from(reaction_time.as_nanos().max(0)) / NANOS_PER_SECOND;
-            let value =
-                reaction_time_seconds.clone() * Decimal::from(240u64) / base_bpm.value().clone();
+            let value = &(&reaction_time_seconds * &Decimal::from(240u64)) / base_bpm.value();
             Self {
                 value,
                 base_bpm: base_bpm.value().clone(),
@@ -664,7 +662,7 @@ impl VisibleRangePerBpm {
         if self.reaction_time_seconds.is_zero() {
             TimeSpan::ZERO
         } else {
-            let nanos = (self.reaction_time_seconds.clone() * Decimal::from(NANOS_PER_SECOND))
+            let nanos = (&self.reaction_time_seconds * &Decimal::from(NANOS_PER_SECOND))
                 .to_u64()
                 .unwrap_or(0);
             TimeSpan::from_duration(Duration::from_nanos(nanos))
