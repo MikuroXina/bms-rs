@@ -649,9 +649,8 @@ impl VisibleRangePerBpm {
         //                  = (current_bpm / 240) * speed_factor * reaction_time * base_bpm / current_bpm
         //                  = (speed_factor / 240) * reaction_time * base_bpm
 
-        let velocity = current_bpm.clone() / Decimal::from(240u64) * speed_factor;
-        let adjusted = velocity * self.reaction_time_seconds.clone() * self.base_bpm.clone()
-            / current_bpm.clone();
+        let velocity = current_bpm / &Decimal::from(240u64) * speed_factor;
+        let adjusted = &(&(&velocity * &self.reaction_time_seconds) * &self.base_bpm) / current_bpm;
         YCoordinate::new(adjusted)
     }
 
