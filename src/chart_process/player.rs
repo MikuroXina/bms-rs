@@ -673,7 +673,7 @@ impl VisibleRangePerBpm {
 impl From<Decimal> for VisibleRangePerBpm {
     fn from(value: Decimal) -> Self {
         let base_bpm = Decimal::one();
-        let reaction_time_seconds = value.clone() / Decimal::from(240u64);
+        let reaction_time_seconds = &value / &Decimal::from(240u64);
         Self {
             value,
             base_bpm,
