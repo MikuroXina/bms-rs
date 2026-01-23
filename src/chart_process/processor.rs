@@ -153,7 +153,7 @@ pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
-    ln_end_y: BTreeMap<ChartEventId, YCoordinate>,
+    ln_end_y: BTreeMap<YCoordinate, usize>,
 }
 
 impl AllEventsIndex {
@@ -197,14 +197,14 @@ impl AllEventsIndex {
             });
         }
 
-        let mut ln_end_y: BTreeMap<ChartEventId, YCoordinate> = BTreeMap::new();
-        for ev in &events {
+        let mut ln_end_y: BTreeMap<YCoordinate, usize> = BTreeMap::new();
+        for (idx, ev) in events.iter().enumerate() {
             if let ChartEvent::Note {
                 length: Some(length),
                 ..
             } = ev.event()
             {
-                ln_end_y.insert(ev.id(), ev.position().clone() + length.clone());
+                ln_end_y.insert(ev.position().clone() + length.clone(), idx);
             }
         }
 
@@ -265,8 +265,9 @@ impl AllEventsIndex {
             Bound::Unbounded => return result,
         };
 
-        for (event_id, end_y) in &self.ln_end_y {
-            let Some(event) = self.events.iter().find(|ev| &ev.id() == event_id) else {
+        // Query long notes ending in or after the range start
+        for (end_y, idx) in self.ln_end_y.range(range_start..) {
+            let Some(event) = self.events.get(*idx) else {
                 continue;
             };
 
@@ -281,7 +282,7 @@ impl AllEventsIndex {
 
             // Check if this is a crossing long note:
             // starts before range but ends after range start
-            if start_y >= range_start || end_y <= range_start {
+            if start_y >= range_start {
                 continue;
             }
 
