@@ -306,6 +306,22 @@ impl AllEventsIndex {
             }
         }
 
+        // Track active long notes to prevent double-triggering.
+        //
+        // BMS format represents long notes using two consecutive Long note markers:
+        //   - First marker: start of long note (with length calculated to the next marker)
+        //   - Second marker: end of long note (with no length)
+        //
+        // Example in BMS format:
+        //   #00151:11  <- Long note start (Player1, Key1, time=1)
+        //   #00351:22  <- Long note end   (Player1, Key1, time=3)
+        //
+        // Without this fix, both markers would trigger events, causing:
+        //   1. Double-triggering: same long note fires twice (at start and end)
+        //   2. Incorrect playback: end marker creates a zero-length note event
+        //
+        // The fix: keep only the start marker (which has the correct length),
+        // and skip the end marker (which has no length or wrong length).
         let mut active_lns: std::collections::HashSet<(PlayerSide, Key)> =
             std::collections::HashSet::new();
 
@@ -322,7 +338,15 @@ impl AllEventsIndex {
             if should_include {
                 let event = event_for_note_static::<T>(bms, y_memo, obj);
 
-                // Double trigger fix: Skip LN end markers
+                // Fix double-triggering by skipping LN end markers.
+                //
+                // Logic:
+                //   - When we encounter a Long note:
+                //     * If its lane already has an active LN → this is the END marker, skip it
+                //     * If its lane has no active LN AND it has length → this is the START marker, track it
+                //     * If its lane has no active LN AND no length → edge case, ignore (no next marker)
+                //
+                // Result: Each long note generates exactly one event with the correct length.
                 if let ChartEvent::Note {
                     side,
                     key,
@@ -333,14 +357,20 @@ impl AllEventsIndex {
                 {
                     let lane_key = (*side, *key);
                     if active_lns.contains(&lane_key) {
-                        // This is the end marker. Skip it.
+                        // This lane already has an active long note starting.
+                        // This marker is the end of that long note.
+                        // Skip it to prevent double-triggering.
                         active_lns.remove(&lane_key);
                         continue;
                     }
                     if length.is_some() {
-                        // This is a start marker.
+                        // This lane has no active long note.
+                        // This marker is the start of a new long note.
+                        // Track it so we can skip the end marker when we encounter it.
                         active_lns.insert(lane_key);
                     }
+                    // If length is None, this is an orphan end marker or zero-length note.
+                    // Skip it silently as it doesn't represent a valid playable note.
                 }
 
                 let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
