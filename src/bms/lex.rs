@@ -1,7 +1,7 @@
 //! Lexical analyzer of BMS format.
 //!
-//! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
-//! [`BmsParseOutput`])
+//! Raw [String] == `lex` ==> [`TokenStream`] (in [`LexOutput`]) == `parse` => [`crate::bms::model::Bms`] (in
+//! [`crate::bms::parse::ParseOutput`])
 
 pub mod cursor;
 pub mod token;
@@ -202,7 +202,7 @@ impl ToAriadne for LexWarningWithRange {
 mod tests {
     use crate::bms::{
         command::{channel::Channel, time::Track},
-        lex::{LexOutput, TokenStream, token::Token},
+        lex::{token::Token, LexOutput, TokenStream},
     };
 
     #[test]

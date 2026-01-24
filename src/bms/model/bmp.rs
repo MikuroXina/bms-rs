@@ -4,13 +4,13 @@
 //! extended BGA commands like `#BGA`, `#@BGA`, `#SWBGA`, `#ARGB`, and opacity/color changes.
 
 use std::{
-    collections::{BTreeMap, HashMap, btree_map::Entry},
+    collections::{btree_map::Entry, BTreeMap, HashMap},
     path::PathBuf,
 };
 
 use crate::bms::{
     command::graphics::{Argb, PixelPoint, PixelSize},
-    parse::{Result, prompt::ChannelDuplication},
+    parse::{prompt::ChannelDuplication, Result},
     prelude::*,
 };
 
@@ -56,7 +56,7 @@ impl BmpObjects {
     ///
     /// # Errors
     ///
-    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// Returns [`ParseWarning`] if a conflict is found and the
     /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bga_change(
         &mut self,
@@ -87,7 +87,7 @@ impl BmpObjects {
     ///
     /// # Errors
     ///
-    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// Returns [`ParseWarning`] if a conflict is found and the
     /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bga_opacity_change(
         &mut self,
@@ -127,7 +127,7 @@ impl BmpObjects {
     ///
     /// # Errors
     ///
-    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// Returns [`ParseWarning`] if a conflict is found and the
     /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bga_argb_change(
         &mut self,
@@ -159,7 +159,7 @@ impl BmpObjects {
     ///
     /// # Errors
     ///
-    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// Returns [`ParseWarning`] if a conflict is found and the
     /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bga_keybound_event(
         &mut self,

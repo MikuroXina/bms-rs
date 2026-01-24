@@ -1,6 +1,6 @@
 //! Definitions of command argument data.
 //!
-//! Structures in this module can be used in [Lex] part, [Parse] part, and the output models.
+//! Structures in this module can be used in `Lex` part, `Parse` part, and the output models.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 

@@ -2,7 +2,7 @@
 //!
 //! - `#RANDOM` - Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
 //! - `#SETRANDOM` - Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
-//! - `#IF` - Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
+//! - `#IF` - Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. This is handled via [`Token::Header`].
 //! - `#ELSEIF` - Starts an if scope when the integer equals to the generated random number. It must be in an if scope. If preceding `#IF` had matched to the generated, this scope don't start.
 //! - `#ELSE` - Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
 //! - `#ENDIF` - Closes the if scope.

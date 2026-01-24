@@ -20,7 +20,7 @@ impl OptionObjects {
     ///
     /// # Errors
     ///
-    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// Returns [`ParseWarning`] if a conflict is found and the
     /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_option_event(
         &mut self,

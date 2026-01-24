@@ -230,7 +230,7 @@ where
 }
 
 /// Returns all of processors this crate provided.
-pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
+pub fn full_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
 ) -> impl TokenProcessor<Output = Bms> {
     let case_sensitive_obj_id = Rc::new(RefCell::new(false));

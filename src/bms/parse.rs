@@ -1,7 +1,7 @@
-//! Parsing Bms from [`TokenStream`].
+//! Parsing Bms from [`super::lex::TokenStream`].
 //!
-//! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
-//! [`BmsParseOutput`])
+//! Raw [String] == `lex` ==> [`super::lex::TokenStream`] (in [`super::lex::LexOutput`]) == `parse` ==> [`super::model::Bms`] (in
+//! [`ParseOutput`])
 //!
 //! This module also defines enums of errors and warnings on parse process.
 
@@ -38,7 +38,7 @@ use self::{
     token_processor::{ProcessContext, TokenModifier, TokenProcessor},
 };
 
-/// An error occurred when parsing the [`TokenStream`].
+/// An error occurred when parsing the [`super::lex::TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParseError {
@@ -81,7 +81,7 @@ impl ToAriadne for ParseErrorWithRange {
     }
 }
 
-/// A warning occurred when parsing the [`TokenStream`].
+/// A warning occurred when parsing the [`super::lex::TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParseWarning {
@@ -91,13 +91,13 @@ pub enum ParseWarning {
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
-    /// Has duplicated definition, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    /// Has duplicated definition, that `prompt_handler` returned [`prompt::DuplicationWorkaround::WarnAndUseOlder`].
     #[error("duplicating definition: {0}")]
     DuplicatingDef(ObjId),
-    /// Has duplicated track object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    /// Has duplicated track object, that `prompt_handler` returned [`prompt::DuplicationWorkaround::WarnAndUseOlder`].
     #[error("duplicating track object: {0} {1}")]
     DuplicatingTrackObj(Track, Channel),
-    /// Has duplicated channel object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    /// Has duplicated channel object, that `prompt_handler` returned [`prompt::DuplicationWorkaround::WarnAndUseOlder`].
     #[error("duplicating channel object: {0} {1}")]
     DuplicatingChannelObj(ObjTime, Channel),
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.

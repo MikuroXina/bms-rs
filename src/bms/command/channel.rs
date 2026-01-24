@@ -3,7 +3,7 @@
 //! For more details, please see [`Channel`] enum and its related types.
 //! For documents of modes, please see [BMS command memo#KEYMAP Table](https://hitkey.bms.ms/cmds.htm#KEYMAP-TABLE)
 //!
-//! For converting key/channel between different modes, please see [`ModeKeyChannel`] enum and [`convert_key_channel_between`] function.
+//! For converting key/channel between different modes, please see `ModeKeyChannel` enum and `convert_key_channel_between` function.
 
 use super::{base62_to_byte, char_to_base62};
 use std::str::FromStr;
@@ -169,7 +169,7 @@ pub enum PlayerSide {
     Player2,
 }
 
-/// Error type for parsing [`ChannelId`] from string.
+/// Error type for parsing [`NoteChannelId`] from string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ChannelIdParseError {
     /// The channel id must be exactly 2 ascii characters, got `{0}`.

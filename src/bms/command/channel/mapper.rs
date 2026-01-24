@@ -1,9 +1,9 @@
-//! For converting key/channel between different modes, please see [`KeyLayoutMapper`] enum and [`convert_key_mapping_between`] function.
+//! For converting key/channel between different modes, please see [`KeyLayoutMapper`] enum and `convert_key_mapping_between` function.
 
 use super::{Key, NoteChannelId, NoteKind, PlayerSide};
 use Key::*;
 
-/// Convert from [`KeyLayoutBeat`] to [`ChannelId`].
+/// Convert from [`KeyLayoutBeat`] to [`NoteChannelId`].
 fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
     let (side, kind, key) = beat.as_tuple();
 
@@ -32,7 +32,7 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
         .expect("generated note channel id should be valid")
 }
 
-/// Convert from [`ChannelId`] to [`KeyLayoutBeat`].
+/// Convert from [`NoteChannelId`] to [`KeyLayoutBeat`].
 fn channel_id_to_key_layout_beat(channel_id: NoteChannelId) -> Option<KeyLayoutBeat> {
     let [first_char, second_char] = channel_id.0.map(|c| c as char);
 
@@ -88,18 +88,18 @@ pub trait KeyMapping {
 /// Trait for key channel mode implementations.
 ///
 /// This trait defines the interface for converting between different key channel modes
-/// and the standard [`ChannelId`] format. Each mode implementation should provide methods to
-/// convert from its own format to [`ChannelId`] format and vice versa.
+/// and the standard [`NoteChannelId`] format. Each mode implementation should provide methods to
+/// convert from its own format to [`NoteChannelId`] format and vice versa.
 pub trait KeyLayoutMapper: KeyMapping {
-    /// Convert from this mode's format to [`ChannelId`] format.
+    /// Convert from this mode's format to [`NoteChannelId`] format.
     ///
     /// This method takes a ([`PlayerSide`], [`NoteKind`], [`Key`]) tuple in this mode's format and converts
-    /// it to the equivalent [`ChannelId`] in [`ChannelId`] format.
+    /// it to the equivalent [`NoteChannelId`] in [`NoteChannelId`] format.
     fn to_channel_id(self) -> NoteChannelId;
 
-    /// Convert from [`ChannelId`] format to this mode's format.
+    /// Convert from [`NoteChannelId`] format to this mode's format.
     ///
-    /// This method takes a [`ChannelId`] in [`ChannelId`] format and converts
+    /// This method takes a [`NoteChannelId`] in [`NoteChannelId`] format and converts
     /// it to the equivalent ([`PlayerSide`], [`NoteKind`], [`Key`]) tuple in this mode's format.
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self>
     where
