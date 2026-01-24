@@ -8,7 +8,7 @@ use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
 
-use super::{MICROSECOND_EPSILON, assert_time_close, parse_bms_no_warnings};
+use super::{assert_time_close, parse_bms_no_warnings};
 
 #[test]
 fn test_bemuse_ext_basic_visible_events_functionality() {
