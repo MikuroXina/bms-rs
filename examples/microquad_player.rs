@@ -16,10 +16,22 @@ use kira::{
     sound::static_sound::StaticSoundData,
 };
 use macroquad::prelude::Color;
+use macroquad::prelude::*;
 use num::ToPrimitive;
 use rayon::prelude::*;
 
-#[macroquad::main("BMS Player")]
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "BMS Player".to_owned(),
+        platform: miniquad::conf::Platform {
+            linux_backend: miniquad::conf::LinuxBackend::WaylandWithX11Fallback,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() -> Result<(), String> {
     // 1. Parse command line arguments
     let config = Config::parse();
