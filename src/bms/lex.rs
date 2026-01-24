@@ -202,7 +202,7 @@ impl ToAriadne for LexWarningWithRange {
 mod tests {
     use crate::bms::{
         command::{channel::Channel, time::Track},
-        lex::{token::Token, LexOutput, TokenStream},
+        lex::{LexOutput, TokenStream, token::Token},
     };
 
     #[test]

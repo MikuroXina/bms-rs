@@ -4,13 +4,13 @@
 //! extended BGA commands like `#BGA`, `#@BGA`, `#SWBGA`, `#ARGB`, and opacity/color changes.
 
 use std::{
-    collections::{btree_map::Entry, BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, btree_map::Entry},
     path::PathBuf,
 };
 
 use crate::bms::{
     command::graphics::{Argb, PixelPoint, PixelSize},
-    parse::{prompt::ChannelDuplication, Result},
+    parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
 

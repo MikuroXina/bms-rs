@@ -1,12 +1,12 @@
 //! Definitions of the note object.
 
 use crate::bms::{
+    Decimal,
     command::{
+        JudgeLevel, ObjId,
         channel::{Channel, NoteChannelId},
         time::{ObjTime, Track},
-        JudgeLevel, ObjId,
     },
-    Decimal,
 };
 
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};

@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::bms::{
-    command::time::{ObjTime, Track},
     Decimal,
+    command::time::{ObjTime, Track},
 };
 
 /// Note position for the chart [`super::Bmson`].
