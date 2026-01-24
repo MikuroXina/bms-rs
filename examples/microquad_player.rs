@@ -61,8 +61,13 @@ async fn main() -> Result<(), String> {
     println!("Player started");
 
     // 6.5. Initialize audio playback system
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
-        .map_err(|e| format!("Failed to open audio: {}", e))?;
+    // Use Box::leak to keep OutputStream alive for the entire program duration.
+    // On macOS, OutputStream is not Send, so we leak it to avoid moving it across await points.
+    let _stream = Box::leak(Box::new(
+        rodio::OutputStreamBuilder::open_default_stream()
+            .map_err(|e| format!("Failed to open audio: {}", e))?,
+    ));
+    let mixer = _stream.mixer().clone();
     println!("Audio system initialized");
 
     // 7. Main loop
@@ -101,7 +106,7 @@ async fn main() -> Result<(), String> {
                 && let Some(audio) = audio_data_map.get(id)
             {
                 // Directly add to mixer for zero-copy playback
-                stream_handle.mixer().add((*audio.buffer).clone());
+                mixer.add((*audio.buffer).clone());
             }
         }
 
