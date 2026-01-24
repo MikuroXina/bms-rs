@@ -287,6 +287,7 @@ impl AllEventsIndex {
             .notes()
             .all_notes()
             .map(|obj| (get_event_y(obj.offset), obj.clone()))
+            .sorted_by(|(y1, _), (y2, _)| y1.cmp(y2))
             .collect();
 
         let mut zero_length_key_tracker: std::collections::HashMap<
@@ -305,6 +306,9 @@ impl AllEventsIndex {
             }
         }
 
+        let mut active_lns: std::collections::HashSet<(PlayerSide, Key)> =
+            std::collections::HashSet::new();
+
         for (i, (y, obj)) in note_events.iter().enumerate() {
             let is_zero_length_section = y_memo.zero_length_tracks.contains(&obj.offset.track());
             let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
@@ -317,6 +321,28 @@ impl AllEventsIndex {
 
             if should_include {
                 let event = event_for_note_static::<T>(bms, y_memo, obj);
+
+                // Double trigger fix: Skip LN end markers
+                if let ChartEvent::Note {
+                    side,
+                    key,
+                    kind: NoteKind::Long,
+                    length,
+                    ..
+                } = &event
+                {
+                    let lane_key = (*side, *key);
+                    if active_lns.contains(&lane_key) {
+                        // This is the end marker. Skip it.
+                        active_lns.remove(&lane_key);
+                        continue;
+                    }
+                    if length.is_some() {
+                        // This is a start marker.
+                        active_lns.insert(lane_key);
+                    }
+                }
+
                 let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y.clone()).or_default().push(evp);
             }
