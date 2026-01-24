@@ -450,7 +450,7 @@ fn render_notes(player: &mut ChartPlayer, _events: &[PlayheadEvent]) {
                         x + 2.0,
                         y_end,
                         TRACK_WIDTH - 4.0,
-                        height.max(5.0),
+                        height,
                         color,
                     );
 
