@@ -37,9 +37,6 @@ pub struct ChartPlayer {
     // Flow event indexing
     pub(crate) flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
 
-    // Active long notes (started but not finished)
-    pub(crate) active_long_notes: Vec<PlayheadEvent>,
-
     // Playback state (always initialized after construction)
     playback_state: PlaybackState,
 }
@@ -92,7 +89,6 @@ impl ChartPlayer {
             cached_velocity: None,
             velocity_dirty: true,
             preloaded_events: Vec::new(),
-            active_long_notes: Vec::new(),
             all_events,
             flow_events_by_y: flow_events,
             playback_state: PlaybackState::new(
@@ -141,31 +137,6 @@ impl ChartPlayer {
 
         // Collect events triggered at current moment
         let mut triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(&cur_y)));
-
-        // Update active long notes
-        // 1. Add new long notes from triggered_events
-        for event in &triggered_events {
-            if let ChartEvent::Note {
-                length: Some(len), ..
-            } = event.event()
-                && !len.value().is_zero()
-            {
-                self.active_long_notes.push(event.clone());
-            }
-        }
-
-        // 2. Remove finished long notes
-        self.active_long_notes.retain(|event| {
-            if let ChartEvent::Note {
-                length: Some(len), ..
-            } = event.event()
-            {
-                let end_y = event.position() + len;
-                end_y > cur_y
-            } else {
-                false
-            }
-        });
 
         self.update_preloaded_events(&preload_end_y);
 
@@ -241,12 +212,15 @@ impl ChartPlayer {
         let visible_window_y = self.visible_window_y(&self.playback_state.current_speed);
         let scroll_factor = &self.playback_state.current_scroll;
 
-        let max_visible_y = current_y.clone() + visible_window_y.clone();
+        let view_start = current_y.clone();
+        let view_end = current_y.clone() + visible_window_y.clone();
 
-        self.preloaded_events
+        let visible_events = self
+            .all_events
+            .visible_events_in_range(&view_start, &view_end);
+
+        visible_events
             .iter()
-            .take_while(|event| event.position() <= &max_visible_y)
-            .chain(self.active_long_notes.iter())
             .filter_map(|event_with_pos| {
                 let event_y = event_with_pos.position();
                 let start_display_ratio = Self::compute_display_ratio(
@@ -276,12 +250,10 @@ impl ChartPlayer {
                     *ratio_end > Decimal::zero()
                 };
 
-                is_visible.then(|| {
-                    (
-                        event_with_pos.clone(),
-                        start_display_ratio..=end_display_ratio,
-                    )
-                })
+                is_visible.then_some((
+                    event_with_pos.clone(),
+                    start_display_ratio..=end_display_ratio,
+                ))
             })
             .collect()
     }

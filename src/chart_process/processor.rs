@@ -5,8 +5,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
+use crate::bms::command::channel::NoteKind;
 use crate::bms::Decimal;
-use crate::chart_process::{FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
 pub mod bms;
 pub mod bmson;
@@ -148,11 +149,15 @@ impl ChartEventIdGenerator {
 }
 
 /// Index for all chart events, organized by Y coordinate and time.
+///
+/// This structure provides efficient lookups for events by their Y coordinate
+/// and activation time, along with precomputed indices for long note visibility queries.
 #[derive(Debug, Clone)]
 pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
+    ln_by_end: BTreeMap<YCoordinate, Range<usize>>,
 }
 
 impl AllEventsIndex {
@@ -196,10 +201,29 @@ impl AllEventsIndex {
             });
         }
 
+        let mut ln_by_end: BTreeMap<YCoordinate, Range<usize>> = BTreeMap::new();
+
+        for (idx, ev) in events.iter().enumerate() {
+            if let ChartEvent::Note {
+                kind: NoteKind::Long,
+                length: Some(length),
+                ..
+            } = ev.event()
+            {
+                let end_y = ev.position().clone() + length.clone();
+
+                ln_by_end
+                    .entry(end_y)
+                    .and_modify(|r| r.end += 1)
+                    .or_insert_with(|| idx..idx + 1);
+            }
+        }
+
         Self {
             events,
             by_y,
             by_time,
+            ln_by_end,
         }
     }
 
@@ -318,6 +342,69 @@ impl AllEventsIndex {
             Bound::Unbounded => Bound::Unbounded,
         };
         self.events_in_time_range((start_bound, end_bound))
+    }
+
+    /// Get all events visible in the specified Y coordinate range.
+    ///
+    /// An event is considered visible in `(view_start, view_end]` if and only if:
+    /// - Normal events: position is within `(view_start, view_end]`
+    /// - Long notes: `end_y` > `view_start` AND `start_y` <= `view_end`
+    ///
+    /// This method is useful for rendering and does not depend on playback direction,
+    /// making it suitable for implementing time rewind functionality.
+    ///
+    /// # Parameters
+    /// - `view_start`: Start of visible range (exclusive)
+    /// - `view_end`: End of visible range (inclusive)
+    ///
+    /// # Returns
+    /// A vector of visible events
+    #[must_use]
+    pub fn visible_events_in_range(
+        &self,
+        view_start: &YCoordinate,
+        view_end: &YCoordinate,
+    ) -> Vec<PlayheadEvent> {
+        use std::ops::Bound::{Excluded, Included};
+
+        let mut visible = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        let events_in_range: Vec<usize> = self
+            .by_y
+            .range((Excluded(view_start), Included(view_end)))
+            .flat_map(|(_, range)| range.clone())
+            .collect();
+
+        let crossing_lns: Vec<usize> = self
+            .ln_by_end
+            .range((Excluded(view_start), Bound::Unbounded))
+            .filter(|(end_y, _)| **end_y > *view_start)
+            .flat_map(|(_, range)| range.clone())
+            .collect();
+
+        for idx in events_in_range.iter().chain(crossing_lns.iter()) {
+            if seen.insert(idx)
+                && let Some(ev) = self.events.get(*idx)
+            {
+                let start_y = ev.position();
+                let end_y = if let ChartEvent::Note {
+                    length: Some(length),
+                    ..
+                } = ev.event()
+                {
+                    start_y + length
+                } else {
+                    start_y.clone()
+                };
+
+                if end_y > *view_start && *start_y <= *view_end {
+                    visible.push(ev.clone());
+                }
+            }
+        }
+
+        visible
     }
 }
 
