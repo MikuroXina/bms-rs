@@ -4,14 +4,6 @@
 //! Uses the microquad framework for visualization and audio playback.
 
 use std::collections::HashMap;
-use std::sync::Arc;
-
-/// Audio data structure containing samples and metadata
-struct AudioData {
-    buffer: Arc<SamplesBuffer>,
-}
-
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -19,11 +11,12 @@ use bms_rs::chart_process::prelude::*;
 use bms_rs::{bms::prelude::*, chart_process::PlayheadEvent};
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
+use kira::{
+    AudioManager, AudioManagerSettings, DefaultBackend, sound::static_sound::StaticSoundData,
+};
 use macroquad::prelude::Color;
 use num::ToPrimitive;
 use rayon::prelude::*;
-use rodio::buffer::SamplesBuffer;
-use rodio::{Decoder, Source};
 
 #[macroquad::main("BMS Player")]
 async fn main() -> Result<(), String> {
@@ -61,13 +54,8 @@ async fn main() -> Result<(), String> {
     println!("Player started");
 
     // 6.5. Initialize audio playback system
-    // Use Box::leak to keep OutputStream alive for the entire program duration.
-    // On macOS, OutputStream is not Send, so we leak it to avoid moving it across await points.
-    let _stream = Box::leak(Box::new(
-        rodio::OutputStreamBuilder::open_default_stream()
-            .map_err(|e| format!("Failed to open audio: {}", e))?,
-    ));
-    let mixer = _stream.mixer().clone();
+    let mut audio_manager = AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())
+        .map_err(|e| format!("Failed to initialize audio: {}", e))?;
     println!("Audio system initialized");
 
     // 7. Main loop
@@ -102,11 +90,13 @@ async fn main() -> Result<(), String> {
                 _ => continue,
             };
 
-            if let Some(id) = wav_id
-                && let Some(audio) = audio_data_map.get(id)
-            {
-                // Directly add to mixer for zero-copy playback
-                mixer.add((*audio.buffer).clone());
+            let Some(id) = wav_id else { continue };
+            let Some(audio) = audio_data_map.get(id) else {
+                continue;
+            };
+
+            if let Err(e) = audio_manager.play(audio.clone()) {
+                eprintln!("Failed to play audio: {}", e);
             }
         }
 
@@ -233,26 +223,6 @@ fn find_audio_with_extensions(path: &Path, extensions: &[&str]) -> Option<PathBu
     None
 }
 
-/// Load a single audio file into memory
-fn load_audio_to_memory(path: &Path) -> Result<AudioData, String> {
-    let file = File::open(path).map_err(|e| format!("Failed to open: {}", e))?;
-
-    // Create decoder and get metadata
-    let decoder =
-        Decoder::try_from(file).map_err(|e| format!("Failed to create decoder: {}", e))?;
-
-    let channels = decoder.channels();
-    let sample_rate = decoder.sample_rate();
-
-    // Collect all samples into memory
-    let samples: Vec<f32> = decoder.collect();
-
-    // Create SamplesBuffer and wrap with Arc
-    let buffer = Arc::new(SamplesBuffer::new(channels, sample_rate, samples));
-
-    Ok(AudioData { buffer })
-}
-
 /// Preload all audio files in parallel using rayon
 ///
 /// # Arguments
@@ -266,7 +236,7 @@ fn load_audio_to_memory(path: &Path) -> Result<AudioData, String> {
 fn load_audio_files_parallel(
     audio_files: &HashMap<WavId, PathBuf>,
     base_path: &Path,
-) -> HashMap<WavId, AudioData> {
+) -> HashMap<WavId, StaticSoundData> {
     audio_files
         .par_iter()
         .filter_map(|(wav_id, path)| {
@@ -276,7 +246,9 @@ fn load_audio_files_parallel(
             let found_path =
                 find_audio_with_extensions(&full_path, &["ogg", "flac", "wav", "mp3"])?;
 
-            match load_audio_to_memory(&found_path) {
+            match StaticSoundData::from_file(&found_path)
+                .map_err(|e| format!("Failed to load audio: {}", e))
+            {
                 Ok(data) => Some((*wav_id, data)),
                 Err(e) => {
                     eprintln!(

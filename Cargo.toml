@@ -42,7 +42,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 encoding_rs = "0.8"
 clap = { version = "4", features = ["derive"] }
-rodio = { version = "0.21", features = ["wav", "vorbis", "flac", "mp3"] }
+kira = { version = "0.11", features = ["cpal"] }
 rayon = "1.10"
 
 [[example]]
@@ -255,3 +255,4 @@ multiple_crate_versions = "warn"
 negative_feature_names = "warn"
 redundant_feature_names = "warn"
 wildcard_dependencies = "deny"
+
