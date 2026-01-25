@@ -3,7 +3,7 @@
 //! A simple BMS/BMSON chart player supporting 7+1k key layout.
 //! Uses the microquad framework for visualization and audio playback.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -81,6 +81,9 @@ async fn main() -> Result<(), String> {
     .map_err(|e| format!("Failed to initialize audio: {}", e))?;
     println!("Audio system initialized");
 
+    // Track played events to prevent duplicate audio playback
+    let mut played_events = HashSet::new();
+
     // 7. Main loop
     println!("Starting playback...");
     let mut next_print_time = start_time;
@@ -120,12 +123,20 @@ async fn main() -> Result<(), String> {
                 continue;
             };
 
+            // Skip if this event has already been played
+            if played_events.contains(&event.id()) {
+                continue;
+            }
+
             if let Err(e) = audio_manager.play(audio.clone()) {
                 if matches!(e, kira::PlaySoundError::SoundLimitReached) {
                     missed_sounds += 1;
                 } else {
                     eprintln!("Failed to play audio: {}", e);
                 }
+            } else {
+                // Mark as played only on success
+                played_events.insert(event.id());
             }
         }
 
