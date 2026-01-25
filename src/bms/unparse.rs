@@ -1,4 +1,4 @@
-//! Unparse Bms model into Vec<Token> without duplicate parsing logic.
+//! Unparse Bms model into `Vec<Token>` without duplicate parsing logic.
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
@@ -8,7 +8,7 @@ use fraction::Integer;
 use crate::bms::prelude::*;
 
 impl Bms {
-    /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
+    /// Convert Bms to `Vec<Token>` (in conventional order: header -> definitions -> resources -> messages).
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
     /// - For messages requiring `ObjId`, prioritize reusing existing definitions; if missing, allocate new `ObjId` and add definition Token (only reflected in returned Token list).
     #[must_use]

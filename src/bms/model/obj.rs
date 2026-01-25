@@ -145,7 +145,7 @@ impl Ord for StopObj {
 pub struct BgaObj {
     /// Time to start to display the image.
     pub time: ObjTime,
-    /// Identifier represents the image/video file registered in [`Header`].
+    /// Identifier represents the image/video file registered in [`crate::bms::model::bmp::BmpObjects`].
     pub id: ObjId,
     /// Layer to display.
     pub layer: BgaLayer,

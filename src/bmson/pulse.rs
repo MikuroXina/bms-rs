@@ -35,7 +35,7 @@ pub struct PulseConverter {
 }
 
 impl PulseConverter {
-    /// Creates a new converter from [`Notes`].
+    /// Creates a new converter from [`crate::bms::model::Bms`].
     #[must_use]
     pub fn new(bms: &crate::bms::model::Bms) -> Self {
         let resolution = bms.resolution_for_pulses();

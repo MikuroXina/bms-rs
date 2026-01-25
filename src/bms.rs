@@ -6,7 +6,7 @@
 //!
 //! `parse` module provides definitions of BMS semantic objects and managers of BMS score data. The notes are serializable, but parsed result can't bring back into the BMS format text because of there are randomized syntax in BMS.
 //!
-//! `time` module provides definition of timing for notes as [`time::Track`] and [`time::ObjTime`].
+//! `time` module provides definition of timing for notes as [`command::time::Track`] and [`command::time::ObjTime`].
 //!
 //! In detail, our policies are:
 //!

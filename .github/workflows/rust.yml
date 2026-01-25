@@ -40,11 +40,15 @@ jobs:
           workspaces: |
             . -> target
 
-      - name: Build crate
-        run: cargo build --verbose
-      - name: Clippy Check
-        run: cargo clippy --verbose --all-features
-      - name: Test crate
-        run: cargo test --verbose --all-features
       - name: Format Check
         run: cargo fmt --check
+      - name: Clippy Check
+        run: cargo clippy --verbose --all-targets --all-features -- -D warnings
+      - name: Build all targets
+        run: cargo build --verbose --all-targets --all-features --examples
+      - name: Binary tests
+        run: cargo test --verbose --all-targets --all-features
+      - name: Doc tests
+        run: cargo test --verbose --doc --all-features
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features --document-private-items
