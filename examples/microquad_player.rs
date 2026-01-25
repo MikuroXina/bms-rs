@@ -12,7 +12,8 @@ use bms_rs::{bms::prelude::*, chart_process::PlayheadEvent};
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
 use kira::{
-    AudioManager, AudioManagerSettings, DefaultBackend, sound::static_sound::StaticSoundData,
+    AudioManager, AudioManagerSettings, Capacities, DefaultBackend,
+    sound::static_sound::StaticSoundData,
 };
 use macroquad::prelude::Color;
 use num::ToPrimitive;
@@ -54,13 +55,24 @@ async fn main() -> Result<(), String> {
     println!("Player started");
 
     // 6.5. Initialize audio playback system
-    let mut audio_manager = AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())
-        .map_err(|e| format!("Failed to initialize audio: {}", e))?;
+    let mut audio_manager = AudioManager::<DefaultBackend>::new(AudioManagerSettings {
+        capacities: Capacities {
+            sub_track_capacity: 512,
+            send_track_capacity: 16,
+            clock_capacity: 8,
+            modulator_capacity: 16,
+            listener_capacity: 8,
+        },
+        internal_buffer_size: 256,
+        ..Default::default()
+    })
+    .map_err(|e| format!("Failed to initialize audio: {}", e))?;
     println!("Audio system initialized");
 
     // 7. Main loop
     println!("Starting playback...");
     let mut next_print_time = start_time;
+    let mut missed_sounds = 0u32;
     loop {
         // Update playback state
         let now = TimeStamp::now();
@@ -73,12 +85,13 @@ async fn main() -> Result<(), String> {
                 .checked_elapsed_since(start_time)
                 .unwrap_or(TimeSpan::ZERO);
             println!(
-                "[Playback] Time: {:.1}s | BPM: {:.1} | Y: {:.2} | Speed: {:.2} | Scroll: {:.2}",
+                "[Playback] Time: {:.1}s | BPM: {:.1} | Y: {:.2} | Speed: {:.2} | Scroll: {:.2} | Missed: {}",
                 elapsed.as_secs_f64(),
                 state.current_bpm().to_f64().unwrap_or(0.0),
                 state.progressed_y().value().to_f64().unwrap_or(0.0),
                 state.current_speed().to_f64().unwrap_or(1.0),
                 state.current_scroll().to_f64().unwrap_or(1.0),
+                missed_sounds,
             );
             next_print_time += TimeSpan::SECOND;
         }
@@ -96,7 +109,11 @@ async fn main() -> Result<(), String> {
             };
 
             if let Err(e) = audio_manager.play(audio.clone()) {
-                eprintln!("Failed to play audio: {}", e);
+                if matches!(e, kira::PlaySoundError::SoundLimitReached) {
+                    missed_sounds += 1;
+                } else {
+                    eprintln!("Failed to play audio: {}", e);
+                }
             }
         }
 
