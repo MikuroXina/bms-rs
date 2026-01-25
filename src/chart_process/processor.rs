@@ -247,24 +247,83 @@ impl AllEventsIndex {
 
     /// Retrieve all events within a specified Y coordinate range.
     ///
-    /// This method efficiently collects events whose Y coordinates fall within
-    /// the given range bounds.
+    /// An event is considered visible in `(start, end]` if and only if:
+    /// - Normal events: position is within `(start, end]`
+    /// - Long notes: `end_y` > `start` AND `start_y` <= `end`
+    ///
+    /// This method is useful for rendering and does not depend on playback direction,
+    /// making it suitable for implementing time rewind functionality.
     ///
     /// # Parameters
-    /// - `range`: The Y coordinate range to query
+    /// - `range`: The Y coordinate range to query (start, end]
     ///
     /// # Returns
     /// A vector of events within the specified range
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
-        R: RangeBounds<YCoordinate>,
+        R: RangeBounds<YCoordinate> + Clone,
     {
-        self.by_y
-            .range(range)
-            .flat_map(|(_, indices)| self.events.get(indices.clone()).into_iter().flatten())
-            .cloned()
-            .collect()
+        let mut visible = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        let events_in_range: Vec<usize> = self
+            .by_y
+            .range(range.clone())
+            .flat_map(|(_, range)| range.clone())
+            .collect();
+
+        let view_start = match range.start_bound() {
+            Bound::Included(start) | Bound::Excluded(start) => start,
+            Bound::Unbounded => &YCoordinate::zero(),
+        };
+
+        let view_end = match range.end_bound() {
+            Bound::Included(end) | Bound::Excluded(end) => end,
+            Bound::Unbounded => &YCoordinate::from(f64::MAX),
+        };
+
+        let start_inclusive = matches!(range.start_bound(), Bound::Included(_));
+
+        for idx in events_in_range {
+            if seen.insert(idx)
+                && let Some(ev) = self.events.get(idx)
+            {
+                let start_y = ev.position();
+
+                let passes_start = if start_inclusive {
+                    *start_y >= *view_start
+                } else {
+                    *start_y > *view_start
+                };
+                let passes_end = *start_y <= *view_end;
+
+                if passes_start && passes_end {
+                    visible.push(ev.clone());
+                }
+            }
+        }
+
+        let crossing_lns: Vec<usize> = self
+            .ln_by_end
+            .range((Bound::Excluded(view_start), Bound::Unbounded))
+            .filter(|(end_y, _)| **end_y > *view_start)
+            .flat_map(|(_, idx_range)| idx_range.clone())
+            .collect();
+
+        for idx in crossing_lns {
+            if seen.insert(idx)
+                && let Some(ev) = self.events.get(idx)
+            {
+                let start_y = ev.position();
+
+                if *start_y <= *view_end {
+                    visible.push(ev.clone());
+                }
+            }
+        }
+
+        visible
     }
 
     /// Retrieve all events within a specified time range.
@@ -342,69 +401,6 @@ impl AllEventsIndex {
             Bound::Unbounded => Bound::Unbounded,
         };
         self.events_in_time_range((start_bound, end_bound))
-    }
-
-    /// Get all events visible in the specified Y coordinate range.
-    ///
-    /// An event is considered visible in `(view_start, view_end]` if and only if:
-    /// - Normal events: position is within `(view_start, view_end]`
-    /// - Long notes: `end_y` > `view_start` AND `start_y` <= `view_end`
-    ///
-    /// This method is useful for rendering and does not depend on playback direction,
-    /// making it suitable for implementing time rewind functionality.
-    ///
-    /// # Parameters
-    /// - `view_start`: Start of visible range (exclusive)
-    /// - `view_end`: End of visible range (inclusive)
-    ///
-    /// # Returns
-    /// A vector of visible events
-    #[must_use]
-    pub fn visible_events_in_range(
-        &self,
-        view_start: &YCoordinate,
-        view_end: &YCoordinate,
-    ) -> Vec<PlayheadEvent> {
-        use std::ops::Bound::{Excluded, Included};
-
-        let mut visible = Vec::new();
-        let mut seen = std::collections::HashSet::new();
-
-        let events_in_range: Vec<usize> = self
-            .by_y
-            .range((Excluded(view_start), Included(view_end)))
-            .flat_map(|(_, range)| range.clone())
-            .collect();
-
-        let crossing_lns: Vec<usize> = self
-            .ln_by_end
-            .range((Excluded(view_start), Bound::Unbounded))
-            .filter(|(end_y, _)| **end_y > *view_start)
-            .flat_map(|(_, range)| range.clone())
-            .collect();
-
-        for idx in events_in_range.iter().chain(crossing_lns.iter()) {
-            if seen.insert(idx)
-                && let Some(ev) = self.events.get(*idx)
-            {
-                let start_y = ev.position();
-                let end_y = if let ChartEvent::Note {
-                    length: Some(length),
-                    ..
-                } = ev.event()
-                {
-                    start_y + length
-                } else {
-                    start_y.clone()
-                };
-
-                if end_y > *view_start && *start_y <= *view_end {
-                    visible.push(ev.clone());
-                }
-            }
-        }
-
-        visible
     }
 }
 

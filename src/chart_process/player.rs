@@ -3,6 +3,7 @@
 //! Unified player for parsed charts, managing playback state and event processing.
 
 use std::collections::BTreeMap;
+use std::ops::Bound;
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -217,7 +218,7 @@ impl ChartPlayer {
 
         let visible_events = self
             .all_events
-            .visible_events_in_range(&view_start, &view_end);
+            .events_in_y_range((Bound::Excluded(&view_start), Bound::Included(&view_end)));
 
         visible_events
             .iter()
