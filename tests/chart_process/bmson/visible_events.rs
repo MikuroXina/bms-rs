@@ -1,7 +1,8 @@
 #![cfg(feature = "bmson")]
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
+use num::{One, ToPrimitive, Zero};
+use std::time::Duration;
 
 use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
@@ -231,5 +232,171 @@ fn test_visible_events_with_boundary_conditions() {
         expected_ratio_f64,
         actual_ratio_f64,
         "visible_window_y ratio with playback_ratio",
+    );
+}
+
+#[test]
+fn test_visible_events_returns_long_notes_passed_start() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test Long Note",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "note.wav",
+                "notes": [
+                    { "x": 1, "y": 0, "l": 1440, "c": false }
+                ]
+            }
+        ],
+        "bpm_events": []
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    let velocity = Decimal::from(120) * Decimal::one() / Decimal::from(240u64);
+    let advance_time = TimeSpan::from_duration(Duration::from_secs_f64(2.5));
+    let _advance_y =
+        Decimal::from(advance_time.as_nanos()) / Decimal::from(1_000_000_000u64) * velocity;
+
+    let _ = processor.update(start_time + advance_time);
+
+    let state = processor.playback_state();
+    let current_y = state.progressed_y().clone();
+
+    let visible_events = processor.visible_events();
+    let long_notes: Vec<_> = visible_events
+        .iter()
+        .filter(|(ev, _)| {
+            matches!(
+                ev.event(),
+                ChartEvent::Note {
+                    length: Some(_),
+                    ..
+                }
+            )
+        })
+        .collect();
+
+    assert!(
+        !long_notes.is_empty(),
+        "Long note should be visible even when passed its start position. Got {} visible events total, {} of which are long notes. Current Y: {:?}",
+        visible_events.len(),
+        long_notes.len(),
+        current_y
+    );
+
+    if let Some((ev, range)) = long_notes.first() {
+        if let ChartEvent::Note {
+            length: Some(_), ..
+        } = ev.event()
+        {
+            assert!(
+                range.start().as_ref() <= &Decimal::zero(),
+                "Long note start display ratio should be negative (below judgment line), got: {:?}",
+                range.start()
+            );
+            assert!(
+                range.end().as_ref() > &Decimal::zero(),
+                "Long note end display ratio should be positive (above judgment line), got: {:?}",
+                range.end()
+            );
+        } else {
+            panic!("Expected a long note event");
+        }
+    }
+}
+
+#[test]
+fn test_visible_events_returns_long_notes_entirely_passed() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test Long Note Entirely Passed",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "note.wav",
+                "notes": [
+                    { "x": 1, "y": 0, "l": 240, "c": false },
+                    { "x": 1, "y": 480, "l": 0, "c": false }
+                ]
+            }
+        ],
+        "bpm_events": []
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM in test setup");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let chart = BmsonProcessor::parse(&bmson);
+    let start_time = TimeStamp::now();
+    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    let advance_time = TimeSpan::from_duration(Duration::from_secs_f64(0.5));
+    let _ = processor.update(start_time + advance_time);
+
+    let _state = processor.playback_state();
+    let visible_events = processor.visible_events();
+    println!("Total visible events: {}", visible_events.len());
+
+    for (ev, range) in &visible_events {
+        if let ChartEvent::Note {
+            length: Some(ln), ..
+        } = ev.event()
+        {
+            println!(
+                "Long note at Y={}, length={}, range={:?}->{:?}",
+                ev.position().as_ref(),
+                ln.as_ref(),
+                range.start(),
+                range.end()
+            );
+        }
+    }
+
+    let has_entirely_passed_long_notes = visible_events.iter().any(|(ev, range)| {
+        if let ChartEvent::Note {
+            length: Some(length),
+            ..
+        } = ev.event()
+        {
+            let end_y = ev.position().as_ref() + length.as_ref();
+            let display_ratio = range.end().as_ref().to_f64().unwrap_or(0.0);
+            end_y > Decimal::zero() && display_ratio < 0.0
+        } else {
+            false
+        }
+    });
+
+    assert!(
+        !has_entirely_passed_long_notes,
+        "Long notes entirely passed should not be returned as visible"
     );
 }

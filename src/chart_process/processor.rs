@@ -6,7 +6,7 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
 use crate::bms::Decimal;
-use crate::chart_process::{FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
 pub mod bms;
 pub mod bmson;
@@ -153,6 +153,7 @@ pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
+    ln_end_y: BTreeMap<YCoordinate, usize>,
 }
 
 impl AllEventsIndex {
@@ -196,10 +197,22 @@ impl AllEventsIndex {
             });
         }
 
+        let mut ln_end_y: BTreeMap<YCoordinate, usize> = BTreeMap::new();
+        for (idx, ev) in events.iter().enumerate() {
+            if let ChartEvent::Note {
+                length: Some(length),
+                ..
+            } = ev.event()
+            {
+                ln_end_y.insert(ev.position().clone() + length.clone(), idx);
+            }
+        }
+
         Self {
             events,
             by_y,
             by_time,
+            ln_end_y,
         }
     }
 
@@ -224,23 +237,71 @@ impl AllEventsIndex {
     /// Retrieve all events within a specified Y coordinate range.
     ///
     /// This method efficiently collects events whose Y coordinates fall within
-    /// the given range bounds.
+    /// given range bounds, including long notes that cross the range boundaries.
     ///
     /// # Parameters
     /// - `range`: The Y coordinate range to query
     ///
     /// # Returns
-    /// A vector of events within the specified range
+    /// A vector of events within specified range, including long notes that
+    /// started before the range but are still active during the range
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
-        R: RangeBounds<YCoordinate>,
+        R: RangeBounds<YCoordinate> + Clone,
     {
-        self.by_y
-            .range(range)
+        // Get events within the range (original logic)
+        let mut result: Vec<PlayheadEvent> = self
+            .by_y
+            .range(range.clone())
             .flat_map(|(_, indices)| self.events.get(indices.clone()).into_iter().flatten())
             .cloned()
-            .collect()
+            .collect();
+
+        // 2. Add long notes that cross the range boundary
+        // Only check for crossing long notes when there's a clear start boundary
+        let range_start = match range.start_bound() {
+            Bound::Included(s) | Bound::Excluded(s) => s,
+            Bound::Unbounded => return result,
+        };
+
+        // Query long notes ending in or after the range start
+        for (end_y, idx) in self.ln_end_y.range(range_start..) {
+            let Some(event) = self.events.get(*idx) else {
+                continue;
+            };
+
+            let ChartEvent::Note {
+                length: Some(_), ..
+            } = event.event()
+            else {
+                continue;
+            };
+
+            let start_y = event.position();
+
+            // Check if this is a crossing long note:
+            // starts before range but ends after range start
+            if start_y >= range_start {
+                continue;
+            }
+
+            // Check if it overlaps with the query range
+            // Long note [start_y, end_y] overlaps with range (range_start, end] if:
+            //   start_y < end && end_y > range_start
+            let should_include = match range.end_bound() {
+                Bound::Included(end) | Bound::Excluded(end) => {
+                    start_y < end && end_y > range_start
+                }
+                Bound::Unbounded => end_y > range_start,
+            };
+
+            if should_include {
+                result.push(event.clone());
+            }
+        }
+
+        result
     }
 
     /// Retrieve all events within a specified time range.
@@ -447,6 +508,7 @@ mod tests {
 
     use super::AllEventsIndex;
     use super::ChartEventId;
+    use crate::bms::prelude::{Key, NoteKind, PlayerSide};
     use crate::chart_process::{ChartEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
@@ -455,6 +517,28 @@ mod tests {
             ChartEventId::new(id),
             y_coord,
             ChartEvent::BarLine,
+            TimeSpan::SECOND * time_secs as i64,
+        )
+    }
+
+    fn mk_long_note(
+        id: usize,
+        start_y: f64,
+        length: f64,
+        time_secs: u64,
+    ) -> PlayheadEvent {
+        let y_coord = YCoordinate::from(start_y);
+        PlayheadEvent::new(
+            ChartEventId::new(id),
+            y_coord,
+            ChartEvent::Note {
+                side: PlayerSide::Player1,
+                key: Key::Key(1),
+                kind: NoteKind::Long,
+                wav_id: None,
+                length: Some(YCoordinate::from(length)),
+                continue_play: None,
+            },
             TimeSpan::SECOND * time_secs as i64,
         )
     }
@@ -582,5 +666,131 @@ mod tests {
             .map(|ev| ev.id.value())
             .collect();
         assert_eq!(got_ids, vec![1]);
+    }
+
+    #[test]
+    fn events_in_y_range_excludes_completed_long_notes() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![mk_long_note(1, 5.0, 3.0, 1)],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        use std::ops::Bound::{Excluded, Included};
+        let result: Vec<usize> = idx
+            .events_in_y_range((Excluded(&YCoordinate::from(10.0)), Included(&YCoordinate::from(20.0))))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        assert!(
+            result.is_empty(),
+            "Completed long note [5, 8] should not be in range (10, 20]"
+        );
+    }
+
+    #[test]
+    fn events_in_y_range_includes_crossing_long_notes_from_left() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![mk_long_note(1, 5.0, 10.0, 1)],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        use std::ops::Bound::{Excluded, Included};
+        let result: Vec<usize> = idx
+            .events_in_y_range((Excluded(&YCoordinate::from(10.0)), Included(&YCoordinate::from(20.0))))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        assert_eq!(result, vec![1], "Crossing long note [5, 15] should be in range (10, 20]");
+    }
+
+    #[test]
+    fn events_in_y_range_includes_crossing_long_notes_from_right() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(15.0),
+            vec![mk_long_note(1, 15.0, 10.0, 1)],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        use std::ops::Bound::{Excluded, Included};
+        let result: Vec<usize> = idx
+            .events_in_y_range((Excluded(&YCoordinate::from(10.0)), Included(&YCoordinate::from(20.0))))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        assert_eq!(result, vec![1], "Crossing long note [15, 25] should be in range (10, 20]");
+    }
+
+    #[test]
+    fn events_in_y_range_includes_long_notes_containing_range() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![mk_long_note(1, 5.0, 20.0, 1)],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        use std::ops::Bound::{Excluded, Included};
+        let result: Vec<usize> = idx
+            .events_in_y_range((Excluded(&YCoordinate::from(10.0)), Included(&YCoordinate::from(20.0))))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        assert_eq!(result, vec![1], "Long note [5, 25] containing range (10, 20] should be included");
+    }
+
+    #[test]
+    fn events_in_y_range_excludes_long_notes_ending_at_range_start() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![mk_long_note(1, 5.0, 5.0, 1)],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        use std::ops::Bound::{Excluded, Included};
+        let result: Vec<usize> = idx
+            .events_in_y_range((Excluded(&YCoordinate::from(10.0)), Included(&YCoordinate::from(20.0))))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        assert!(
+            result.is_empty(),
+            "Long note [5, 10] ending at range start should be excluded from (10, 20]"
+        );
+    }
+
+    #[test]
+    fn events_in_y_range_includes_long_notes_starting_in_range() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(15.0),
+            vec![mk_long_note(1, 15.0, 3.0, 1)],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        use std::ops::Bound::{Excluded, Included};
+        let result: Vec<usize> = idx
+            .events_in_y_range((Excluded(&YCoordinate::from(10.0)), Included(&YCoordinate::from(20.0))))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        assert_eq!(result, vec![1], "Long note [15, 18] starting in range (10, 20] should be included");
     }
 }

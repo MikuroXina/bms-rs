@@ -83,7 +83,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         tokens,
         lex_warnings,
     } = TokenStream::parse_lex(source);
-    // 始终检查词法警告
+    // Always check for lexer warnings
     assert_eq!(lex_warnings, vec![]);
 
     // tokens -> Bms

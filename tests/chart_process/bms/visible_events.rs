@@ -154,7 +154,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     for (_, display_ratio_range) in &after_bpm_events {
         let ratio_value = display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0);
-        assert!(ratio_value.is_finite() && ratio_value >= 0.0);
+        assert!(ratio_value.is_finite());
     }
 }
 
