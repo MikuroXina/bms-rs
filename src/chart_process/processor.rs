@@ -5,8 +5,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
-use crate::bms::command::channel::NoteKind;
 use crate::bms::Decimal;
+use crate::bms::command::channel::NoteKind;
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
 pub mod bms;
@@ -265,38 +265,38 @@ impl AllEventsIndex {
         R: RangeBounds<YCoordinate> + Clone,
     {
         let mut visible = Vec::new();
-        let mut seen = std::collections::HashSet::new();
-
-        let events_in_range: Vec<usize> = self
-            .by_y
-            .range(range.clone())
-            .flat_map(|(_, range)| range.clone())
-            .collect();
 
         let view_start = match range.start_bound() {
-            Bound::Included(start) | Bound::Excluded(start) => start,
-            Bound::Unbounded => &YCoordinate::zero(),
+            Bound::Included(start) | Bound::Excluded(start) => start.clone(),
+            Bound::Unbounded => YCoordinate::zero(),
         };
 
         let view_end = match range.end_bound() {
-            Bound::Included(end) | Bound::Excluded(end) => end,
-            Bound::Unbounded => &YCoordinate::from(f64::MAX),
+            Bound::Included(end) | Bound::Excluded(end) => end.clone(),
+            Bound::Unbounded => YCoordinate::from(f64::MAX),
         };
 
         let start_inclusive = matches!(range.start_bound(), Bound::Included(_));
 
-        for idx in events_in_range {
-            if seen.insert(idx)
-                && let Some(ev) = self.events.get(idx)
-            {
+        let start_bound = if start_inclusive {
+            Bound::Included(view_start.clone())
+        } else {
+            Bound::Excluded(view_start.clone())
+        };
+
+        for (_, idx_range) in self.by_y.range(range) {
+            for idx in idx_range.clone() {
+                let Some(ev) = self.events.get(idx) else {
+                    continue;
+                };
                 let start_y = ev.position();
 
                 let passes_start = if start_inclusive {
-                    *start_y >= *view_start
+                    *start_y >= view_start
                 } else {
-                    *start_y > *view_start
+                    *start_y > view_start
                 };
-                let passes_end = *start_y <= *view_end;
+                let passes_end = *start_y <= view_end;
 
                 if passes_start && passes_end {
                     visible.push(ev.clone());
@@ -304,20 +304,14 @@ impl AllEventsIndex {
             }
         }
 
-        let crossing_lns: Vec<usize> = self
-            .ln_by_end
-            .range((Bound::Excluded(view_start), Bound::Unbounded))
-            .filter(|(end_y, _)| **end_y > *view_start)
-            .flat_map(|(_, idx_range)| idx_range.clone())
-            .collect();
-
-        for idx in crossing_lns {
-            if seen.insert(idx)
-                && let Some(ev) = self.events.get(idx)
-            {
+        for (_, idx_range) in self.ln_by_end.range((start_bound, Bound::Unbounded)) {
+            for idx in idx_range.clone() {
+                let Some(ev) = self.events.get(idx) else {
+                    continue;
+                };
                 let start_y = ev.position();
 
-                if *start_y <= *view_end {
+                if *start_y <= view_end {
                     visible.push(ev.clone());
                 }
             }
