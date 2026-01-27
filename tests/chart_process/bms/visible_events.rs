@@ -152,9 +152,32 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
         "Should still have visible events after BPM change"
     );
 
-    for (_, display_ratio_range) in &after_bpm_events {
-        let ratio_value = display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0);
-        assert!(ratio_value.is_finite() && ratio_value >= 0.0);
+    for (event, display_ratio_range) in &after_bpm_events {
+        let ratio_start = display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0);
+        let ratio_end = display_ratio_range.end().as_ref().to_f64().unwrap_or(0.0);
+        assert!(ratio_start.is_finite());
+        assert!(ratio_end.is_finite());
+
+        // For long notes, check that the tail is above the judgment line
+        // For normal notes, check that the head is above the judgment line
+        let is_long_note = matches!(
+            event.event(),
+            ChartEvent::Note {
+                kind: NoteKind::Long,
+                ..
+            }
+        );
+        if is_long_note {
+            assert!(
+                ratio_end >= 0.0,
+                "Long note tail should be above judgment line"
+            );
+        } else {
+            assert!(
+                ratio_start >= 0.0,
+                "Normal note head should be above judgment line"
+            );
+        }
     }
 }
 

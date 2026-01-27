@@ -3,6 +3,7 @@
 //! Unified player for parsed charts, managing playback state and event processing.
 
 use std::collections::BTreeMap;
+use std::ops::Bound;
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -212,9 +213,16 @@ impl ChartPlayer {
         let visible_window_y = self.visible_window_y(&self.playback_state.current_speed);
         let scroll_factor = &self.playback_state.current_scroll;
 
-        self.preloaded_events
+        let view_start = current_y.clone();
+        let view_end = current_y.clone() + visible_window_y.clone();
+
+        let visible_events = self
+            .all_events
+            .events_in_y_range((Bound::Excluded(&view_start), Bound::Included(&view_end)));
+
+        visible_events
             .iter()
-            .map(|event_with_pos| {
+            .filter_map(|event_with_pos| {
                 let event_y = event_with_pos.position();
                 let start_display_ratio = Self::compute_display_ratio(
                     event_y,
@@ -223,7 +231,6 @@ impl ChartPlayer {
                     scroll_factor,
                 );
 
-                // Calculate end position for long notes
                 let end_display_ratio = if let ChartEvent::Note {
                     length: Some(length),
                     ..
@@ -232,14 +239,22 @@ impl ChartPlayer {
                     let end_y = event_y.clone() + length.clone();
                     Self::compute_display_ratio(&end_y, current_y, &visible_window_y, scroll_factor)
                 } else {
-                    // Normal notes and other events: start and end are the same
                     start_display_ratio.clone()
                 };
 
-                (
+                let ratio_start = start_display_ratio.value();
+                let ratio_end = end_display_ratio.value();
+
+                let is_visible = if ratio_start == ratio_end {
+                    *ratio_start > Decimal::zero()
+                } else {
+                    *ratio_end > Decimal::zero()
+                };
+
+                is_visible.then_some((
                     event_with_pos.clone(),
                     start_display_ratio..=end_display_ratio,
-                )
+                ))
             })
             .collect()
     }
