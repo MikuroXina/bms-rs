@@ -151,13 +151,27 @@ impl ChartEventIdGenerator {
 /// Index for all chart events, organized by Y coordinate and time.
 ///
 /// This structure provides efficient lookups for events by their Y coordinate
-/// and activation time, along with precomputed indices for long note visibility queries.
+/// and activation time. For long notes, we maintain precomputed indices
+/// for both start and end positions to support efficient visibility queries.
+///
+/// # Long Note Visibility
+///
+/// Long notes should remain visible even when their start position has
+/// passed the judgment line, as long as any part of them is still
+/// within the visible window.
+///
+/// The `visible_ln_by_start` and `visible_ln_by_end` indices enable
+/// O(log n) queries for long notes that intersect with the view range,
+/// making this implementation suitable for time rewind functionality.
 #[derive(Debug, Clone)]
 pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
-    ln_by_end: BTreeMap<YCoordinate, Range<usize>>,
+    /// Maps long note start position to event index.
+    visible_ln_by_start: BTreeMap<YCoordinate, usize>,
+    /// Maps long note end position to event index.
+    visible_ln_by_end: BTreeMap<YCoordinate, usize>,
 }
 
 impl AllEventsIndex {
@@ -201,7 +215,9 @@ impl AllEventsIndex {
             });
         }
 
-        let mut ln_by_end: BTreeMap<YCoordinate, Range<usize>> = BTreeMap::new();
+        // Build precomputed indices for long notes.
+        let mut visible_ln_by_start: BTreeMap<YCoordinate, usize> = BTreeMap::new();
+        let mut visible_ln_by_end: BTreeMap<YCoordinate, usize> = BTreeMap::new();
 
         for (idx, ev) in events.iter().enumerate() {
             if let ChartEvent::Note {
@@ -210,12 +226,11 @@ impl AllEventsIndex {
                 ..
             } = ev.event()
             {
-                let end_y = ev.position().clone() + length.clone();
+                let start_y = ev.position().clone();
+                let end_y = start_y.clone() + length.clone();
 
-                ln_by_end
-                    .entry(end_y)
-                    .and_modify(|r| r.end += 1)
-                    .or_insert_with(|| idx..idx + 1);
+                visible_ln_by_start.insert(start_y, idx);
+                visible_ln_by_end.insert(end_y, idx);
             }
         }
 
@@ -223,7 +238,8 @@ impl AllEventsIndex {
             events,
             by_y,
             by_time,
-            ln_by_end,
+            visible_ln_by_start,
+            visible_ln_by_end,
         }
     }
 
@@ -251,8 +267,8 @@ impl AllEventsIndex {
     /// - Normal events: position is within `(start, end]`
     /// - Long notes: `end_y` > `start` AND `start_y` <= `end`
     ///
-    /// This method is useful for rendering and does not depend on playback direction,
-    /// making it suitable for implementing time rewind functionality.
+    /// This method uses precomputed indices for long notes, enabling O(log n)
+    /// lookup complexity and making it suitable for time rewind functionality.
     ///
     /// # Parameters
     /// - `range`: The Y coordinate range to query (start, end]
@@ -278,17 +294,22 @@ impl AllEventsIndex {
 
         let start_inclusive = matches!(range.start_bound(), Bound::Included(_));
 
-        let start_bound = if start_inclusive {
-            Bound::Included(view_start.clone())
-        } else {
-            Bound::Excluded(view_start.clone())
-        };
-
+        // Step 1: Find non-LN events whose start is within range
         for (_, idx_range) in self.by_y.range(range) {
             for idx in idx_range.clone() {
                 let Some(ev) = self.events.get(idx) else {
                     continue;
                 };
+
+                // Skip long notes (will be handled via precomputed indices)
+                if let ChartEvent::Note {
+                    kind: NoteKind::Long,
+                    ..
+                } = ev.event()
+                {
+                    continue;
+                }
+
                 let start_y = ev.position();
 
                 let passes_start = if start_inclusive {
@@ -304,16 +325,73 @@ impl AllEventsIndex {
             }
         }
 
-        for (_, idx_range) in self.ln_by_end.range((start_bound, Bound::Unbounded)) {
-            for idx in idx_range.clone() {
-                let Some(ev) = self.events.get(idx) else {
-                    continue;
-                };
-                let start_y = ev.position();
+        // Step 2: Find all long notes that intersect with the view range
+        // LN intersection condition: start_y <= view_end AND end_y > view_start
+        let lower_bound = if start_inclusive {
+            Bound::Included(view_start.clone())
+        } else {
+            Bound::Excluded(view_start.clone())
+        };
 
-                if *start_y <= view_end {
-                    visible.push(ev.clone());
-                }
+        // Use HashSet to avoid duplicates
+        use std::collections::HashSet;
+        let mut ln_ids = HashSet::new();
+
+        // 2.1: LNs whose start OR end is within [view_start, view_end]
+        for (_, idx) in self
+            .visible_ln_by_start
+            .range((lower_bound.clone(), Bound::Included(view_end.clone())))
+        {
+            let idx_usize: usize = *idx;
+            if let Some(ev) = self.events.get(idx_usize)
+                && let ChartEvent::Note {
+                    kind: NoteKind::Long,
+                    ..
+                } = ev.event()
+                && ln_ids.insert(ev.id())
+            {
+                visible.push(ev.clone());
+            }
+        }
+
+        for (_, idx) in self
+            .visible_ln_by_end
+            .range((lower_bound.clone(), Bound::Included(view_end)))
+        {
+            let idx_usize: usize = *idx;
+            if let Some(ev) = self.events.get(idx_usize)
+                && let ChartEvent::Note {
+                    kind: NoteKind::Long,
+                    ..
+                } = ev.event()
+                && ln_ids.insert(ev.id())
+            {
+                visible.push(ev.clone());
+            }
+        }
+
+        // 2.2: LNs whose end is after view_start but start is before view_start
+        // These LNs start before the view window but extend into it
+        for (_, idx) in self
+            .visible_ln_by_end
+            .range((lower_bound, Bound::Unbounded))
+        {
+            let idx_usize: usize = *idx;
+            let Some(ev) = self.events.get(idx_usize) else {
+                continue;
+            };
+
+            let ln_start = ev.position();
+
+            // Only process LNs that start before view_start (avoid duplicates with step 2.1)
+            if *ln_start < view_start
+                && let ChartEvent::Note {
+                    kind: NoteKind::Long,
+                    ..
+                } = ev.event()
+                && ln_ids.insert(ev.id())
+            {
+                visible.push(ev.clone());
             }
         }
 
