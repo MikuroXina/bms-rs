@@ -1,7 +1,7 @@
 //! Module for chart processors
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
@@ -275,6 +275,20 @@ impl AllEventsIndex {
     ///
     /// # Returns
     /// A vector of events within the specified range
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Get events visible in a window from 10.0 to 20.0
+    /// let events = index.events_in_y_range(10.0..=20.0);
+    ///
+    /// // Long notes intersecting the view are included
+    /// // - LN starting at 5.0 and ending at 15.0: included (intersects)
+    /// // - LN starting at 10.0 and ending at 20.0: included (within view)
+    /// // - LN starting at 15.0 and ending at 25.0: included (intersects)
+    /// // - LN starting at 5.0 and ending at 8.0: excluded (completely before)
+    /// // - LN starting at 22.0 and ending at 30.0: excluded (completely after)
+    /// ```
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
@@ -295,7 +309,7 @@ impl AllEventsIndex {
         let start_inclusive = matches!(range.start_bound(), Bound::Included(_));
 
         // Step 1: Find non-LN events whose start is within range
-        for (_, idx_range) in self.by_y.range(range) {
+        for idx_range in self.by_y.range(range).map(|(_, r)| r) {
             for idx in idx_range.clone() {
                 let Some(ev) = self.events.get(idx) else {
                     continue;
@@ -334,41 +348,22 @@ impl AllEventsIndex {
         };
 
         // Use HashSet to avoid duplicates
-        use std::collections::HashSet;
         let mut ln_ids = HashSet::new();
 
         // 2.1: LNs whose start OR end is within [view_start, view_end]
-        for (_, idx) in self
-            .visible_ln_by_start
-            .range((lower_bound.clone(), Bound::Included(view_end.clone())))
-        {
-            let idx_usize: usize = *idx;
-            if let Some(ev) = self.events.get(idx_usize)
-                && let ChartEvent::Note {
-                    kind: NoteKind::Long,
-                    ..
-                } = ev.event()
-                && ln_ids.insert(ev.id())
-            {
-                visible.push(ev.clone());
-            }
-        }
+        self.collect_lns_from_range(
+            self.visible_ln_by_start
+                .range((lower_bound.clone(), Bound::Included(view_end.clone()))),
+            &mut ln_ids,
+            &mut visible,
+        );
 
-        for (_, idx) in self
-            .visible_ln_by_end
-            .range((lower_bound.clone(), Bound::Included(view_end)))
-        {
-            let idx_usize: usize = *idx;
-            if let Some(ev) = self.events.get(idx_usize)
-                && let ChartEvent::Note {
-                    kind: NoteKind::Long,
-                    ..
-                } = ev.event()
-                && ln_ids.insert(ev.id())
-            {
-                visible.push(ev.clone());
-            }
-        }
+        self.collect_lns_from_range(
+            self.visible_ln_by_end
+                .range((lower_bound.clone(), Bound::Included(view_end))),
+            &mut ln_ids,
+            &mut visible,
+        );
 
         // 2.2: LNs whose end is after view_start but start is before view_start
         // These LNs start before the view window but extend into it
@@ -376,8 +371,7 @@ impl AllEventsIndex {
             .visible_ln_by_end
             .range((lower_bound, Bound::Unbounded))
         {
-            let idx_usize: usize = *idx;
-            let Some(ev) = self.events.get(idx_usize) else {
+            let Some(ev) = self.events.get(*idx) else {
                 continue;
             };
 
@@ -396,6 +390,34 @@ impl AllEventsIndex {
         }
 
         visible
+    }
+
+    /// Helper method to collect long note events from an index range.
+    ///
+    /// This method iterates over long note indices and adds them to result
+    /// if they haven't been added before (using `HashSet` for deduplication).
+    ///
+    /// # Parameters
+    /// - `range`: Iterator over `(YCoordinate, usize)` pairs from LN index
+    /// - `ln_ids`: `HashSet` to track already-added LN IDs
+    /// - `visible`: `Vec` to collect visible events
+    fn collect_lns_from_range<'a>(
+        &self,
+        range: impl Iterator<Item = (&'a YCoordinate, &'a usize)>,
+        ln_ids: &mut HashSet<ChartEventId>,
+        visible: &mut Vec<PlayheadEvent>,
+    ) {
+        for (_, idx) in range {
+            if let Some(ev) = self.events.get(*idx)
+                && let ChartEvent::Note {
+                    kind: NoteKind::Long,
+                    ..
+                } = ev.event()
+                && ln_ids.insert(ev.id())
+            {
+                visible.push(ev.clone());
+            }
+        }
     }
 
     /// Retrieve all events within a specified time range.
@@ -602,6 +624,7 @@ mod tests {
 
     use super::AllEventsIndex;
     use super::ChartEventId;
+    use crate::bms::command::channel::{Key, NoteKind, PlayerSide};
     use crate::chart_process::{ChartEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
@@ -737,5 +760,301 @@ mod tests {
             .map(|ev| ev.id.value())
             .collect();
         assert_eq!(got_ids, vec![1]);
+    }
+
+    #[test]
+    fn events_in_y_range_includes_long_notes_intersecting_view() {
+        // Test case 1: LN start and end within view
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(1),
+                YCoordinate::from(5.0),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: Key::Key(1),
+                    kind: NoteKind::Long,
+                    wav_id: None,
+                    length: Some(YCoordinate::from(3.0)), // ends at 8.0
+                    continue_play: None,
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+        map.insert(YCoordinate::from(15.0), vec![mk_event(2, 15.0, 0)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        // Query range [0.0, 10.0]
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((
+                std::ops::Bound::Included(YCoordinate::from(0.0)),
+                std::ops::Bound::Included(YCoordinate::from(10.0)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        // LN should be included (start=5.0, end=8.0, both within range)
+        assert!(got_ids.contains(&1));
+    }
+
+    #[test]
+    fn events_in_y_range_includes_ln_starting_before_view() {
+        // Test case 2: LN starts before view, ends within view
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(1),
+                YCoordinate::from(5.0),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: Key::Key(1),
+                    kind: NoteKind::Long,
+                    wav_id: None,
+                    length: Some(YCoordinate::from(3.0)), // ends at 8.0
+                    continue_play: None,
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        // Query range [7.0, 10.0] (starts after LN start but before LN end)
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((
+                std::ops::Bound::Included(YCoordinate::from(7.0)),
+                std::ops::Bound::Included(YCoordinate::from(10.0)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        // LN should be included (intersects with view)
+        assert!(got_ids.contains(&1));
+    }
+
+    #[test]
+    fn events_in_y_range_includes_ln_ending_after_view() {
+        // Test case 3: LN starts within view, ends after view
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(1),
+                YCoordinate::from(5.0),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: crate::bms::prelude::Key::Key(1),
+                    kind: NoteKind::Long,
+                    wav_id: None,
+                    length: Some(YCoordinate::from(10.0)), // ends at 15.0
+                    continue_play: None,
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        // Query range [0.0, 10.0] (ends before LN end)
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((
+                std::ops::Bound::Included(YCoordinate::from(0.0)),
+                std::ops::Bound::Included(YCoordinate::from(10.0)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        // LN should be included (intersects with view)
+        assert!(got_ids.contains(&1));
+    }
+
+    #[test]
+    fn events_in_y_range_includes_ln_fully_covering_view() {
+        // Test case 4: LN starts before and ends after view (fully covers)
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(0.0),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(1),
+                YCoordinate::from(0.0),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: crate::bms::prelude::Key::Key(1),
+                    kind: NoteKind::Long,
+                    wav_id: None,
+                    length: Some(YCoordinate::from(20.0)), // ends at 20.0
+                    continue_play: None,
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        // Query range [5.0, 15.0]
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((
+                std::ops::Bound::Included(YCoordinate::from(5.0)),
+                std::ops::Bound::Included(YCoordinate::from(15.0)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        // LN should be included (fully covers the view)
+        assert!(got_ids.contains(&1));
+    }
+
+    #[test]
+    fn events_in_y_range_excludes_ln_before_view() {
+        // Test case 5: LN completely before view
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(0.0),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(1),
+                YCoordinate::from(0.0),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: crate::bms::prelude::Key::Key(1),
+                    kind: NoteKind::Long,
+                    wav_id: None,
+                    length: Some(YCoordinate::from(3.0)), // ends at 3.0
+                    continue_play: None,
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+        map.insert(YCoordinate::from(10.0), vec![mk_event(2, 10.0, 0)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        // Query range [5.0, 15.0]
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((
+                std::ops::Bound::Included(YCoordinate::from(5.0)),
+                std::ops::Bound::Included(YCoordinate::from(15.0)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        // LN should be excluded (completely before view)
+        assert!(!got_ids.contains(&1));
+        // Normal event should be included
+        assert!(got_ids.contains(&2));
+    }
+
+    #[test]
+    fn events_in_y_range_excludes_ln_after_view() {
+        // Test case 6: LN completely after view
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+        map.insert(
+            YCoordinate::from(20.0),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(2),
+                YCoordinate::from(20.0),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: crate::bms::prelude::Key::Key(1),
+                    kind: NoteKind::Long,
+                    wav_id: None,
+                    length: Some(YCoordinate::from(5.0)), // ends at 25.0
+                    continue_play: None,
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        // Query range [0.0, 10.0]
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((
+                std::ops::Bound::Included(YCoordinate::from(0.0)),
+                std::ops::Bound::Included(YCoordinate::from(10.0)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        // LN should be excluded (completely after view)
+        assert!(!got_ids.contains(&2));
+        // Normal event should be included
+        assert!(got_ids.contains(&1));
+    }
+
+    #[test]
+    fn events_in_y_range_prevents_duplicate_long_notes() {
+        // Test that LN is not added twice when both start and end in range
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![PlayheadEvent::new(
+                ChartEventId::new(1),
+                YCoordinate::from(5.0),
+                ChartEvent::Note {
+                    side: PlayerSide::Player1,
+                    key: crate::bms::prelude::Key::Key(1),
+                    kind: NoteKind::Long,
+                    wav_id: None,
+                    length: Some(YCoordinate::from(3.0)), // ends at 8.0
+                    continue_play: None,
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+
+        let idx = AllEventsIndex::new(map);
+
+        // Query range [0.0, 10.0] (both start and end within range)
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((
+                std::ops::Bound::Included(YCoordinate::from(0.0)),
+                std::ops::Bound::Included(YCoordinate::from(10.0)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        // LN should appear exactly once
+        let count = got_ids.iter().filter(|&&id| id == 1).count();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn events_in_y_range_respects_excluded_start_bound() {
+        // Test that (start, end] correctly excludes start for normal notes
+        // For long notes, if they intersect with view (even if start is excluded), they are included
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(5.0),
+            vec![mk_event(1, 5.0, 0)], // Normal note at 5.0
+        );
+        map.insert(YCoordinate::from(6.0), vec![mk_event(2, 6.0, 0)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        // Query range (5.0, 10.0] - should exclude event at 5.0
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((
+                std::ops::Bound::Excluded(YCoordinate::from(5.0)),
+                std::ops::Bound::Included(YCoordinate::from(10.0)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+
+        // Normal note at excluded bound should NOT be included
+        assert!(!got_ids.contains(&1));
+        // Normal event after bound should be included
+        assert!(got_ids.contains(&2));
     }
 }
