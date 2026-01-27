@@ -786,18 +786,16 @@ mod tests {
 
         let idx = AllEventsIndex::new(map);
 
-        // Query range [0.0, 10.0]
-        let got_ids: Vec<usize> = idx
-            .events_in_y_range((
+        // LN should be included (start=5.0, end=8.0, both within range)
+        assert!(
+            idx.events_in_y_range((
                 std::ops::Bound::Included(YCoordinate::from(0.0)),
                 std::ops::Bound::Included(YCoordinate::from(10.0)),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
-            .collect();
-
-        // LN should be included (start=5.0, end=8.0, both within range)
-        assert!(got_ids.contains(&1));
+            .any(|x| x == 1)
+        );
     }
 
     #[test]
@@ -823,18 +821,16 @@ mod tests {
 
         let idx = AllEventsIndex::new(map);
 
-        // Query range [7.0, 10.0] (starts after LN start but before LN end)
-        let got_ids: Vec<usize> = idx
-            .events_in_y_range((
+        // LN should be included (intersects with view)
+        assert!(
+            idx.events_in_y_range((
                 std::ops::Bound::Included(YCoordinate::from(7.0)),
                 std::ops::Bound::Included(YCoordinate::from(10.0)),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
-            .collect();
-
-        // LN should be included (intersects with view)
-        assert!(got_ids.contains(&1));
+            .any(|x| x == 1)
+        );
     }
 
     #[test]
@@ -860,18 +856,16 @@ mod tests {
 
         let idx = AllEventsIndex::new(map);
 
-        // Query range [0.0, 10.0] (ends before LN end)
-        let got_ids: Vec<usize> = idx
-            .events_in_y_range((
+        // LN should be included (intersects with view)
+        assert!(
+            idx.events_in_y_range((
                 std::ops::Bound::Included(YCoordinate::from(0.0)),
                 std::ops::Bound::Included(YCoordinate::from(10.0)),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
-            .collect();
-
-        // LN should be included (intersects with view)
-        assert!(got_ids.contains(&1));
+            .any(|x| x == 1)
+        );
     }
 
     #[test]
@@ -897,18 +891,16 @@ mod tests {
 
         let idx = AllEventsIndex::new(map);
 
-        // Query range [5.0, 15.0]
-        let got_ids: Vec<usize> = idx
-            .events_in_y_range((
+        // LN should be included (fully covers the view)
+        assert!(
+            idx.events_in_y_range((
                 std::ops::Bound::Included(YCoordinate::from(5.0)),
                 std::ops::Bound::Included(YCoordinate::from(15.0)),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
-            .collect();
-
-        // LN should be included (fully covers the view)
-        assert!(got_ids.contains(&1));
+            .any(|x| x == 1)
+        );
     }
 
     #[test]
