@@ -314,17 +314,14 @@ impl AllEventsIndex {
             .sum();
         let mut visible = Vec::with_capacity(estimated_capacity);
 
-        // Use Vec instead of HashSet for better cache locality
-        let mut ln_indices: Vec<usize> = Vec::new();
-
-        // Step 1: Collect normal events, and gather all LN indices in range
+        // Step 1: Collect normal events (exclude long notes)
         for (_, idx_range) in self.by_y.range(range) {
             for idx in idx_range.clone() {
                 let Some(ev) = self.events.get(idx) else {
                     continue;
                 };
 
-                // Long notes: collect index for later processing
+                // Skip long notes (will be processed in step 2)
                 if matches!(
                     ev.event(),
                     ChartEvent::Note {
@@ -332,7 +329,6 @@ impl AllEventsIndex {
                         ..
                     }
                 ) {
-                    ln_indices.push(idx);
                     continue;
                 }
 
@@ -350,59 +346,49 @@ impl AllEventsIndex {
             }
         }
 
-        // Step 2: Collect long notes intersecting with view range
+        // Step 2: Collect long notes using non-overlapping BTreeMap range queries
         // LN visible condition: end_y > view_start AND start_y <= view_end
+        // To avoid deduplication, we use three mutually exclusive queries:
         let lower_bound = if start_inclusive {
             Bound::Included(view_start.clone())
         } else {
             Bound::Excluded(view_start.clone())
         };
 
-        // 2.1: LNs whose start is within [view_start, view_end]
+        // 2.1: LNs starting in [view_start, view_end] (automatically satisfy end_y > view_start)
         for (_, &idx) in self
             .visible_ln_by_start
             .range((lower_bound.clone(), Bound::Included(view_end.clone())))
         {
-            ln_indices.push(idx);
-        }
-
-        // 2.2: LNs whose end is within [view_start, view_end]
-        for (_, &idx) in self
-            .visible_ln_by_end
-            .range((lower_bound.clone(), Bound::Included(view_end)))
-        {
-            ln_indices.push(idx);
-        }
-
-        // 2.3: LNs crossing the view window (end after view_start but start before view_start)
-        for (_, &idx) in self
-            .visible_ln_by_end
-            .range((lower_bound, Bound::Unbounded))
-        {
-            // Skip if already collected
-            if ln_indices.contains(&idx) {
-                continue;
+            if let Some(ev) = self.events.get(idx) {
+                visible.push(ev.clone());
             }
+        }
 
+        // 2.2: LNs with end_y in [view_start, view_end] but start_y < view_start
+        for (_, &idx) in self
+            .visible_ln_by_end
+            .range((lower_bound, Bound::Included(view_end.clone())))
+        {
             let Some(ev) = self.events.get(idx) else {
                 continue;
             };
-
             let ln_start = ev.position();
-
-            // Only add LNs that start before view_start (crossing the window)
             if *ln_start < view_start {
-                ln_indices.push(idx);
+                visible.push(ev.clone());
             }
         }
 
-        // Optimization: Sort and deduplicate indices (better cache locality than HashSet)
-        ln_indices.sort_unstable();
-        ln_indices.dedup();
-
-        // Add all LN events to result
-        for idx in ln_indices {
-            if let Some(ev) = self.events.get(idx) {
+        // 2.3: LNs with end_y > view_end but start_y < view_start (fully cover the view)
+        for (_, &idx) in self
+            .visible_ln_by_end
+            .range((Bound::Excluded(view_end), Bound::Unbounded))
+        {
+            let Some(ev) = self.events.get(idx) else {
+                continue;
+            };
+            let ln_start = ev.position();
+            if *ln_start < view_start {
                 visible.push(ev.clone());
             }
         }
