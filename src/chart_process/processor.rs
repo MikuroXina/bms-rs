@@ -1,7 +1,7 @@
 //! Module for chart processors
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
@@ -294,8 +294,6 @@ impl AllEventsIndex {
     where
         R: RangeBounds<YCoordinate> + Clone,
     {
-        let mut visible = Vec::new();
-
         let view_start = match range.start_bound() {
             Bound::Included(start) | Bound::Excluded(start) => start.clone(),
             Bound::Unbounded => YCoordinate::zero(),
@@ -308,116 +306,108 @@ impl AllEventsIndex {
 
         let start_inclusive = matches!(range.start_bound(), Bound::Included(_));
 
-        // Step 1: Find non-LN events whose start is within range
-        for idx_range in self.by_y.range(range).map(|(_, r)| r) {
+        // Optimization: Pre-allocate capacity based on estimated event count
+        let estimated_capacity: usize = self
+            .by_y
+            .range(range.clone())
+            .map(|(_, idx_range)| idx_range.len())
+            .sum();
+        let mut visible = Vec::with_capacity(estimated_capacity);
+
+        // Use Vec instead of HashSet for better cache locality
+        let mut ln_indices: Vec<usize> = Vec::new();
+
+        // Step 1: Collect normal events, and gather all LN indices in range
+        for (_, idx_range) in self.by_y.range(range) {
             for idx in idx_range.clone() {
                 let Some(ev) = self.events.get(idx) else {
                     continue;
                 };
 
-                // Skip long notes (will be handled via precomputed indices)
-                if let ChartEvent::Note {
-                    kind: NoteKind::Long,
-                    ..
-                } = ev.event()
-                {
+                // Long notes: collect index for later processing
+                if matches!(
+                    ev.event(),
+                    ChartEvent::Note {
+                        kind: NoteKind::Long,
+                        ..
+                    }
+                ) {
+                    ln_indices.push(idx);
                     continue;
                 }
 
+                // Normal events: process immediately
                 let start_y = ev.position();
-
                 let passes_start = if start_inclusive {
                     *start_y >= view_start
                 } else {
                     *start_y > view_start
                 };
-                let passes_end = *start_y <= view_end;
 
-                if passes_start && passes_end {
+                if passes_start && *start_y <= view_end {
                     visible.push(ev.clone());
                 }
             }
         }
 
-        // Step 2: Find all long notes that intersect with the view range
-        // LN intersection condition: start_y <= view_end AND end_y > view_start
+        // Step 2: Collect long notes intersecting with view range
+        // LN visible condition: end_y > view_start AND start_y <= view_end
         let lower_bound = if start_inclusive {
             Bound::Included(view_start.clone())
         } else {
             Bound::Excluded(view_start.clone())
         };
 
-        // Use HashSet to avoid duplicates
-        let mut ln_ids = HashSet::new();
+        // 2.1: LNs whose start is within [view_start, view_end]
+        for (_, &idx) in self
+            .visible_ln_by_start
+            .range((lower_bound.clone(), Bound::Included(view_end.clone())))
+        {
+            ln_indices.push(idx);
+        }
 
-        // 2.1: LNs whose start OR end is within [view_start, view_end]
-        self.collect_lns_from_range(
-            self.visible_ln_by_start
-                .range((lower_bound.clone(), Bound::Included(view_end.clone()))),
-            &mut ln_ids,
-            &mut visible,
-        );
+        // 2.2: LNs whose end is within [view_start, view_end]
+        for (_, &idx) in self
+            .visible_ln_by_end
+            .range((lower_bound.clone(), Bound::Included(view_end)))
+        {
+            ln_indices.push(idx);
+        }
 
-        self.collect_lns_from_range(
-            self.visible_ln_by_end
-                .range((lower_bound.clone(), Bound::Included(view_end))),
-            &mut ln_ids,
-            &mut visible,
-        );
-
-        // 2.2: LNs whose end is after view_start but start is before view_start
-        // These LNs start before the view window but extend into it
-        for (_, idx) in self
+        // 2.3: LNs crossing the view window (end after view_start but start before view_start)
+        for (_, &idx) in self
             .visible_ln_by_end
             .range((lower_bound, Bound::Unbounded))
         {
-            let Some(ev) = self.events.get(*idx) else {
+            // Skip if already collected
+            if ln_indices.contains(&idx) {
+                continue;
+            }
+
+            let Some(ev) = self.events.get(idx) else {
                 continue;
             };
 
             let ln_start = ev.position();
 
-            // Only process LNs that start before view_start (avoid duplicates with step 2.1)
-            if *ln_start < view_start
-                && let ChartEvent::Note {
-                    kind: NoteKind::Long,
-                    ..
-                } = ev.event()
-                && ln_ids.insert(ev.id())
-            {
+            // Only add LNs that start before view_start (crossing the window)
+            if *ln_start < view_start {
+                ln_indices.push(idx);
+            }
+        }
+
+        // Optimization: Sort and deduplicate indices (better cache locality than HashSet)
+        ln_indices.sort_unstable();
+        ln_indices.dedup();
+
+        // Add all LN events to result
+        for idx in ln_indices {
+            if let Some(ev) = self.events.get(idx) {
                 visible.push(ev.clone());
             }
         }
 
         visible
-    }
-
-    /// Helper method to collect long note events from an index range.
-    ///
-    /// This method iterates over long note indices and adds them to result
-    /// if they haven't been added before (using `HashSet` for deduplication).
-    ///
-    /// # Parameters
-    /// - `range`: Iterator over `(YCoordinate, usize)` pairs from LN index
-    /// - `ln_ids`: `HashSet` to track already-added LN IDs
-    /// - `visible`: `Vec` to collect visible events
-    fn collect_lns_from_range<'a>(
-        &self,
-        range: impl Iterator<Item = (&'a YCoordinate, &'a usize)>,
-        ln_ids: &mut HashSet<ChartEventId>,
-        visible: &mut Vec<PlayheadEvent>,
-    ) {
-        for (_, idx) in range {
-            if let Some(ev) = self.events.get(*idx)
-                && let ChartEvent::Note {
-                    kind: NoteKind::Long,
-                    ..
-                } = ev.event()
-                && ln_ids.insert(ev.id())
-            {
-                visible.push(ev.clone());
-            }
-        }
     }
 
     /// Retrieve all events within a specified time range.
