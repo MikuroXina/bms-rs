@@ -11,7 +11,8 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, ProcessableChart,
+    WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 use crate::{bms::Decimal, util::StrExtension};
@@ -113,7 +114,7 @@ impl BmsonProcessor {
             .map(|(name, id)| (id, PathBuf::from(name)))
             .collect();
 
-        ParsedChart::new(
+        ParsedChart::from_parts(
             ChartResources::new(wav_files, bmp_files),
             all_events,
             flow_events_by_y,
@@ -454,5 +455,13 @@ impl AllEventsIndex {
             }
         }
         Self::new(events_map)
+    }
+}
+
+impl<'a> ProcessableChart for crate::bmson::Bmson<'a> {
+    type Err = ();
+
+    fn process(self) -> Result<ParsedChart, Self::Err> {
+        Ok(BmsonProcessor::parse(&self))
     }
 }

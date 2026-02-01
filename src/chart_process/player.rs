@@ -824,7 +824,7 @@ mod tests {
 
     #[test]
     fn test_velocity_caching() {
-        let chart = ParsedChart::new(
+        let chart = ParsedChart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             BTreeMap::new(),
@@ -864,7 +864,7 @@ mod tests {
             ],
         );
 
-        let chart = ParsedChart::new(
+        let chart = ParsedChart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
@@ -923,7 +923,7 @@ mod tests {
             ],
         );
 
-        let chart = ParsedChart::new(
+        let chart = ParsedChart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,

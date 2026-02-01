@@ -11,7 +11,8 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, ProcessableChart,
+    WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
@@ -69,7 +70,7 @@ impl BmsProcessor {
         // Precompute activate times
         let all_events = precompute_activate_times(bms, &all_events, &y_memo);
 
-        ParsedChart::new(
+        ParsedChart::from_parts(
             ChartResources::new(wav_files, bmp_files),
             all_events,
             y_memo.flow_events().clone(),
@@ -792,5 +793,16 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
         wav_id,
         length,
         continue_play: None,
+    }
+}
+
+impl ProcessableChart for crate::bms::Bms {
+    type Err = ();
+
+    fn process(self) -> Result<ParsedChart, Self::Err> {
+        // Use KeyLayoutBeat as the default key layout mapper
+        Ok(BmsProcessor::parse::<
+            crate::bms::command::channel::mapper::KeyLayoutBeat,
+        >(&self))
     }
 }
