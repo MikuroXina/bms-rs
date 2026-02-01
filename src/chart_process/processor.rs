@@ -267,8 +267,10 @@ impl AllEventsIndex {
     /// - Normal events: position is within `(start, end]`
     /// - Long notes: `end_y` > `start` AND `start_y` <= `end`
     ///
-    /// This method uses precomputed indices for long notes, enabling O(log n)
-    /// lookup complexity and making it suitable for time rewind functionality.
+    /// This method uses precomputed indices for long notes to efficiently locate
+    /// events in the range. Finding the range is O(log N), but cloning events
+    /// results in O(N) overall complexity. This makes it suitable for time rewind
+    /// functionality.
     ///
     /// # Parameters
     /// - `range`: The Y coordinate range to query (start, end]
