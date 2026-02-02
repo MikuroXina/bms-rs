@@ -6,7 +6,7 @@ use bms_rs::bmson::{
     BgaEvent, BgaHeader, BgaId, BmsonParseError, BpmEvent, parse_bmson, pulse::PulseNumber,
 };
 
-use strict_num_extended::FinF64;
+use strict_num_extended::PositiveF64;
 
 #[test]
 fn test_bmson100_lostokens() {
@@ -51,11 +51,11 @@ fn test_bmson100_bemusic_story_48key() {
         vec![
             BpmEvent {
                 y: PulseNumber(31680),
-                bpm: FinF64::new(199.0).unwrap()
+                bpm: PositiveF64::new(199.0).unwrap()
             },
             BpmEvent {
                 y: PulseNumber(3500640),
-                bpm: FinF64::new(200.0).unwrap()
+                bpm: PositiveF64::new(200.0).unwrap()
             }
         ]
     );

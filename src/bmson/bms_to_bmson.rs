@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 /// Warnings that occur during conversion from `Bms` to `Bmson`.
 #[derive(Debug, Clone, Copy, Error, PartialEq, Eq, Hash)]
@@ -72,6 +72,10 @@ impl Bms {
             FinF64::new(float).expect("expected finite float")
         }
 
+        fn positive_finite(float: f64) -> PositiveF64 {
+            PositiveF64::new(float).expect("expected positive finite float")
+        }
+
         let mut warnings = Vec::new();
         let converter = PulseConverter::new(&self);
         let judge_rank = FinF64::new(match self.judge.rank {
@@ -104,11 +108,11 @@ impl Bms {
             .values()
             .map(|bpm_change| BpmEvent {
                 y: converter.get_pulses_at(bpm_change.time),
-                bpm: FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0))
+                bpm: PositiveF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0))
                     .ok()
                     .unwrap_or_else(|| {
                         warnings.push(BmsToBmsonWarning::InvalidBpm);
-                        finite(120.0)
+                        positive_finite(120.0)
                     }),
             })
             .collect();
@@ -160,9 +164,9 @@ impl Bms {
                     },
                     |bpm| bpm.to_f64().unwrap_or(120.0),
                 );
-                FinF64::new(bpm_value).ok().unwrap_or_else(|| {
+                PositiveF64::new(bpm_value).ok().unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidBpm);
-                    finite(120.0)
+                    positive_finite(120.0)
                 })
             },
             judge_rank,
