@@ -7,7 +7,7 @@ pub mod control_flow;
 pub mod judge;
 pub mod metadata;
 pub mod music_info;
-mod notes;
+pub mod notes;
 pub mod obj;
 pub mod option;
 pub mod repr;
@@ -22,11 +22,12 @@ pub mod video;
 pub mod volume;
 pub mod wav;
 
+// Re-export commonly used types
+pub use notes::Notes;
+
 use std::fmt::Debug;
 
 use crate::bms::command::time::ObjTime;
-
-pub use notes::Notes;
 
 use self::{
     bmp::BmpObjects, bpm::BpmObjects, control_flow::RandomizedObjects, judge::JudgeObjects,
