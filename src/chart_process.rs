@@ -85,7 +85,7 @@ pub mod prelude;
 /// Events generated during playback (Elm style).
 ///
 /// These events represent actual events during chart playback, such as note triggers, BGM playback,
-/// BPM changes, etc. Setting and control related events have been separated into [`ControlEvent`].
+/// BPM changes, etc.
 ///
 /// The effects of [`ChartEvent`] members on [`YCoordinate`] and [`player::DisplayRatio`] are calculated by the corresponding
 /// processor implementation, so there's no need to recalculate them.
