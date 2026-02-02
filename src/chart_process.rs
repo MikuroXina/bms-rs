@@ -63,14 +63,13 @@
 //! where playhead_speed = 1/240
 //! ```
 
-pub use gametime::TimeSpan;
-
 use crate::bms::prelude::SwBgaEvent;
 use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
 use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
+use gametime::TimeSpan;
 use num::Zero;
 
 pub mod base_bpm;

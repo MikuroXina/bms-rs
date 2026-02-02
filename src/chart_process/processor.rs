@@ -12,10 +12,6 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoor
 pub mod bms;
 pub mod bmson;
 
-// Re-export processors
-pub use bms::BmsProcessor;
-pub use bmson::BmsonProcessor;
-
 /// Trait for chart types that can be processed into a `ParsedChart`.
 pub trait ProcessableChart {
     /// Error type that can occur during processing.

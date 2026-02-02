@@ -458,7 +458,7 @@ impl AllEventsIndex {
     }
 }
 
-impl<'a> ProcessableChart for crate::bmson::Bmson<'a> {
+impl<'a> ProcessableChart for Bmson<'a> {
     type Err = ();
 
     fn process(self) -> Result<ParsedChart, Self::Err> {

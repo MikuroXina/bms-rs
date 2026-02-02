@@ -796,7 +796,7 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
     }
 }
 
-impl ProcessableChart for crate::bms::Bms {
+impl ProcessableChart for Bms {
     type Err = ();
 
     fn process(self) -> Result<ParsedChart, Self::Err> {

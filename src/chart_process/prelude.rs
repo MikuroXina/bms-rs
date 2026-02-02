@@ -13,6 +13,7 @@ pub use super::processor::{
     AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
 };
 pub use super::{FlowEvent, YCoordinate};
+pub use gametime::TimeSpan;
 
 // Re-export event types
 pub use super::{ChartEvent, PlayheadEvent};
