@@ -401,7 +401,6 @@ fn test_custom_visibility_range() {
     let start_time = TimeStamp::now();
     let mut player = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
-    // 测试默认行为 (0.0..=1.0)
     // Test default behavior (0.0..=1.0)
     let _ = player.update(start_time + TimeSpan::SECOND);
     let events_before = player.visible_events().len();
