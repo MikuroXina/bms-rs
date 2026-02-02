@@ -65,7 +65,8 @@ async fn main() -> Result<(), String> {
     let start_time = TimeStamp::now();
     let mut chart_player = ChartPlayer::start(chart, visible_range, start_time);
     // Set visibility range to [-0.5, 1.0) to show events past judgment line
-    chart_player.set_visibility_range(-0.5..1.0);
+    chart_player
+        .set_visibility_range(bms_rs::bms::Decimal::from(-0.5)..bms_rs::bms::Decimal::from(1.0));
     println!("Player started");
 
     // 6.5. Initialize audio playback system
