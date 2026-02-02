@@ -536,20 +536,18 @@ impl ChartPlayer {
         let note_min = ratio_start.min(ratio_end).clone();
         let note_max = ratio_start.max(ratio_end).clone();
 
-        // Check for overlap with visibility range
-        match (&self.visibility_range.0, &self.visibility_range.1) {
-            (Bound::Unbounded, Bound::Unbounded) => true,
-            (Bound::Unbounded, Bound::Included(vis_max))
-            | (Bound::Unbounded, Bound::Excluded(vis_max)) => note_min <= *vis_max,
-            (Bound::Included(vis_min), Bound::Unbounded)
-            | (Bound::Excluded(vis_min), Bound::Unbounded) => note_max >= *vis_min,
-            (Bound::Included(vis_min), Bound::Included(vis_max))
-            | (Bound::Included(vis_min), Bound::Excluded(vis_max))
-            | (Bound::Excluded(vis_min), Bound::Included(vis_max))
-            | (Bound::Excluded(vis_min), Bound::Excluded(vis_max)) => {
-                note_max >= *vis_min && note_min <= *vis_max
-            }
-        }
+        let (vis_min, vis_max) = &self.visibility_range;
+        let is_already_end = match vis_min {
+            Bound::Unbounded => false,
+            Bound::Included(min) => &note_max < min,
+            Bound::Excluded(min) => &note_max <= min,
+        };
+        let is_not_started_yet = match vis_max {
+            Bound::Unbounded => false,
+            Bound::Included(max) => max < &note_min,
+            Bound::Excluded(max) => max <= &note_min,
+        };
+        !(is_already_end || is_not_started_yet)
     }
 
     /// Compute display ratio for an event.
