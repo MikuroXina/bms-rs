@@ -3,6 +3,7 @@
 //! Unified player for parsed charts, managing playback state and event processing.
 
 use std::collections::BTreeMap;
+use std::ops::{Bound, RangeBounds};
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -10,8 +11,7 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
 use crate::chart_process::processor::AllEventsIndex;
-use crate::chart_process::{ChartEvent, ControlEvent};
-use crate::chart_process::{FlowEvent, PlayheadEvent, YCoordinate};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
@@ -25,6 +25,7 @@ pub struct ChartPlayer {
 
     // Configuration
     pub(crate) visible_range_per_bpm: VisibleRangePerBpm,
+    pub(crate) visibility_range: (Bound<Decimal>, Bound<Decimal>),
 
     // Performance: velocity caching
     cached_velocity: Option<Decimal>,
@@ -86,6 +87,10 @@ impl ChartPlayer {
             started_at: start_time,
             last_poll_at: start_time,
             visible_range_per_bpm,
+            visibility_range: (
+                Bound::Included(Decimal::zero()),
+                Bound::Included(Decimal::one()),
+            ),
             cached_velocity: None,
             velocity_dirty: true,
             preloaded_events: Vec::new(),
@@ -158,11 +163,56 @@ impl ChartPlayer {
         triggered_events
     }
 
-    /// Post control events to the player.
-    pub fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
-        for evt in events {
-            self.handle_control_event(evt);
-        }
+    /// Set visible range per BPM.
+    ///
+    /// Updates the visible range configuration based on BPM.
+    ///
+    /// # Arguments
+    ///
+    /// * `visible_range_per_bpm` - New visible range per BPM configuration
+    pub fn set_visible_range_per_bpm(&mut self, visible_range_per_bpm: VisibleRangePerBpm) {
+        self.visible_range_per_bpm = visible_range_per_bpm;
+    }
+
+    /// Sets the visibility range for events.
+    ///
+    /// # Arguments
+    ///
+    /// * `range` - Any type implementing `RangeBounds<Decimal>`, such as:
+    ///   - `0.0..1.0` - Half-open range [0.0, 1.0)
+    ///   - `0.0..=1.0` - Closed range [0.0, 1.0]
+    ///   - `..` - Unbounded range
+    ///   - `0.0..` - Lower bound only
+    ///   - `..1.0` - Upper bound only
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// player.set_visibility_range(0.0..=1.0);  // Default behavior
+    /// player.set_visibility_range(-0.5..1.0);  // Show events past judgment line
+    /// player.set_visibility_range(..);         // Show all events
+    /// ```
+    pub fn set_visibility_range(&mut self, range: impl RangeBounds<Decimal>) {
+        self.visibility_range = (range.start_bound().cloned(), range.end_bound().cloned());
+    }
+
+    /// Gets the current visibility range.
+    #[must_use]
+    pub const fn visibility_range(&self) -> &(Bound<Decimal>, Bound<Decimal>) {
+        &self.visibility_range
+    }
+
+    /// Set playback ratio.
+    ///
+    /// Controls how fast the playback advances relative to real time.
+    /// Default is 1.0. Marks velocity cache as dirty.
+    ///
+    /// # Arguments
+    ///
+    /// * `ratio` - Playback ratio (>= 0)
+    pub fn set_playback_ratio(&mut self, ratio: Decimal) {
+        self.mark_velocity_dirty();
+        self.playback_state.playback_ratio = ratio;
     }
 
     // ===== State Query =====
@@ -212,9 +262,16 @@ impl ChartPlayer {
         let visible_window_y = self.visible_window_y(&self.playback_state.current_speed);
         let scroll_factor = &self.playback_state.current_scroll;
 
-        self.preloaded_events
+        let view_start = current_y.clone();
+        let view_end = current_y.clone() + visible_window_y.clone();
+
+        let visible_events = self
+            .all_events
+            .events_in_y_range((Bound::Excluded(&view_start), Bound::Included(&view_end)));
+
+        visible_events
             .iter()
-            .map(|event_with_pos| {
+            .filter_map(|event_with_pos| {
                 let event_y = event_with_pos.position();
                 let start_display_ratio = Self::compute_display_ratio(
                     event_y,
@@ -223,7 +280,6 @@ impl ChartPlayer {
                     scroll_factor,
                 );
 
-                // Calculate end position for long notes
                 let end_display_ratio = if let ChartEvent::Note {
                     length: Some(length),
                     ..
@@ -232,14 +288,18 @@ impl ChartPlayer {
                     let end_y = event_y.clone() + length.clone();
                     Self::compute_display_ratio(&end_y, current_y, &visible_window_y, scroll_factor)
                 } else {
-                    // Normal notes and other events: start and end are the same
                     start_display_ratio.clone()
                 };
 
-                (
+                let ratio_start = start_display_ratio.value();
+                let ratio_end = end_display_ratio.value();
+
+                let is_visible = self.overlaps_visibility_range(ratio_start, ratio_end);
+
+                is_visible.then_some((
                     event_with_pos.clone(),
                     start_display_ratio..=end_display_ratio,
-                )
+                ))
             })
             .collect()
     }
@@ -471,6 +531,25 @@ impl ChartPlayer {
         &self.preloaded_events
     }
 
+    /// Checks if a note's position overlaps with the visibility range.
+    fn overlaps_visibility_range(&self, ratio_start: &Decimal, ratio_end: &Decimal) -> bool {
+        let note_min = ratio_start.min(ratio_end).clone();
+        let note_max = ratio_start.max(ratio_end).clone();
+
+        let (vis_min, vis_max) = &self.visibility_range;
+        let is_already_end = match vis_min {
+            Bound::Unbounded => false,
+            Bound::Included(min) => &note_max < min,
+            Bound::Excluded(min) => &note_max <= min,
+        };
+        let is_not_started_yet = match vis_max {
+            Bound::Unbounded => false,
+            Bound::Included(max) => max < &note_min,
+            Bound::Excluded(max) => max <= &note_min,
+        };
+        !(is_already_end || is_not_started_yet)
+    }
+
     /// Compute display ratio for an event.
     #[must_use]
     pub fn compute_display_ratio(
@@ -486,21 +565,6 @@ impl ChartPlayer {
         } else {
             // Should not happen theoretically; indicates configuration issue if it does
             DisplayRatio::at_judgment_line()
-        }
-    }
-
-    /// Handle control events.
-    pub fn handle_control_event(&mut self, event: ControlEvent) {
-        match event {
-            ControlEvent::SetVisibleRangePerBpm {
-                visible_range_per_bpm,
-            } => {
-                self.visible_range_per_bpm = visible_range_per_bpm;
-            }
-            ControlEvent::SetPlaybackRatio { ratio } => {
-                self.mark_velocity_dirty();
-                self.playback_state.playback_ratio = ratio;
-            }
         }
     }
 }

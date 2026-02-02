@@ -3,7 +3,7 @@
 //! A simple BMS/BMSON chart player supporting 7+1k key layout.
 //! Uses the microquad framework for visualization and audio playback.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -16,10 +16,22 @@ use kira::{
     sound::static_sound::StaticSoundData,
 };
 use macroquad::prelude::Color;
+use macroquad::prelude::*;
 use num::ToPrimitive;
 use rayon::prelude::*;
 
-#[macroquad::main("BMS Player")]
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "BMS Player".to_owned(),
+        platform: miniquad::conf::Platform {
+            linux_backend: miniquad::conf::LinuxBackend::WaylandWithX11Fallback,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() -> Result<(), String> {
     // 1. Parse command line arguments
     let config = Config::parse();
@@ -52,6 +64,9 @@ async fn main() -> Result<(), String> {
     // 6. Start ChartPlayer
     let start_time = TimeStamp::now();
     let mut chart_player = ChartPlayer::start(chart, visible_range, start_time);
+    // Set visibility range to [-0.5, 1.0) to show events past judgment line
+    chart_player
+        .set_visibility_range(bms_rs::bms::Decimal::from(-0.5)..bms_rs::bms::Decimal::from(1.0));
     println!("Player started");
 
     // 6.5. Initialize audio playback system
@@ -68,6 +83,9 @@ async fn main() -> Result<(), String> {
     })
     .map_err(|e| format!("Failed to initialize audio: {}", e))?;
     println!("Audio system initialized");
+
+    // Track played events to prevent duplicate audio playback
+    let mut played_events = HashSet::new();
 
     // 7. Main loop
     println!("Starting playback...");
@@ -108,12 +126,20 @@ async fn main() -> Result<(), String> {
                 continue;
             };
 
+            // Skip if this event has already been played
+            if played_events.contains(&event.id()) {
+                continue;
+            }
+
             if let Err(e) = audio_manager.play(audio.clone()) {
                 if matches!(e, kira::PlaySoundError::SoundLimitReached) {
                     missed_sounds += 1;
                 } else {
                     eprintln!("Failed to play audio: {}", e);
                 }
+            } else {
+                // Mark as played only on success
+                played_events.insert(event.id());
             }
         }
 
@@ -450,7 +476,7 @@ fn render_notes(player: &mut ChartPlayer, _events: &[PlayheadEvent]) {
                         x + 2.0,
                         y_end,
                         TRACK_WIDTH - 4.0,
-                        height.max(5.0),
+                        height,
                         color,
                     );
 

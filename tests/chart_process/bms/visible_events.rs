@@ -152,9 +152,32 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
         "Should still have visible events after BPM change"
     );
 
-    for (_, display_ratio_range) in &after_bpm_events {
-        let ratio_value = display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0);
-        assert!(ratio_value.is_finite() && ratio_value >= 0.0);
+    for (event, display_ratio_range) in &after_bpm_events {
+        let ratio_start = display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0);
+        let ratio_end = display_ratio_range.end().as_ref().to_f64().unwrap_or(0.0);
+        assert!(ratio_start.is_finite());
+        assert!(ratio_end.is_finite());
+
+        // For long notes, check that the tail is above the judgment line
+        // For normal notes, check that the head is above the judgment line
+        let is_long_note = matches!(
+            event.event(),
+            ChartEvent::Note {
+                kind: NoteKind::Long,
+                ..
+            }
+        );
+        if is_long_note {
+            assert!(
+                ratio_end >= 0.0,
+                "Long note tail should be above judgment line"
+            );
+        } else {
+            assert!(
+                ratio_start >= 0.0,
+                "Normal note head should be above judgment line"
+            );
+        }
     }
 }
 
@@ -362,4 +385,75 @@ fn test_bms_stop_timing_with_bpm_changes() {
     let beats_96_at_180 = duration_96 / Decimal::from(48);
     assert_eq!(beats_96_at_120, beats_96_at_180);
     assert_eq!(beats_96_at_120, Decimal::from(2));
+}
+
+#[test]
+fn test_custom_visibility_range() {
+    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let config = default_config().prompter(AlwaysUseOlder);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::MILLISECOND * 600);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let start_time = TimeStamp::now();
+    let mut player = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    // Test default behavior (0.0..=1.0)
+    let _ = player.update(start_time + TimeSpan::SECOND);
+    let events_before = player.visible_events().len();
+
+    // Set to show events past judgment line (-0.5..=1.0)
+    player.set_visibility_range(Decimal::from(-0.5)..=Decimal::one());
+    let events_extended = player.visible_events().len();
+    assert!(
+        events_extended >= events_before,
+        "Extended visibility range should show more events"
+    );
+
+    // Set limited visibility range (0.0..=0.5)
+    player.set_visibility_range(Decimal::zero()..=Decimal::from(0.5));
+    let events_limited = player.visible_events().len();
+    assert!(
+        events_limited <= events_before,
+        "Limited visibility range should show fewer events"
+    );
+
+    // Test unbounded range
+    player.set_visibility_range(..);
+    let events_unbounded = player.visible_events().len();
+    assert!(
+        events_unbounded >= events_before,
+        "Unbounded range should show most events"
+    );
+}
+
+#[test]
+fn test_visibility_range_bound_types() {
+    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let config = default_config().prompter(AlwaysUseOlder);
+    let bms = parse_bms_no_warnings(bms_source, config);
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::MILLISECOND * 600);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let start_time = TimeStamp::now();
+    let mut player = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+
+    let _ = player.update(start_time + TimeSpan::SECOND);
+
+    // Test half-open range
+    player.set_visibility_range(Decimal::zero()..Decimal::one());
+    let count_open = player.visible_events().len();
+
+    // Test closed range
+    player.set_visibility_range(Decimal::zero()..=Decimal::one());
+    let count_closed = player.visible_events().len();
+
+    // Closed range should include events on the boundary
+    assert!(count_closed >= count_open);
 }

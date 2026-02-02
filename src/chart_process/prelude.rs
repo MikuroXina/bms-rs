@@ -15,7 +15,7 @@ pub use super::processor::{
 pub use super::{FlowEvent, YCoordinate};
 
 // Re-export event types
-pub use super::{ChartEvent, ControlEvent, PlayheadEvent};
+pub use super::{ChartEvent, PlayheadEvent};
 
 // Re-export common types from bms module
 pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
