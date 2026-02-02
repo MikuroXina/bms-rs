@@ -3,7 +3,7 @@
 //! Unified player for parsed charts, managing playback state and event processing.
 
 use std::collections::BTreeMap;
-use std::ops::Bound;
+use std::ops::{Bound, RangeBounds};
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -25,6 +25,7 @@ pub struct ChartPlayer {
 
     // Configuration
     pub(crate) visible_range_per_bpm: VisibleRangePerBpm,
+    pub(crate) visibility_range: (Bound<Decimal>, Bound<Decimal>),
 
     // Performance: velocity caching
     cached_velocity: Option<Decimal>,
@@ -86,6 +87,10 @@ impl ChartPlayer {
             started_at: start_time,
             last_poll_at: start_time,
             visible_range_per_bpm,
+            visibility_range: (
+                Bound::Included(Decimal::zero()),
+                Bound::Included(Decimal::one()),
+            ),
             cached_velocity: None,
             velocity_dirty: true,
             preloaded_events: Vec::new(),
@@ -167,6 +172,34 @@ impl ChartPlayer {
     /// * `visible_range_per_bpm` - New visible range per BPM configuration
     pub fn set_visible_range_per_bpm(&mut self, visible_range_per_bpm: VisibleRangePerBpm) {
         self.visible_range_per_bpm = visible_range_per_bpm;
+    }
+
+    /// Sets the visibility range for events.
+    ///
+    /// # Arguments
+    ///
+    /// * `range` - Any type implementing `RangeBounds<Decimal>`, such as:
+    ///   - `0.0..1.0` - Half-open range [0.0, 1.0)
+    ///   - `0.0..=1.0` - Closed range [0.0, 1.0]
+    ///   - `..` - Unbounded range
+    ///   - `0.0..` - Lower bound only
+    ///   - `..1.0` - Upper bound only
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// player.set_visibility_range(0.0..=1.0);  // Default behavior
+    /// player.set_visibility_range(-0.5..1.0);  // Show events past judgment line
+    /// player.set_visibility_range(..);         // Show all events
+    /// ```
+    pub fn set_visibility_range(&mut self, range: impl RangeBounds<Decimal>) {
+        self.visibility_range = (range.start_bound().cloned(), range.end_bound().cloned());
+    }
+
+    /// Gets the current visibility range.
+    #[must_use]
+    pub const fn visibility_range(&self) -> &(Bound<Decimal>, Bound<Decimal>) {
+        &self.visibility_range
     }
 
     /// Set playback ratio.
@@ -261,11 +294,7 @@ impl ChartPlayer {
                 let ratio_start = start_display_ratio.value();
                 let ratio_end = end_display_ratio.value();
 
-                let is_visible = if ratio_start == ratio_end {
-                    *ratio_start > Decimal::zero()
-                } else {
-                    *ratio_end > Decimal::zero()
-                };
+                let is_visible = self.overlaps_visibility_range(ratio_start, ratio_end);
 
                 is_visible.then_some((
                     event_with_pos.clone(),
@@ -500,6 +529,27 @@ impl ChartPlayer {
     #[must_use]
     pub const fn preloaded_events(&self) -> &Vec<PlayheadEvent> {
         &self.preloaded_events
+    }
+
+    /// Checks if a note's position overlaps with the visibility range.
+    fn overlaps_visibility_range(&self, ratio_start: &Decimal, ratio_end: &Decimal) -> bool {
+        let note_min = ratio_start.min(ratio_end).clone();
+        let note_max = ratio_start.max(ratio_end).clone();
+
+        // Check for overlap with visibility range
+        match (&self.visibility_range.0, &self.visibility_range.1) {
+            (Bound::Unbounded, Bound::Unbounded) => true,
+            (Bound::Unbounded, Bound::Included(vis_max))
+            | (Bound::Unbounded, Bound::Excluded(vis_max)) => note_min <= *vis_max,
+            (Bound::Included(vis_min), Bound::Unbounded)
+            | (Bound::Excluded(vis_min), Bound::Unbounded) => note_max >= *vis_min,
+            (Bound::Included(vis_min), Bound::Included(vis_max))
+            | (Bound::Included(vis_min), Bound::Excluded(vis_max))
+            | (Bound::Excluded(vis_min), Bound::Included(vis_max))
+            | (Bound::Excluded(vis_min), Bound::Excluded(vis_max)) => {
+                note_max >= *vis_min && note_min <= *vis_max
+            }
+        }
     }
 
     /// Compute display ratio for an event.
