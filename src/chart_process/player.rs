@@ -11,8 +11,7 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::Decimal;
 use crate::chart_process::processor::AllEventsIndex;
-use crate::chart_process::{ChartEvent, ControlEvent};
-use crate::chart_process::{FlowEvent, PlayheadEvent, YCoordinate};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
@@ -159,11 +158,28 @@ impl ChartPlayer {
         triggered_events
     }
 
-    /// Post control events to the player.
-    pub fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
-        for evt in events {
-            self.handle_control_event(evt);
-        }
+    /// Set visible range per BPM.
+    ///
+    /// Updates the visible range configuration based on BPM.
+    ///
+    /// # Arguments
+    ///
+    /// * `visible_range_per_bpm` - New visible range per BPM configuration
+    pub fn set_visible_range_per_bpm(&mut self, visible_range_per_bpm: VisibleRangePerBpm) {
+        self.visible_range_per_bpm = visible_range_per_bpm;
+    }
+
+    /// Set playback ratio.
+    ///
+    /// Controls how fast the playback advances relative to real time.
+    /// Default is 1.0. Marks velocity cache as dirty.
+    ///
+    /// # Arguments
+    ///
+    /// * `ratio` - Playback ratio (>= 0)
+    pub fn set_playback_ratio(&mut self, ratio: Decimal) {
+        self.mark_velocity_dirty();
+        self.playback_state.playback_ratio = ratio;
     }
 
     // ===== State Query =====
@@ -501,21 +517,6 @@ impl ChartPlayer {
         } else {
             // Should not happen theoretically; indicates configuration issue if it does
             DisplayRatio::at_judgment_line()
-        }
-    }
-
-    /// Handle control events.
-    pub fn handle_control_event(&mut self, event: ControlEvent) {
-        match event {
-            ControlEvent::SetVisibleRangePerBpm {
-                visible_range_per_bpm,
-            } => {
-                self.visible_range_per_bpm = visible_range_per_bpm;
-            }
-            ControlEvent::SetPlaybackRatio { ratio } => {
-                self.mark_velocity_dirty();
-                self.playback_state.playback_ratio = ratio;
-            }
         }
     }
 }

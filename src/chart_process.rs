@@ -70,7 +70,6 @@ use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
-use crate::chart_process::player::VisibleRangePerBpm;
 use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
 use num::Zero;
 
@@ -213,31 +212,6 @@ pub enum ChartEvent {
     ///
     /// Triggered when playback position reaches measure line position, used for chart structure display.
     BarLine,
-}
-
-/// Player control and setting events.
-///
-/// These events are used to control the player's configuration parameters, such as visible Y range.
-/// Separated from chart playback related events (such as notes, BGM, BPM changes, etc.) to provide a clearer API.
-#[derive(Debug, Clone)]
-pub enum ControlEvent {
-    /// Set: visible range per BPM
-    ///
-    /// The visible range per BPM controls the relationship between BPM and visible Y range.
-    /// See module-level documentation for the formula.
-    /// This replaces the old `SetDefaultVisibleYLength` event.
-    SetVisibleRangePerBpm {
-        /// Visible range per BPM (y coordinate units per BPM, >0)
-        visible_range_per_bpm: VisibleRangePerBpm,
-    },
-    /// Set: playback ratio
-    ///
-    /// Controls how fast the playback advances relative to real time.
-    /// Default is 1.
-    SetPlaybackRatio {
-        /// Playback ratio (>= 0)
-        ratio: Decimal,
-    },
 }
 
 /// Timeline event and position wrapper type.

@@ -146,9 +146,7 @@ fn test_visible_events_duration_with_playback_ratio() {
     let visible_window_y_ratio_1 =
         visible_range.window_y(state.current_bpm(), &Decimal::one(), &Decimal::one());
 
-    processor.post_events(std::iter::once(ControlEvent::SetPlaybackRatio {
-        ratio: Decimal::from(0.5),
-    }));
+    processor.set_playback_ratio(Decimal::from(0.5));
 
     let changed_state = processor.playback_state();
     assert_eq!(*changed_state.playback_ratio(), Decimal::from(0.5));
