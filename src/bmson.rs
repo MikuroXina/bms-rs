@@ -56,7 +56,7 @@ use self::{
     pulse::PulseNumber,
 };
 
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -125,7 +125,7 @@ pub struct BmsonInfo<'a> {
     /// Self explanatory level number. It is usually set with subjective rating by the author.
     pub level: u32,
     /// Initial BPM.
-    pub init_bpm: FinF64,
+    pub init_bpm: PositiveF64,
     /// Relative judge width in percentage. The variation amount may different by BMS player. Larger is easier.
     #[serde(default = "default_percentage")]
     pub judge_rank: FinF64,
@@ -335,7 +335,7 @@ pub struct BpmEvent {
     /// Position to change BPM of the chart.
     pub y: PulseNumber,
     /// New BPM to be.
-    pub bpm: FinF64,
+    pub bpm: PositiveF64,
 }
 
 /// Scroll stop note.

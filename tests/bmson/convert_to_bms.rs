@@ -6,7 +6,7 @@ use bms_rs::{
 };
 use std::borrow::Cow;
 
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 #[test]
 fn test_bmson_to_bms_conversion() {
@@ -22,7 +22,7 @@ fn test_bmson_to_bms_conversion() {
             mode_hint: Cow::Borrowed("beat-7k"),
             chart_name: Cow::Borrowed("NORMAL"),
             level: 5,
-            init_bpm: FinF64::new(120.0).unwrap(),
+            init_bpm: PositiveF64::new(120.0).unwrap(),
             judge_rank: FinF64::new(100.0).unwrap(),
             total: FinF64::new(100.0).unwrap(),
             back_image: Some(Cow::Borrowed("back.png")),
@@ -96,7 +96,7 @@ fn test_bmson_to_bms_with_notes() {
             mode_hint: Cow::Borrowed("beat-7k"),
             chart_name: Cow::Borrowed(""),
             level: 5,
-            init_bpm: FinF64::new(120.0).unwrap(),
+            init_bpm: PositiveF64::new(120.0).unwrap(),
             judge_rank: FinF64::new(100.0).unwrap(),
             total: FinF64::new(100.0).unwrap(),
             back_image: None,
