@@ -3,6 +3,7 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
+    convert::TryFrom,
     path::PathBuf,
 };
 
@@ -11,8 +12,7 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, ProcessableChart,
-    WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 use crate::{bms::Decimal, util::StrExtension};
@@ -458,10 +458,10 @@ impl AllEventsIndex {
     }
 }
 
-impl<'a> ProcessableChart for Bmson<'a> {
-    type Err = ();
+impl<'a> TryFrom<Bmson<'a>> for ParsedChart {
+    type Error = ();
 
-    fn process(self) -> Result<ParsedChart, Self::Err> {
-        Ok(BmsonProcessor::parse(&self))
+    fn try_from(bmson: Bmson<'a>) -> Result<Self, Self::Error> {
+        Ok(BmsonProcessor::parse(&bmson))
     }
 }

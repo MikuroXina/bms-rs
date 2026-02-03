@@ -12,19 +12,6 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoor
 pub mod bms;
 pub mod bmson;
 
-/// Trait for chart types that can be processed into a `ParsedChart`.
-pub trait ProcessableChart {
-    /// Error type that can occur during processing.
-    type Err;
-
-    /// Process the chart and return a `ParsedChart`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if chart processing fails. The specific error type depends on the implementation.
-    fn process(self) -> Result<ParsedChart, Self::Err>;
-}
-
 /// WAV audio file ID wrapper type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WavId(pub usize);
@@ -590,13 +577,13 @@ impl ParsedChart {
         self.resources.bmp_files()
     }
 
-    /// Create a new `ParsedChart` from any chart type that implements `ProcessableChart`.
+    /// Create a new `ParsedChart` from any chart type that implements `TryInto<ParsedChart>`.
     ///
     /// # Examples
     ///
     /// ```rust
     /// # use bms_rs::chart_process::processor::ParsedChart;
-    /// # use bms_rs::chart_process::processor::ProcessableChart;
+    /// # use std::convert::TryInto;
     /// # // Example usage (note: actual Bms/Bmson types would be used in practice)
     /// # // let parsed = ParsedChart::new(bms_chart).unwrap();
     /// ```
@@ -604,8 +591,8 @@ impl ParsedChart {
     /// # Errors
     ///
     /// Returns an error if chart processing fails. The specific error type depends on the chart implementation.
-    pub fn new<T: ProcessableChart>(chart: T) -> Result<Self, T::Err> {
-        chart.process()
+    pub fn new<T: TryInto<ParsedChart>>(chart: T) -> Result<Self, T::Error> {
+        chart.try_into()
     }
 
     /// Create a new `ParsedChart` from its constituent parts.

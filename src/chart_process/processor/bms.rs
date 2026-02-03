@@ -2,6 +2,7 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
+    convert::TryFrom,
     path::PathBuf,
 };
 
@@ -11,8 +12,7 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, ProcessableChart,
-    WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
@@ -796,13 +796,12 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
     }
 }
 
-impl ProcessableChart for Bms {
-    type Err = ();
+impl TryFrom<Bms> for ParsedChart {
+    type Error = ();
 
-    fn process(self) -> Result<ParsedChart, Self::Err> {
-        // Use KeyLayoutBeat as the default key layout mapper
+    fn try_from(bms: Bms) -> Result<Self, Self::Error> {
         Ok(BmsProcessor::parse::<
             crate::bms::command::channel::mapper::KeyLayoutBeat,
-        >(&self))
+        >(&bms))
     }
 }
