@@ -579,24 +579,6 @@ impl PlayableChart {
         self.resources.bmp_files()
     }
 
-    /// Create a new `PlayableChart` from any chart type that implements `TryInto<PlayableChart>`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use bms_rs::chart_process::processor::PlayableChart;
-    /// # use std::convert::TryInto;
-    /// # // Example usage (note: actual Bms/Bmson types would be used in practice)
-    /// # // let chart = PlayableChart::new(bms_chart).unwrap();
-    /// ```
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if chart processing fails. The specific error type depends on the chart implementation.
-    pub fn new<T: TryInto<PlayableChart>>(chart: T) -> Result<Self, T::Error> {
-        chart.try_into()
-    }
-
     /// Create a new `PlayableChart` from its constituent parts.
     ///
     /// This is an internal constructor used by chart processors to assemble
