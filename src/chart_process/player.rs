@@ -73,7 +73,7 @@ impl ChartPlayer {
     /// ```
     #[must_use]
     pub fn start(
-        mut chart: crate::chart_process::processor::ParsedChart,
+        mut chart: crate::chart_process::processor::PlayableChart,
         visible_range_per_bpm: VisibleRangePerBpm,
         start_time: TimeStamp,
     ) -> Self {
@@ -820,11 +820,11 @@ mod tests {
 
     use super::*;
     use crate::chart_process::base_bpm::BaseBpm;
-    use crate::chart_process::processor::{ChartResources, ParsedChart};
+    use crate::chart_process::processor::{ChartResources, PlayableChart};
 
     #[test]
     fn test_velocity_caching() {
-        let chart = ParsedChart::new(
+        let chart = PlayableChart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             BTreeMap::new(),
@@ -864,7 +864,7 @@ mod tests {
             ],
         );
 
-        let chart = ParsedChart::new(
+        let chart = PlayableChart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
@@ -923,7 +923,7 @@ mod tests {
             ],
         );
 
-        let chart = ParsedChart::new(
+        let chart = PlayableChart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,

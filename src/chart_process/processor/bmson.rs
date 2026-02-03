@@ -3,6 +3,7 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
+    convert::TryFrom,
     path::PathBuf,
 };
 
@@ -11,7 +12,7 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 use crate::{bms::Decimal, util::StrExtension};
@@ -21,13 +22,13 @@ const NANOS_PER_SECOND: u64 = 1_000_000_000;
 /// BMSON format parser.
 ///
 /// This struct serves as a namespace for BMSON parsing functions.
-/// It parses BMSON files and returns a `ParsedChart` containing all precomputed data.
+/// It parses BMSON files and returns a `PlayableChart` containing all precomputed data.
 pub struct BmsonProcessor;
 
 impl BmsonProcessor {
-    /// Parse BMSON file and return a `ParsedChart` containing all precomputed data.
+    /// Parse BMSON file and return a `PlayableChart` containing all precomputed data.
     #[must_use]
-    pub fn parse(bmson: &Bmson<'_>) -> ParsedChart {
+    pub fn parse(bmson: &Bmson<'_>) -> PlayableChart {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
         let pulses_denom = Decimal::from(4 * bmson.info.resolution.get());
         let pulses_to_y =
@@ -113,7 +114,7 @@ impl BmsonProcessor {
             .map(|(name, id)| (id, PathBuf::from(name)))
             .collect();
 
-        ParsedChart::new(
+        PlayableChart::from_parts(
             ChartResources::new(wav_files, bmp_files),
             all_events,
             flow_events_by_y,
@@ -454,5 +455,13 @@ impl AllEventsIndex {
             }
         }
         Self::new(events_map)
+    }
+}
+
+impl<'a> TryFrom<Bmson<'a>> for PlayableChart {
+    type Error = ();
+
+    fn try_from(bmson: Bmson<'a>) -> Result<Self, Self::Error> {
+        Ok(BmsonProcessor::parse(&bmson))
     }
 }

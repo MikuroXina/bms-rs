@@ -511,11 +511,13 @@ impl ChartResources {
     }
 }
 
-/// Parsed chart data containing all precomputed information.
+/// Playable chart data containing all precomputed information.
 ///
-/// This structure is immutable and can be used to create multiple player instances.
+/// This structure is immutable and ready for playback. It can be used to create
+/// multiple player instances. Note that this structure does NOT contain playback
+/// state - playback state is managed by `ChartPlayer`.
 #[derive(Debug, Clone)]
-pub struct ParsedChart {
+pub struct PlayableChart {
     /// Resource file mapping.
     pub(crate) resources: ChartResources,
     /// Event index (by Y coordinate and time).
@@ -528,7 +530,7 @@ pub struct ParsedChart {
     pub(crate) init_speed: Decimal,
 }
 
-impl ParsedChart {
+impl PlayableChart {
     /// Get resource file mapping.
     #[must_use]
     pub const fn resources(&self) -> &ChartResources {
@@ -577,9 +579,12 @@ impl ParsedChart {
         self.resources.bmp_files()
     }
 
-    /// Create a new `ParsedChart` (internal API).
+    /// Create a new `PlayableChart` from its constituent parts.
+    ///
+    /// This is an internal constructor used by chart processors to assemble
+    /// a parsed chart from its components.
     #[must_use]
-    pub(crate) const fn new(
+    pub(crate) const fn from_parts(
         resources: ChartResources,
         events: AllEventsIndex,
         flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,

@@ -40,10 +40,11 @@ pub use super::{
         token::{Token, TokenWithRange},
     },
     model::{
-        Bms, Notes,
+        Bms,
         bmp::{AtBgaDef, BgaDef, Bmp},
         control_flow::{ControlFlowValue, RandomizedBranch, RandomizedObjects},
         judge::ExRankDef,
+        notes::Notes,
         obj::{
             BgaArgbObj, BgaKeyboundObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj,
             BpmChangeObj, JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj,

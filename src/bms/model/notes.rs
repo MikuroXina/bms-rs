@@ -1,3 +1,9 @@
+//! Note objects management and indexing.
+//!
+//! This module provides the [`Notes`] struct for managing and querying
+//! note objects (WAV objects) in a BMS score, organized by time, channel,
+//! and WAV ID for efficient lookup and iteration.
+
 use std::{
     collections::{BTreeMap, HashMap},
     ops::Bound,
@@ -11,6 +17,10 @@ use crate::bms::prelude::*;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct WavObjArena(Vec<WavObj>);
 
+/// Index into the WAV object arena.
+///
+/// This type represents a stable index that can be used to reference
+/// WAV objects stored in the arena.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WavObjArenaIndex(usize);
