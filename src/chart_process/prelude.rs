@@ -10,7 +10,8 @@ pub use super::base_bpm::{
 };
 pub use super::player::{DisplayRatio, VisibleRangePerBpm};
 pub use super::processor::{
-    AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
+    AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, PlayableChart,
+    WavId,
 };
 pub use super::{FlowEvent, YCoordinate};
 pub use gametime::TimeSpan;

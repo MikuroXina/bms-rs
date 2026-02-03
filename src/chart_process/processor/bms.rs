@@ -12,7 +12,7 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, ParsedChart, WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 
@@ -21,7 +21,7 @@ const NANOS_PER_SECOND: u64 = 1_000_000_000;
 /// BMS format parser.
 ///
 /// This struct serves as a namespace for BMS parsing functions.
-/// It parses BMS files and returns a `ParsedChart` containing all precomputed data.
+/// It parses BMS files and returns a `PlayableChart` containing all precomputed data.
 pub struct BmsProcessor;
 
 /// Convert STOP duration from 192nd-note units to beats (measure units).
@@ -37,9 +37,9 @@ fn convert_stop_duration_to_beats(duration_192nd: &Decimal) -> Decimal {
 }
 
 impl BmsProcessor {
-    /// Parse BMS file and return a `ParsedChart` containing all precomputed data.
+    /// Parse BMS file and return a `PlayableChart` containing all precomputed data.
     #[must_use]
-    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> ParsedChart {
+    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> PlayableChart {
         // Pre-calculate Y coordinate by tracks
         let y_memo = YMemo::new(bms);
 
@@ -70,7 +70,7 @@ impl BmsProcessor {
         // Precompute activate times
         let all_events = precompute_activate_times(bms, &all_events, &y_memo);
 
-        ParsedChart::from_parts(
+        PlayableChart::from_parts(
             ChartResources::new(wav_files, bmp_files),
             all_events,
             y_memo.flow_events().clone(),
@@ -796,7 +796,7 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
     }
 }
 
-impl TryFrom<Bms> for ParsedChart {
+impl TryFrom<Bms> for PlayableChart {
     type Error = ();
 
     fn try_from(bms: Bms) -> Result<Self, Self::Error> {

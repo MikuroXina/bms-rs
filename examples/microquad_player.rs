@@ -184,8 +184,8 @@ struct Config {
 ///
 /// # Returns
 ///
-/// Returns parsed `ParsedChart` and `BaseBpm`.
-fn load_chart(path: &Path) -> Result<(ParsedChart, BaseBpm), String> {
+/// Returns parsed `PlayableChart` and `BaseBpm`.
+fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
     // Read file content
     // First read as bytes
     let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file: {}", e))?;

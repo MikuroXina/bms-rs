@@ -511,11 +511,13 @@ impl ChartResources {
     }
 }
 
-/// Parsed chart data containing all precomputed information.
+/// Playable chart data containing all precomputed information.
 ///
-/// This structure is immutable and can be used to create multiple player instances.
+/// This structure is immutable and ready for playback. It can be used to create
+/// multiple player instances. Note that this structure does NOT contain playback
+/// state - playback state is managed by `ChartPlayer`.
 #[derive(Debug, Clone)]
-pub struct ParsedChart {
+pub struct PlayableChart {
     /// Resource file mapping.
     pub(crate) resources: ChartResources,
     /// Event index (by Y coordinate and time).
@@ -528,7 +530,7 @@ pub struct ParsedChart {
     pub(crate) init_speed: Decimal,
 }
 
-impl ParsedChart {
+impl PlayableChart {
     /// Get resource file mapping.
     #[must_use]
     pub const fn resources(&self) -> &ChartResources {
@@ -577,25 +579,25 @@ impl ParsedChart {
         self.resources.bmp_files()
     }
 
-    /// Create a new `ParsedChart` from any chart type that implements `TryInto<ParsedChart>`.
+    /// Create a new `PlayableChart` from any chart type that implements `TryInto<PlayableChart>`.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use bms_rs::chart_process::processor::ParsedChart;
+    /// # use bms_rs::chart_process::processor::PlayableChart;
     /// # use std::convert::TryInto;
     /// # // Example usage (note: actual Bms/Bmson types would be used in practice)
-    /// # // let parsed = ParsedChart::new(bms_chart).unwrap();
+    /// # // let chart = PlayableChart::new(bms_chart).unwrap();
     /// ```
     ///
     /// # Errors
     ///
     /// Returns an error if chart processing fails. The specific error type depends on the chart implementation.
-    pub fn new<T: TryInto<ParsedChart>>(chart: T) -> Result<Self, T::Error> {
+    pub fn new<T: TryInto<PlayableChart>>(chart: T) -> Result<Self, T::Error> {
         chart.try_into()
     }
 
-    /// Create a new `ParsedChart` from its constituent parts.
+    /// Create a new `PlayableChart` from its constituent parts.
     ///
     /// This is an internal constructor used by chart processors to assemble
     /// a parsed chart from its components.
