@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,
 };
 
-use num::{One, ToPrimitive, Zero};
+use strict_num_extended::FinF64;
 
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
@@ -15,7 +15,7 @@ use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
-use crate::{bms::Decimal, util::StrExtension};
+use crate::util::StrExtension;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
@@ -29,10 +29,15 @@ impl BmsonProcessor {
     /// Parse BMSON file and return a `PlayableChart` containing all precomputed data.
     #[must_use]
     pub fn parse(bmson: &Bmson<'_>) -> PlayableChart {
-        let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
-        let pulses_denom = Decimal::from(4 * bmson.info.resolution.get());
-        let pulses_to_y =
-            |pulses: i64| YCoordinate::new(Decimal::from(pulses) / pulses_denom.clone());
+        let init_bpm: FinF64 =
+            FinF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be finite");
+        let pulses_denom = FinF64::new((4 * bmson.info.resolution.get()) as f64)
+            .expect("pulses_denom should be finite");
+        let pulses_to_y = |pulses: i64| {
+            YCoordinate::new(
+                FinF64::new(pulses as f64 / pulses_denom.as_f64()).expect("y should be finite"),
+            )
+        };
 
         // Preprocessing: assign IDs to all audio and image resources
         let mut audio_name_to_id = HashMap::new();
@@ -88,17 +93,18 @@ impl BmsonProcessor {
         let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0 as i64);
-            flow_events_by_y
-                .entry(y)
-                .or_default()
-                .push(FlowEvent::Bpm(ev.bpm.as_f64().into()));
+            flow_events_by_y.entry(y).or_default().push(FlowEvent::Bpm(
+                FinF64::new(ev.bpm.as_f64()).expect("bpm should be finite"),
+            ));
         }
         for ScrollEvent { y, rate } in &bmson.scroll_events {
             let y = pulses_to_y(y.0 as i64);
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Scroll(rate.as_f64().into()));
+                .push(FlowEvent::Scroll(
+                    FinF64::new(rate.as_f64()).expect("rate should be finite"),
+                ));
         }
 
         let all_events =
@@ -119,7 +125,7 @@ impl BmsonProcessor {
             all_events,
             flow_events_by_y,
             init_bpm,
-            Decimal::one(), // BMSON doesn't have Speed concept, default to 1.0
+            FinF64::new(1.0).expect("1.0 should be finite"), // BMSON doesn't have Speed concept, default to 1.0
         )
     }
 }
@@ -151,15 +157,18 @@ impl AllEventsIndex {
         bmp_name_to_id: &HashMap<String, BmpId>,
     ) -> Self {
         use std::collections::BTreeSet;
-        let denom = Decimal::from(4 * bmson.info.resolution.get());
-        let denom_inv = if denom == Decimal::zero() {
-            Decimal::zero()
+        let denom =
+            FinF64::new((4 * bmson.info.resolution.get()) as f64).expect("denom should be finite");
+        let denom_inv = if denom.as_f64() == 0.0 {
+            FinF64::new(0.0).expect("0 should be finite")
         } else {
-            Decimal::one() / denom
+            FinF64::new(1.0 / denom.as_f64()).expect("denom_inv should be finite")
         };
         let pulses_to_y = |pulses: u64| {
-            let pulses = Decimal::from(pulses);
-            YCoordinate::new(&pulses * &denom_inv)
+            let pulses = FinF64::new(pulses as f64).expect("pulses should be finite");
+            YCoordinate::new(
+                FinF64::new(pulses.as_f64() * denom_inv.as_f64()).expect("y should be finite"),
+            )
         };
         let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
         points.insert(YCoordinate::zero());
@@ -206,16 +215,22 @@ impl AllEventsIndex {
                 .cloned()
                 .max()
                 .unwrap_or_else(YCoordinate::zero);
-            let floor = max_y.value().to_i64().unwrap_or(0);
+            let floor = max_y.value().as_f64() as i64;
             for i in 0..=floor {
-                points.insert(YCoordinate::new(Decimal::from(i)));
+                points.insert(YCoordinate::new(
+                    FinF64::new(i as f64).expect("i should be finite"),
+                ));
             }
         }
-        let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
-        let mut bpm_map: BTreeMap<YCoordinate, Decimal> = BTreeMap::new();
-        bpm_map.insert(YCoordinate::zero(), init_bpm.clone());
+        let init_bpm: FinF64 =
+            FinF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be finite");
+        let mut bpm_map: BTreeMap<YCoordinate, FinF64> = BTreeMap::new();
+        bpm_map.insert(YCoordinate::zero(), init_bpm);
         for ev in &bmson.bpm_events {
-            bpm_map.insert(pulses_to_y(ev.y.0), ev.bpm.as_f64().into());
+            bpm_map.insert(
+                pulses_to_y(ev.y.0),
+                FinF64::new(ev.bpm.as_f64()).expect("bpm should be finite"),
+            );
         }
         let mut stop_list: Vec<(YCoordinate, u64)> = bmson
             .stop_events
@@ -230,8 +245,8 @@ impl AllEventsIndex {
         let mut cur_bpm = bpm_map
             .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
             .next_back()
-            .map(|(_, b)| b.clone())
-            .unwrap_or_else(|| init_bpm.clone());
+            .map(|(_, b)| *b)
+            .unwrap_or(init_bpm);
         let nanos_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| {
             let bpm_at_stop = bpm_map
                 .range((
@@ -239,14 +254,12 @@ impl AllEventsIndex {
                     std::ops::Bound::Included(stop_y),
                 ))
                 .next_back()
-                .map(|(_, b)| b.clone())
-                .unwrap_or_else(|| init_bpm.clone());
+                .map(|(_, b)| *b)
+                .unwrap_or(init_bpm);
             {
                 let stop_y_len = pulses_to_y(stop_pulses);
-                (stop_y_len.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-                    / bpm_at_stop)
-                    .to_u64()
-                    .unwrap_or(0)
+                (stop_y_len.value().as_f64() * 240.0 * NANOS_PER_SECOND as f64
+                    / bpm_at_stop.as_f64()) as u64
             }
         };
         let mut stop_idx = 0usize;
@@ -254,11 +267,9 @@ impl AllEventsIndex {
             if curr <= prev {
                 continue;
             }
-            let delta_y = Decimal::from(&curr - &prev);
-            let delta_nanos = (&delta_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-                / cur_bpm)
-                .to_u64()
-                .unwrap_or(0);
+            let delta_y = curr.clone() - prev.clone();
+            let delta_nanos = (delta_y.value().as_f64() * 240.0 * NANOS_PER_SECOND as f64
+                / cur_bpm.as_f64()) as u64;
             total_nanos = total_nanos.saturating_add(delta_nanos);
             while let Some((sy, stop_pulses)) = stop_list.get(stop_idx) {
                 if sy > &curr {
@@ -272,8 +283,8 @@ impl AllEventsIndex {
             cur_bpm = bpm_map
                 .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
                 .next_back()
-                .map(|(_, b)| b.clone())
-                .unwrap_or_else(|| init_bpm.clone());
+                .map(|(_, b)| *b)
+                .unwrap_or(init_bpm);
             cum_map.insert(curr.clone(), total_nanos);
             prev = curr;
         }
@@ -326,7 +337,7 @@ impl AllEventsIndex {
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0);
             let event = ChartEvent::BpmChange {
-                bpm: ev.bpm.as_f64().into(),
+                bpm: FinF64::new(ev.bpm.as_f64()).expect("bpm should be finite"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
@@ -335,7 +346,7 @@ impl AllEventsIndex {
         for ScrollEvent { y, rate } in &bmson.scroll_events {
             let y = pulses_to_y(y.0);
             let event = ChartEvent::ScrollChange {
-                factor: rate.as_f64().into(),
+                factor: FinF64::new(rate.as_f64()).expect("rate should be finite"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
@@ -392,23 +403,24 @@ impl AllEventsIndex {
                 .map(YCoordinate::value)
                 .max()
                 .cloned()
-                .unwrap_or_else(Decimal::zero);
-            if max_y > Decimal::zero() {
-                let mut current_y = Decimal::zero();
-                while current_y <= max_y {
-                    let y_coord = YCoordinate::from(current_y.clone());
+                .unwrap_or_else(|| FinF64::new(0.0).expect("0 should be finite"));
+            if max_y.as_f64() > 0.0 {
+                let mut current_y = FinF64::new(0.0).expect("0 should be finite");
+                while current_y.as_f64() <= max_y.as_f64() {
+                    let y_coord = YCoordinate::from(current_y.as_f64());
                     let event = ChartEvent::BarLine;
                     let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
-                    current_y += Decimal::one();
+                    current_y =
+                        FinF64::new(current_y.as_f64() + 1.0).expect("current_y should be finite");
                 }
             }
         }
         for stop in &bmson.stop_events {
             let y = pulses_to_y(stop.y.0);
             let event = ChartEvent::Stop {
-                duration: (stop.duration as f64).into(),
+                duration: FinF64::new(stop.duration as f64).expect("duration should be finite"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);

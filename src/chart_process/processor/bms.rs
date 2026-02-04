@@ -7,9 +7,8 @@ use std::{
 };
 
 use itertools::Itertools;
-use num::{One, ToPrimitive, Zero};
+use strict_num_extended::FinF64;
 
-use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
@@ -32,8 +31,8 @@ pub struct BmsProcessor;
 /// - Therefore: 1 unit of 192nd-note = 1/48 beat
 /// - Formula: beats = `192nd_note_value` / 48
 #[must_use]
-fn convert_stop_duration_to_beats(duration_192nd: &Decimal) -> Decimal {
-    duration_192nd.clone() / Decimal::from(48)
+fn convert_stop_duration_to_beats(duration_192nd: FinF64) -> FinF64 {
+    FinF64::new(duration_192nd.as_f64() / 48.0).expect("result should be finite")
 }
 
 impl BmsProcessor {
@@ -49,7 +48,7 @@ impl BmsProcessor {
             .bpm
             .as_ref()
             .cloned()
-            .unwrap_or_else(|| Decimal::from(120));
+            .unwrap_or_else(|| FinF64::new(120.0).expect("120 should be finite"));
 
         // Precompute resource maps
         let wav_files: HashMap<WavId, PathBuf> = bms
@@ -75,7 +74,7 @@ impl BmsProcessor {
             all_events,
             y_memo.flow_events().clone(),
             init_bpm,
-            Decimal::one(),
+            FinF64::new(1.0).expect("1.0 should be finite"),
         )
     }
 
@@ -92,7 +91,7 @@ impl BmsProcessor {
             return;
         };
 
-        if max_y.0 <= Decimal::zero() {
+        if max_y.0 <= FinF64::new(0.0).expect("0 should be finite") {
             return;
         }
 
@@ -133,7 +132,7 @@ impl BmsProcessor {
 #[derive(Debug)]
 pub struct YMemo {
     /// Y coordinates memoization by track, which modified its length
-    y_by_track: BTreeMap<Track, Decimal>,
+    y_by_track: BTreeMap<Track, FinF64>,
     speed_changes: BTreeMap<ObjTime, SpeedObj>,
     zero_length_tracks: std::collections::HashSet<Track>,
     /// Flow events that affect playback speed/scroll, organized by Y coordinate
@@ -142,14 +141,15 @@ pub struct YMemo {
 
 impl YMemo {
     fn new(bms: &Bms) -> Self {
-        let mut y_by_track: BTreeMap<Track, Decimal> = BTreeMap::new();
+        let mut y_by_track: BTreeMap<Track, FinF64> = BTreeMap::new();
         let mut last_track = 0;
-        let mut y = Decimal::zero();
+        let mut y = FinF64::new(0.0).expect("0 should be finite");
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
             let passed_sections = (track.0 - last_track).saturating_sub(1);
-            y += Decimal::from(passed_sections);
-            y += &section_len_change.length;
-            y_by_track.insert(track, y.clone());
+            y = FinF64::new(y.as_f64() + passed_sections as f64).expect("y should be finite");
+            y = FinF64::new(y.as_f64() + section_len_change.length.as_f64())
+                .expect("y should be finite");
+            y_by_track.insert(track, y);
             last_track = track.0;
         }
 
@@ -157,7 +157,7 @@ impl YMemo {
             .section_len
             .section_len_changes
             .iter()
-            .filter(|(_, change)| change.length.is_zero())
+            .filter(|(_, change)| change.length.as_f64() == 0.0)
             .map(|(&track, _)| track)
             .collect();
 
@@ -166,22 +166,31 @@ impl YMemo {
             let section_y =
                 if let Some((&track_last, track_y)) = y_by_track.range(..=&time.track()).last() {
                     let passed_sections = (time.track().0 - track_last.0).saturating_sub(1);
-                    Decimal::from(passed_sections) + track_y.clone()
+                    FinF64::new(passed_sections as f64 + track_y.as_f64())
+                        .expect("section_y should be finite")
                 } else {
-                    Decimal::from(time.track().0)
+                    FinF64::new(time.track().0 as f64).expect("track.0 should be finite")
                 };
             let fraction = if time.denominator().get() > 0 {
-                Decimal::from(time.numerator()) / Decimal::from(time.denominator().get())
+                FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
+                    .expect("fraction should be finite")
             } else {
-                Default::default()
+                FinF64::new(0.0).expect("0 should be finite")
             };
             let factor = bms
                 .speed
                 .speed_factor_changes
                 .range(..=time)
                 .last()
-                .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
-            YCoordinate((section_y + fraction) * factor)
+                .map_or_else(
+                    || FinF64::new(1.0).expect("1.0 should be finite"),
+                    |(_, obj)| obj.factor,
+                );
+            YCoordinate(
+                FinF64::new(section_y.as_f64() + fraction.as_f64())
+                    .and_then(|s| FinF64::new(s.as_f64() * factor.as_f64()))
+                    .unwrap_or_else(|_| FinF64::new(0.0).expect("0 should be finite")),
+            )
         };
 
         let mut flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
@@ -192,7 +201,7 @@ impl YMemo {
             flow_events
                 .entry(event_y)
                 .or_default()
-                .push(FlowEvent::Bpm(change.bpm.clone()));
+                .push(FlowEvent::Bpm(change.bpm));
         }
 
         // Scroll changes
@@ -201,7 +210,7 @@ impl YMemo {
             flow_events
                 .entry(event_y)
                 .or_default()
-                .push(FlowEvent::Scroll(change.factor.clone()));
+                .push(FlowEvent::Scroll(change.factor));
         }
 
         // Speed changes
@@ -210,7 +219,7 @@ impl YMemo {
             flow_events
                 .entry(event_y)
                 .or_default()
-                .push(FlowEvent::Speed(change.factor.clone()));
+                .push(FlowEvent::Speed(change.factor));
         }
 
         Self {
@@ -231,23 +240,28 @@ impl YMemo {
             let track = time.track();
             if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last() {
                 let passed_sections = (track.0 - last_track.0).saturating_sub(1);
-                Decimal::from(passed_sections) + last_y.clone()
+                FinF64::new(passed_sections as f64 + last_y.as_f64())
+                    .expect("section_y should be finite")
             } else {
                 // there is no sections modified its length until
-                Decimal::from(track.0)
+                FinF64::new(track.0 as f64).expect("track.0 should be finite")
             }
         };
         let fraction = if time.denominator().get() > 0 {
-            Decimal::from(time.numerator()) / Decimal::from(time.denominator().get())
+            FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
+                .expect("fraction should be finite")
         } else {
-            Default::default()
+            FinF64::new(0.0).expect("0 should be finite")
         };
-        let factor = self
-            .speed_changes
-            .range(..=time)
-            .last()
-            .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
-        YCoordinate((section_y + fraction) * factor)
+        let factor = self.speed_changes.range(..=time).last().map_or_else(
+            || FinF64::new(1.0).expect("1.0 should be finite"),
+            |(_, obj)| obj.factor,
+        );
+        YCoordinate(
+            FinF64::new(section_y.as_f64() + fraction.as_f64())
+                .and_then(|s| FinF64::new(s.as_f64() * factor.as_f64()))
+                .unwrap_or_else(|_| FinF64::new(0.0).expect("0 should be finite")),
+        )
     }
 
     // Gets the Y coordinate at the start of a track/section (without fraction)
@@ -255,16 +269,20 @@ impl YMemo {
         let section_y = if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last()
         {
             let passed_sections = track.0 - last_track.0;
-            Decimal::from(passed_sections) + last_y.clone()
+            FinF64::new(passed_sections as f64 + last_y.as_f64())
+                .expect("section_y should be finite")
         } else {
-            Decimal::from(track.0)
+            FinF64::new(track.0 as f64).expect("track.0 should be finite")
         };
         let factor = self
             .speed_changes
             .range(..=ObjTime::start_of(track))
             .last()
-            .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
-        YCoordinate(section_y * factor)
+            .map_or_else(
+                || FinF64::new(1.0).expect("1.0 should be finite"),
+                |(_, obj)| obj.factor,
+            );
+        YCoordinate(FinF64::new(section_y.as_f64() * factor.as_f64()).expect("y should be finite"))
     }
 
     /// Get flow events organized by Y coordinate
@@ -388,9 +406,7 @@ impl AllEventsIndex {
 
         for change in bms.bpm.bpm_changes.values() {
             let y = get_event_y(change.time);
-            let event = ChartEvent::BpmChange {
-                bpm: change.bpm.clone(),
-            };
+            let event = ChartEvent::BpmChange { bpm: change.bpm };
             events_map
                 .entry(y.clone())
                 .or_default()
@@ -406,7 +422,7 @@ impl AllEventsIndex {
         for change in bms.scroll.scrolling_factor_changes.values() {
             let y = get_event_y(change.time);
             let event = ChartEvent::ScrollChange {
-                factor: change.factor.clone(),
+                factor: change.factor,
             };
             events_map
                 .entry(y.clone())
@@ -423,7 +439,7 @@ impl AllEventsIndex {
         for change in bms.speed.speed_factor_changes.values() {
             let y = get_event_y(change.time);
             let event = ChartEvent::SpeedChange {
-                factor: change.factor.clone(),
+                factor: change.factor,
             };
             events_map
                 .entry(y.clone())
@@ -440,7 +456,7 @@ impl AllEventsIndex {
         for stop in bms.stop.stops.values() {
             let y = get_event_y(stop.time);
             let event = ChartEvent::Stop {
-                duration: convert_stop_duration_to_beats(&stop.duration),
+                duration: convert_stop_duration_to_beats(stop.duration),
             };
             events_map
                 .entry(y.clone())
@@ -651,38 +667,38 @@ pub fn precompute_activate_times(
         .bpm
         .as_ref()
         .cloned()
-        .unwrap_or_else(|| Decimal::from(120));
-    let bpm_changes: Vec<(YCoordinate, Decimal)> = bms
+        .unwrap_or_else(|| FinF64::new(120.0).expect("120 should be finite"));
+    let bpm_changes: Vec<(YCoordinate, FinF64)> = bms
         .bpm
         .bpm_changes
         .values()
         .map(|change| {
             let y = y_memo.get_y(change.time);
-            (y, change.bpm.clone())
+            (y, change.bpm)
         })
         .collect();
     points.extend(bpm_changes.iter().map(|(y, _)| y.clone()));
 
-    let stop_list: Vec<(YCoordinate, Decimal)> = bms
+    let stop_list: Vec<(YCoordinate, FinF64)> = bms
         .stop
         .stops
         .values()
         .map(|st| {
             let sy = y_memo.get_y(st.time);
-            (sy, st.duration.clone())
+            (sy, st.duration)
         })
         .sorted_by_key(|(y, _)| y.clone())
         .collect();
 
-    let mut bpm_map: BTreeMap<YCoordinate, Decimal> = BTreeMap::new();
-    bpm_map.insert(YCoordinate::zero(), init_bpm.clone());
+    let mut bpm_map: BTreeMap<YCoordinate, FinF64> = BTreeMap::new();
+    bpm_map.insert(YCoordinate::zero(), init_bpm);
     bpm_map.extend(bpm_changes.iter().cloned());
 
     let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
     let mut total_nanos: u64 = 0;
     let mut prev = YCoordinate::zero();
     cum_map.insert(prev.clone(), 0);
-    let mut cur_bpm = init_bpm.clone();
+    let mut cur_bpm = init_bpm;
     let mut stop_idx = 0usize;
 
     for curr in points {
@@ -691,15 +707,12 @@ pub fn precompute_activate_times(
         }
 
         if let Some((_, bpm)) = bpm_map.range(..=&curr).next_back() {
-            cur_bpm = bpm.clone();
+            cur_bpm = *bpm;
         }
 
         let delta_y = curr.clone() - prev.clone();
         let delta_nanos =
-            (delta_y.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-                / cur_bpm.clone())
-            .to_u64()
-            .unwrap_or(0);
+            (delta_y.value().as_f64() * 240.0 * NANOS_PER_SECOND as f64 / cur_bpm.as_f64()) as u64;
         total_nanos = total_nanos.saturating_add(delta_nanos);
 
         while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
@@ -710,12 +723,10 @@ pub fn precompute_activate_times(
                 let bpm_at_stop = bpm_map
                     .range(..=sy)
                     .next_back()
-                    .map(|(_, b)| b.clone())
-                    .unwrap_or_else(|| init_bpm.clone());
-                let dur_nanos = (dur_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-                    / bpm_at_stop)
-                    .to_u64()
-                    .unwrap_or(0);
+                    .map(|(_, b)| *b)
+                    .unwrap_or(init_bpm);
+                let dur_nanos = (dur_y.as_f64() * 240.0 * NANOS_PER_SECOND as f64
+                    / bpm_at_stop.as_f64()) as u64;
                 total_nanos = total_nanos.saturating_add(dur_nanos);
             }
             stop_idx += 1;

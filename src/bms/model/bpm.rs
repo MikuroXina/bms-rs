@@ -2,21 +2,23 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 
+use strict_num_extended::FinF64;
+
 use crate::bms::{
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// This aggregate manages definition and events of BPM change on playing.
 pub struct BpmObjects {
     /// The initial BPM of the score.
-    pub bpm: Option<Decimal>,
+    pub bpm: Option<FinF64>,
     /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
-    pub bpm_defs: HashMap<ObjId, Decimal>,
+    pub bpm_defs: HashMap<ObjId, FinF64>,
     /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
-    pub base_bpm: Option<Decimal>,
+    pub base_bpm: Option<FinF64>,
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
@@ -103,11 +105,11 @@ impl BpmObjects {
                 let existing = entry.get();
                 let older = BpmChangeObj {
                     time,
-                    bpm: Decimal::from(*existing),
+                    bpm: FinF64::new(*existing as f64).expect("u8 to f64 is always finite"),
                 };
                 let newer = BpmChangeObj {
                     time,
-                    bpm: Decimal::from(bpm_change),
+                    bpm: FinF64::new(bpm_change as f64).expect("u8 to f64 is always finite"),
                 };
                 prompt_handler
                     .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {

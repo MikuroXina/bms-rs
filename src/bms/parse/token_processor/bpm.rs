@@ -5,9 +5,9 @@
 //! - `#BASEBPM` - Reference speed for scroll speed. Obsolete.
 //! - `#xxx08:` - BPM change channel.
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, rc::Rc};
 
-use fraction::GenericFraction;
+use strict_num_extended::FinF64;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -79,10 +79,11 @@ impl BpmProcessor {
         objects: &mut BpmObjects,
     ) -> Result<()> {
         if name.eq_ignore_ascii_case("BPM") {
-            let bpm = Decimal::from_fraction(
-                GenericFraction::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-            );
+            let bpm: FinF64 = args
+                .parse::<f64>()
+                .ok()
+                .and_then(|v| FinF64::new(v).ok())
+                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal BPM".into()))?;
             objects.bpm = Some(bpm);
         }
         if let Some(id) = name
@@ -90,16 +91,17 @@ impl BpmProcessor {
             .or_else(|| name.strip_prefix_ignore_case("EXBPM"))
         {
             let bpm_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-            let bpm = Decimal::from_fraction(
-                GenericFraction::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-            );
+            let bpm: FinF64 = args
+                .parse::<f64>()
+                .ok()
+                .and_then(|v| FinF64::new(v).ok())
+                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal BPM".into()))?;
             if let Some(older) = objects.bpm_defs.get_mut(&bpm_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::BpmChange {
                         id: bpm_obj_id,
-                        older: older.clone(),
-                        newer: bpm.clone(),
+                        older: *older,
+                        newer: bpm,
                     })
                     .apply_def(older, bpm, bpm_obj_id)?;
             } else {
@@ -107,10 +109,11 @@ impl BpmProcessor {
             }
         }
         if name.eq_ignore_ascii_case("BASEBPM") {
-            let bpm = Decimal::from_fraction(
-                GenericFraction::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-            );
+            let bpm: FinF64 = args
+                .parse::<f64>()
+                .ok()
+                .and_then(|v| FinF64::new(v).ok())
+                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal BPM".into()))?;
             objects.base_bpm = Some(bpm);
         }
         Ok(())

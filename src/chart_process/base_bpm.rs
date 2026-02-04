@@ -1,9 +1,9 @@
 //! Module for base BPM generation strategies and types.
 
-use crate::bms::Decimal;
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
+use strict_num_extended::FinF64;
 
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {
@@ -25,22 +25,22 @@ pub struct MinBpmGenerator;
 pub struct MaxBpmGenerator;
 
 /// Generator that uses a manually specified BPM value.
-#[derive(Debug, Clone)]
-pub struct ManualBpmGenerator(pub Decimal);
+#[derive(Debug, Clone, Copy)]
+pub struct ManualBpmGenerator(pub FinF64);
 
-impl AsRef<Decimal> for ManualBpmGenerator {
-    fn as_ref(&self) -> &Decimal {
+impl AsRef<FinF64> for ManualBpmGenerator {
+    fn as_ref(&self) -> &FinF64 {
         &self.0
     }
 }
 
-impl From<Decimal> for ManualBpmGenerator {
-    fn from(value: Decimal) -> Self {
+impl From<FinF64> for ManualBpmGenerator {
+    fn from(value: FinF64) -> Self {
         Self(value)
     }
 }
 
-impl From<ManualBpmGenerator> for Decimal {
+impl From<ManualBpmGenerator> for FinF64 {
     fn from(value: ManualBpmGenerator) -> Self {
         value.0
     }
@@ -49,23 +49,23 @@ impl From<ManualBpmGenerator> for Decimal {
 impl ManualBpmGenerator {
     /// Returns a reference to the contained BPM value.
     #[must_use]
-    pub const fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &FinF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained BPM value.
     #[must_use]
-    pub fn into_value(self) -> Decimal {
+    pub const fn into_value(self) -> FinF64 {
         self.0
     }
 }
 
-/// Base BPM wrapper type, encapsulating a `Decimal` value.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BaseBpm(pub Decimal);
+/// Base BPM wrapper type, encapsulating a `FinF64` value.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BaseBpm(pub FinF64);
 
-impl AsRef<Decimal> for BaseBpm {
-    fn as_ref(&self) -> &Decimal {
+impl AsRef<FinF64> for BaseBpm {
+    fn as_ref(&self) -> &FinF64 {
         &self.0
     }
 }
@@ -73,30 +73,30 @@ impl AsRef<Decimal> for BaseBpm {
 impl BaseBpm {
     /// Create a new `BaseBpm`
     #[must_use]
-    pub const fn new(value: Decimal) -> Self {
+    pub const fn new(value: FinF64) -> Self {
         Self(value)
     }
 
     /// Returns a reference to the contained BPM value.
     #[must_use]
-    pub const fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &FinF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained BPM value.
     #[must_use]
-    pub fn into_value(self) -> Decimal {
+    pub const fn into_value(self) -> FinF64 {
         self.0
     }
 }
 
-impl From<Decimal> for BaseBpm {
-    fn from(value: Decimal) -> Self {
+impl From<FinF64> for BaseBpm {
+    fn from(value: FinF64) -> Self {
         Self(value)
     }
 }
 
-impl From<BaseBpm> for Decimal {
+impl From<BaseBpm> for FinF64 {
     fn from(value: BaseBpm) -> Self {
         value.0
     }
@@ -115,12 +115,7 @@ impl BaseBpmGenerator<Bms> for MinBpmGenerator {
             .bpm
             .iter()
             .cloned()
-            .chain(
-                bms.bpm
-                    .bpm_changes
-                    .values()
-                    .map(|change| change.bpm.clone()),
-            )
+            .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
             .min()
             .map(BaseBpm::new)
     }
@@ -132,12 +127,7 @@ impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
             .bpm
             .iter()
             .cloned()
-            .chain(
-                bms.bpm
-                    .bpm_changes
-                    .values()
-                    .map(|change| change.bpm.clone()),
-            )
+            .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
             .max()
             .map(BaseBpm::new)
     }
@@ -145,7 +135,7 @@ impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
 
 impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
     fn generate(&self, _bms: &Bms) -> Option<BaseBpm> {
-        Some(BaseBpm::new(self.0.clone()))
+        Some(BaseBpm::new(self.0))
     }
 }
 
@@ -153,43 +143,35 @@ impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        Some(BaseBpm::new(Decimal::from(bmson.info.init_bpm.as_f64())))
+        FinF64::new(bmson.info.init_bpm.as_f64())
+            .ok()
+            .map(BaseBpm::new)
     }
 }
 
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        std::iter::once(Decimal::from(bmson.info.init_bpm.as_f64()))
-            .chain(
-                bmson
-                    .bpm_events
-                    .iter()
-                    .map(|ev| Decimal::from(ev.bpm.as_f64())),
-            )
+        std::iter::once(bmson.info.init_bpm)
+            .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
             .min()
-            .map(BaseBpm::new)
+            .map(|bpm| BaseBpm::new(FinF64::new(bpm.as_f64()).expect("BPM should be finite")))
     }
 }
 
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        std::iter::once(Decimal::from(bmson.info.init_bpm.as_f64()))
-            .chain(
-                bmson
-                    .bpm_events
-                    .iter()
-                    .map(|ev| Decimal::from(ev.bpm.as_f64())),
-            )
+        std::iter::once(bmson.info.init_bpm)
+            .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
             .max()
-            .map(BaseBpm::new)
+            .map(|bpm| BaseBpm::new(FinF64::new(bpm.as_f64()).expect("BPM should be finite")))
     }
 }
 
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for ManualBpmGenerator {
     fn generate(&self, _bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        Some(BaseBpm::new(self.0.clone()))
+        Some(BaseBpm::new(self.0))
     }
 }

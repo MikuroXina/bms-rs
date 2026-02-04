@@ -50,9 +50,10 @@ use self::{
 
 /// Decimal type used throughout the BMS module.
 ///
-/// This is a type alias for `GenericDecimal<BigUint, usize>` which provides
-/// arbitrary precision decimal arithmetic for BMS parsing.
-pub type Decimal = fraction::BigDecimal;
+/// This is a type alias for `FinF64` which provides finite f64 arithmetic for BMS parsing.
+///
+/// Note: This alias will be removed in the future. Please use `FinF64` directly.
+pub type Decimal = strict_num_extended::FinF64;
 
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]
@@ -284,7 +285,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
 }
 
 /// Output of parsing a BMS file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[must_use]
 pub struct BmsOutput {

@@ -39,7 +39,7 @@ use self::{
 use self::{option::OptionObjects, resources::Resources};
 
 /// A score data aggregate of BMS format.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms {
     /// Manager of BGA (Background Animation) and BGI (Background Image) definitions and events.
@@ -162,10 +162,10 @@ impl Bms {
         // bpm
         self.bpm.bpm_changes.extend(other.bpm.bpm_changes.clone());
         if other.bpm.bpm.is_some() {
-            self.bpm.bpm = other.bpm.bpm.clone();
+            self.bpm.bpm = other.bpm.bpm;
         }
         if other.bpm.base_bpm.is_some() {
-            self.bpm.base_bpm = other.bpm.base_bpm.clone();
+            self.bpm.base_bpm = other.bpm.base_bpm;
         }
         self.bpm.bpm_defs.extend(other.bpm.bpm_defs.clone());
         self.bpm
@@ -177,7 +177,7 @@ impl Bms {
             self.judge.rank = other.judge.rank;
         }
         if other.judge.total.is_some() {
-            self.judge.total = other.judge.total.clone();
+            self.judge.total = other.judge.total;
         }
         self.judge
             .exrank_defs
@@ -340,10 +340,10 @@ impl Bms {
             self.video.video_colors = other.video.video_colors;
         }
         if other.video.video_dly.is_some() {
-            self.video.video_dly = other.video.video_dly.clone();
+            self.video.video_dly = other.video.video_dly;
         }
         if other.video.video_fs.is_some() {
-            self.video.video_fs = other.video.video_fs.clone();
+            self.video.video_fs = other.video.video_fs;
         }
         self.video.seek_defs.extend(other.video.seek_defs.clone());
         self.video

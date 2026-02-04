@@ -1,7 +1,6 @@
 #![cfg(feature = "bmson")]
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
 
 use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
@@ -48,7 +47,7 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     let mut got_any_ratio = false;
     for (ev, ratio_range) in processor.visible_events() {
         if matches!(ev.event(), ChartEvent::Note { .. }) {
-            let ratio = ratio_range.start().value().to_f64().unwrap_or(0.0);
+            let ratio = ratio_range.start().value().as_f64();
             let expected = 3.0 / 4.0;
             assert_time_close(expected, ratio, "display_ratio for visible note");
             got_any_ratio = true;
@@ -91,19 +90,30 @@ fn test_visible_events_duration_matches_reaction_time() {
     let _start_time = TimeStamp::start();
 
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
-    assert_eq!(*initial_state.playback_ratio(), Decimal::one());
+    assert_eq!(
+        *initial_state.current_bpm(),
+        Decimal::try_from(120.0).unwrap()
+    );
+    assert_eq!(
+        *initial_state.playback_ratio(),
+        Decimal::try_from(1.0).unwrap()
+    );
 
-    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let test_base_bpm = BaseBpm::from(Decimal::try_from(120.0).unwrap());
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
-    let visible_window_y =
-        visible_range.window_y(state.current_bpm(), &Decimal::one(), state.playback_ratio());
+    let visible_window_y = visible_range.window_y(
+        state.current_bpm(),
+        &Decimal::try_from(1.0).unwrap(),
+        state.playback_ratio(),
+    );
 
-    let velocity = Decimal::from(120) * Decimal::one() / Decimal::from(240u64);
-    let time_to_cross = visible_window_y.as_ref() / velocity;
+    let velocity = (Decimal::try_from(120.0).unwrap() * Decimal::try_from(1.0).unwrap()
+        / Decimal::try_from((240) as f64).unwrap())
+    .unwrap();
+    let time_to_cross = visible_window_y.as_ref().as_f64() / velocity.as_f64();
 
-    let actual_time_to_cross_f64 = time_to_cross.to_f64().unwrap_or(0.0);
+    let actual_time_to_cross_f64 = time_to_cross;
     assert_time_close(0.6, actual_time_to_cross_f64, "time_to_cross");
 }
 
@@ -139,37 +149,46 @@ fn test_visible_events_duration_with_playback_ratio() {
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
     let _start_time = TimeStamp::start();
 
-    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let test_base_bpm = BaseBpm::from(Decimal::try_from(120.0).unwrap());
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
 
     let state = processor.playback_state();
-    let visible_window_y_ratio_1 =
-        visible_range.window_y(state.current_bpm(), &Decimal::one(), &Decimal::one());
+    let visible_window_y_ratio_1 = visible_range.window_y(
+        state.current_bpm(),
+        &Decimal::try_from(1.0).unwrap(),
+        &Decimal::try_from(1.0).unwrap(),
+    );
 
-    processor.set_playback_ratio(Decimal::from(0.5));
+    processor.set_playback_ratio(Decimal::try_from(0.5).unwrap());
 
     let changed_state = processor.playback_state();
-    assert_eq!(*changed_state.playback_ratio(), Decimal::from(0.5));
+    assert_eq!(
+        *changed_state.playback_ratio(),
+        Decimal::try_from(0.5).unwrap()
+    );
 
     let state_0_5 = processor.playback_state();
     let visible_window_y_ratio_0_5 = visible_range.window_y(
         state_0_5.current_bpm(),
-        &Decimal::one(),
+        &Decimal::try_from(1.0).unwrap(),
         state_0_5.playback_ratio(),
     );
 
-    let ratio = visible_window_y_ratio_0_5.as_ref() / visible_window_y_ratio_1.as_ref();
-    let ratio_f64 = ratio.to_f64().unwrap_or(0.0);
+    let ratio =
+        (*visible_window_y_ratio_0_5.as_ref() / *visible_window_y_ratio_1.as_ref()).unwrap();
+    let ratio_f64 = ratio.as_f64();
     assert_time_close(
         0.5,
         ratio_f64,
         "visible_window_y ratio when playback_ratio=0.5",
     );
 
-    let velocity = Decimal::from(120) * Decimal::from(0.5) / Decimal::from(240u64);
-    let time_to_cross = visible_window_y_ratio_0_5.as_ref() / velocity;
+    let velocity = (Decimal::try_from(120.0).unwrap() * Decimal::try_from(0.5).unwrap()
+        / Decimal::try_from((240) as f64).unwrap())
+    .unwrap();
+    let time_to_cross = visible_window_y_ratio_0_5.as_ref().as_f64() / velocity.as_f64();
 
-    let actual_time_to_cross_f64 = time_to_cross.to_f64().unwrap_or(0.0);
+    let actual_time_to_cross_f64 = time_to_cross;
     assert_time_close(0.6, actual_time_to_cross_f64, "time_to_cross");
 }
 
@@ -204,27 +223,33 @@ fn test_visible_events_with_boundary_conditions() {
     let start_time = TimeStamp::now();
     let _processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
-    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let test_base_bpm = BaseBpm::from(Decimal::try_from(120.0).unwrap());
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
 
-    let very_small_ratio = Decimal::from(1u64);
-    let visible_window_y =
-        visible_range.window_y(&Decimal::from(120), &Decimal::one(), &very_small_ratio);
+    let very_small_ratio = Decimal::try_from((1) as f64).unwrap();
+    let visible_window_y = visible_range.window_y(
+        &Decimal::try_from(120.0).unwrap(),
+        &Decimal::try_from(1.0).unwrap(),
+        &very_small_ratio,
+    );
 
     assert!(
-        *visible_window_y.as_ref() >= Decimal::from(0),
+        *visible_window_y.as_ref() >= Decimal::try_from(0.0).unwrap(),
         "visible_window_y should be non-negative even with very small playback_ratio"
     );
 
-    let normal_ratio = Decimal::one();
-    let visible_window_y_normal =
-        visible_range.window_y(&Decimal::from(120), &Decimal::one(), &normal_ratio);
+    let normal_ratio = Decimal::try_from(1.0).unwrap();
+    let visible_window_y_normal = visible_range.window_y(
+        &Decimal::try_from(120.0).unwrap(),
+        &Decimal::try_from(1.0).unwrap(),
+        &normal_ratio,
+    );
 
     let expected_ratio = very_small_ratio / normal_ratio;
-    let actual_ratio = visible_window_y.as_ref() / visible_window_y_normal.as_ref();
+    let actual_ratio = *visible_window_y.as_ref() / *visible_window_y_normal.as_ref();
 
-    let actual_ratio_f64 = actual_ratio.to_f64().unwrap_or(0.0);
-    let expected_ratio_f64 = expected_ratio.to_f64().unwrap_or(0.0);
+    let actual_ratio_f64 = actual_ratio.unwrap().as_f64();
+    let expected_ratio_f64 = expected_ratio.unwrap().as_f64();
     assert_time_close(
         expected_ratio_f64,
         actual_ratio_f64,

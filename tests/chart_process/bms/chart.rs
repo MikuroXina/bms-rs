@@ -2,6 +2,7 @@ use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
+
 use bms_rs::chart_process::prelude::*;
 
 use super::parse_bms_no_warnings;
@@ -22,7 +23,7 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(Decimal::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::start();

@@ -17,8 +17,8 @@ use kira::{
 };
 use macroquad::prelude::Color;
 use macroquad::prelude::*;
-use num::ToPrimitive;
 use rayon::prelude::*;
+use strict_num_extended::FinF64;
 
 fn window_conf() -> Conf {
     Conf {
@@ -65,8 +65,10 @@ async fn main() -> Result<(), String> {
     let start_time = TimeStamp::now();
     let mut chart_player = ChartPlayer::start(chart, visible_range, start_time);
     // Set visibility range to [-0.5, 1.0) to show events past judgment line
-    chart_player
-        .set_visibility_range(bms_rs::bms::Decimal::from(-0.5)..bms_rs::bms::Decimal::from(1.0));
+    chart_player.set_visibility_range(
+        FinF64::new(-0.5).expect("-0.5 should be finite")
+            ..FinF64::new(1.0).expect("1.0 should be finite"),
+    );
     println!("Player started");
 
     // 6.5. Initialize audio playback system
@@ -105,10 +107,10 @@ async fn main() -> Result<(), String> {
             println!(
                 "[Playback] Time: {:.1}s | BPM: {:.1} | Y: {:.2} | Speed: {:.2} | Scroll: {:.2} | Missed: {}",
                 elapsed.as_secs_f64(),
-                state.current_bpm().to_f64().unwrap_or(0.0),
-                state.progressed_y().value().to_f64().unwrap_or(0.0),
-                state.current_speed().to_f64().unwrap_or(1.0),
-                state.current_scroll().to_f64().unwrap_or(1.0),
+                state.current_bpm().as_f64(),
+                state.progressed_y().value().as_f64(),
+                state.current_speed().as_f64(),
+                state.current_scroll().as_f64(),
                 missed_sounds,
             );
             next_print_time += TimeSpan::SECOND;
@@ -211,7 +213,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
             // First generate BaseBpm from BMS
             let base_bpm = StartBpmGenerator
                 .generate(&bms)
-                .unwrap_or_else(|| BaseBpm::new(bms_rs::bms::Decimal::from(120)));
+                .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).expect("120 should be finite")));
 
             // Use KeyLayoutBeat mapper (supports 7+1k)
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
@@ -225,9 +227,9 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
                     .map_err(|e| format!("JSON parse error: {}", e))?;
 
                 // First generate BaseBpm from BMSON
-                let base_bpm = StartBpmGenerator
-                    .generate(&bmson)
-                    .unwrap_or_else(|| BaseBpm::new(bms_rs::bms::Decimal::from(120)));
+                let base_bpm = StartBpmGenerator.generate(&bmson).unwrap_or_else(|| {
+                    BaseBpm::new(FinF64::new(120.0).expect("120 should be finite"))
+                });
 
                 let chart = BmsonProcessor::parse(&bmson);
                 (chart, base_bpm)
@@ -416,7 +418,7 @@ fn render_notes(player: &mut ChartPlayer, _events: &[PlayheadEvent]) {
     for (event, display_range) in visible {
         // Render measure lines
         if matches!(event.event(), ChartEvent::BarLine) {
-            let ratio = display_range.start().value().to_f64().unwrap_or(0.0);
+            let ratio = display_range.start().value().as_f64();
             let y = JUDGMENT_LINE_Y - (ratio as f32 * JUDGMENT_LINE_Y);
 
             // Draw measure line across all tracks
@@ -442,8 +444,8 @@ fn render_notes(player: &mut ChartPlayer, _events: &[PlayheadEvent]) {
 
             // DisplayRatio: 0.0 = judgment line, 1.0 = visible area top
             // Convert to screen coordinates: Y = judgment line - (ratio * visible height)
-            let ratio_start = display_range.start().value().to_f64().unwrap_or(0.0);
-            let ratio_end = display_range.end().value().to_f64().unwrap_or(0.0);
+            let ratio_start = display_range.start().value().as_f64();
+            let ratio_end = display_range.end().value().as_f64();
 
             let y_start = JUDGMENT_LINE_Y - (ratio_start as f32 * JUDGMENT_LINE_Y);
             let y_end = JUDGMENT_LINE_Y - (ratio_end as f32 * JUDGMENT_LINE_Y);
@@ -512,7 +514,7 @@ fn render_info(player: &ChartPlayer) {
     let state = player.playback_state();
 
     // Display BPM
-    let bpm = state.current_bpm().to_f64().unwrap_or(0.0);
+    let bpm = state.current_bpm().as_f64();
     macroquad::prelude::draw_text(
         &format!("BPM: {:.1}", bpm),
         10.0,
@@ -522,7 +524,7 @@ fn render_info(player: &ChartPlayer) {
     );
 
     // Display progress (current Y coordinate)
-    let y = state.progressed_y().value().to_f64().unwrap_or(0.0);
+    let y = state.progressed_y().value().as_f64();
     macroquad::prelude::draw_text(
         &format!("Position: {:.2}", y),
         10.0,

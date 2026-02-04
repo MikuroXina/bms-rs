@@ -1,7 +1,6 @@
 #![cfg(feature = "bmson")]
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
 
 use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
@@ -50,7 +49,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
     let _ = processor.update(after_scroll);
     let state = processor.playback_state();
-    assert_ne!(*state.current_scroll(), Decimal::one());
+    assert_ne!(*state.current_scroll(), Decimal::try_from(1.0).unwrap());
 
     let output2 = parse_bmson(json);
     let bmson2 = output2.bmson.expect("Failed to parse BMSON in test setup");
@@ -63,7 +62,10 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let start_time2 = TimeStamp::now();
     let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
     let reset_state = restarted_processor.playback_state();
-    assert_eq!(*reset_state.current_scroll(), Decimal::one());
+    assert_eq!(
+        *reset_state.current_scroll(),
+        Decimal::try_from(1.0).unwrap()
+    );
 }
 
 #[test]
@@ -112,8 +114,8 @@ fn test_bmson_edge_cases_no_division_by_zero() {
 
     let events = processor.visible_events();
     for (_ev, ratio_range) in events {
-        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
-        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+        let ratio_start = ratio_range.start().value().as_f64();
+        let ratio_end = ratio_range.end().value().as_f64();
         assert_time_close(
             1.0,
             ratio_start,
@@ -182,7 +184,7 @@ fn test_very_long_elapsed_time_no_errors() {
     let _ = processor.update(after_long_time);
 
     let state = processor.playback_state();
-    let expected_bpm = Decimal::from(180);
+    let expected_bpm = Decimal::try_from(180.0).unwrap();
     assert_eq!(
         *state.current_bpm(),
         expected_bpm,
@@ -198,8 +200,8 @@ fn test_very_long_elapsed_time_no_errors() {
             "activate_time should be finite after 30 days"
         );
 
-        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
-        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+        let ratio_start = ratio_range.start().value().as_f64();
+        let ratio_end = ratio_range.end().value().as_f64();
         assert!(
             ratio_start.is_finite(),
             "display_ratio start should be finite"

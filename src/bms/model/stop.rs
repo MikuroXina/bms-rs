@@ -2,6 +2,8 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use strict_num_extended::FinF64;
+
 use crate::bms::prelude::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -32,7 +34,9 @@ impl StopObjects {
         self.stops
             .entry(stop.time)
             .and_modify(|existing| {
-                existing.duration = &existing.duration + &stop.duration;
+                let sum = existing.duration.as_f64() + stop.duration.as_f64();
+                existing.duration =
+                    FinF64::new(sum).expect("sum of finite values should be finite");
             })
             .or_insert_with(|| stop);
     }

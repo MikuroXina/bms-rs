@@ -68,6 +68,7 @@ use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
+use crate::bmson::prelude::FinF64;
 use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
 use gametime::TimeSpan;
 use num::Zero;
@@ -288,21 +289,42 @@ impl std::hash::Hash for PlayheadEvent {
 #[derive(Debug, Clone)]
 pub enum FlowEvent {
     /// BPM change event.
-    Bpm(Decimal),
+    Bpm(FinF64),
     /// Speed factor change event (BMS only).
-    Speed(Decimal),
+    Speed(FinF64),
     /// Scroll factor change event.
-    Scroll(Decimal),
+    Scroll(FinF64),
 }
 
-/// Y coordinate wrapper type, using arbitrary precision decimal numbers.
+/// Y coordinate wrapper type, using finite f64 numbers.
 ///
 /// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct YCoordinate(pub Decimal);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct YCoordinate(pub FinF64);
 
-impl AsRef<Decimal> for YCoordinate {
-    fn as_ref(&self) -> &Decimal {
+impl std::hash::Hash for YCoordinate {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Hash the f64 value using its bit representation
+        self.0.as_f64().to_bits().hash(state);
+    }
+}
+
+impl PartialOrd for YCoordinate {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        // Use f64::total_cmp for consistent ordering including NaN handling
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for YCoordinate {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Use f64::total_cmp for consistent ordering including NaN handling
+        self.0.as_f64().total_cmp(&other.0.as_f64())
+    }
+}
+
+impl AsRef<FinF64> for YCoordinate {
+    fn as_ref(&self) -> &FinF64 {
         &self.0
     }
 }
@@ -310,36 +332,42 @@ impl AsRef<Decimal> for YCoordinate {
 impl YCoordinate {
     /// Create a new `YCoordinate`
     #[must_use]
-    pub const fn new(value: Decimal) -> Self {
+    pub const fn new(value: FinF64) -> Self {
         Self(value)
     }
 
     /// Returns a reference to the contained value.
     #[must_use]
-    pub const fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &FinF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained value.
     #[must_use]
-    pub fn into_value(self) -> Decimal {
+    pub const fn into_value(self) -> FinF64 {
         self.0
     }
 
     /// Creates a zero of Y coordinate.
     #[must_use]
     pub fn zero() -> Self {
-        Self(Decimal::zero())
+        Self(FinF64::new(0.0).expect("0 should be finite"))
+    }
+
+    /// Returns the inner f64 value.
+    #[must_use]
+    pub const fn as_f64(&self) -> f64 {
+        self.0.as_f64()
     }
 }
 
-impl From<Decimal> for YCoordinate {
-    fn from(value: Decimal) -> Self {
+impl From<FinF64> for YCoordinate {
+    fn from(value: FinF64) -> Self {
         Self(value)
     }
 }
 
-impl From<YCoordinate> for Decimal {
+impl From<YCoordinate> for FinF64 {
     fn from(value: YCoordinate) -> Self {
         value.0
     }
@@ -347,7 +375,7 @@ impl From<YCoordinate> for Decimal {
 
 impl From<f64> for YCoordinate {
     fn from(value: f64) -> Self {
-        Self(Decimal::from(value))
+        Self(FinF64::new(value).expect("value should be finite"))
     }
 }
 
@@ -355,7 +383,7 @@ impl std::ops::Add for YCoordinate {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
+        Self(FinF64::new(self.0.as_f64() + rhs.0.as_f64()).expect("sum should be finite"))
     }
 }
 
@@ -363,7 +391,7 @@ impl std::ops::Add for &YCoordinate {
     type Output = YCoordinate;
 
     fn add(self, rhs: Self) -> Self::Output {
-        YCoordinate(&self.0 + &rhs.0)
+        YCoordinate(FinF64::new(self.0.as_f64() + rhs.0.as_f64()).expect("sum should be finite"))
     }
 }
 
@@ -371,7 +399,7 @@ impl std::ops::Sub for YCoordinate {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
+        Self(FinF64::new(self.0.as_f64() - rhs.0.as_f64()).expect("difference should be finite"))
     }
 }
 
@@ -379,7 +407,9 @@ impl std::ops::Sub for &YCoordinate {
     type Output = YCoordinate;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        YCoordinate(&self.0 - &rhs.0)
+        YCoordinate(
+            FinF64::new(self.0.as_f64() - rhs.0.as_f64()).expect("difference should be finite"),
+        )
     }
 }
 
@@ -387,7 +417,7 @@ impl std::ops::Mul for YCoordinate {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Self(self.0 * rhs.0)
+        Self(FinF64::new(self.0.as_f64() * rhs.0.as_f64()).expect("product should be finite"))
     }
 }
 
@@ -395,7 +425,7 @@ impl std::ops::Div for YCoordinate {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        Self(self.0 / rhs.0)
+        Self(FinF64::new(self.0.as_f64() / rhs.0.as_f64()).expect("quotient should be finite"))
     }
 }
 
@@ -403,16 +433,18 @@ impl std::ops::Div for &YCoordinate {
     type Output = YCoordinate;
 
     fn div(self, rhs: Self) -> Self::Output {
-        YCoordinate(&self.0 / &rhs.0)
+        YCoordinate(
+            FinF64::new(self.0.as_f64() / rhs.0.as_f64()).expect("quotient should be finite"),
+        )
     }
 }
 
 impl Zero for YCoordinate {
     fn zero() -> Self {
-        Self(Decimal::zero())
+        Self(FinF64::new(0.0).expect("0 should be finite"))
     }
 
     fn is_zero(&self) -> bool {
-        self.0.is_zero()
+        self.0.as_f64() == 0.0
     }
 }

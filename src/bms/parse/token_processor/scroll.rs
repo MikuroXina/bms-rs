@@ -3,9 +3,9 @@
 //! - `#SCROLL[01-ZZ] n` - Scrolling speed factor definition. It changes scrolling speed while keeps BPM.
 //! - `#xxxSC:` - Scrolling speed factor channel.
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, rc::Rc};
 
-use fraction::GenericFraction;
+use strict_num_extended::FinF64;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -77,17 +77,20 @@ impl ScrollProcessor {
         objects: &mut ScrollObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SCROLL") {
-            let factor =
-                Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
+            let factor = args
+                .parse::<f64>()
+                .ok()
+                .and_then(|v| FinF64::new(v).ok())
+                .ok_or_else(|| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())
-                })?);
+                })?;
             let scroll_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
             if let Some(older) = objects.scroll_defs.get_mut(&scroll_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::ScrollingFactorChange {
                         id: scroll_obj_id,
-                        older: older.clone(),
-                        newer: factor.clone(),
+                        older: *older,
+                        newer: factor,
                     })
                     .apply_def(older, factor, scroll_obj_id)?;
             } else {

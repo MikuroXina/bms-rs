@@ -3,9 +3,9 @@
 //! - `#SPEED[01-ZZ] n` - Spacing factor definition. It changes spacing among notes while keeps scrolling speed.
 //! - `#xxxSP:` - Spacing factor channel.
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, rc::Rc};
 
-use fraction::GenericFraction;
+use strict_num_extended::FinF64;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -77,17 +77,21 @@ impl SpeedProcessor {
         objects: &mut SpeedObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SPEED") {
-            let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
-            })?);
+            let factor = args
+                .parse::<f64>()
+                .ok()
+                .and_then(|v| FinF64::new(v).ok())
+                .ok_or_else(|| {
+                    ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
+                })?;
             let speed_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = objects.speed_defs.get_mut(&speed_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::SpeedFactorChange {
                         id: speed_obj_id,
-                        older: older.clone(),
-                        newer: factor.clone(),
+                        older: *older,
+                        newer: factor,
                     })
                     .apply_def(older, factor, speed_obj_id)?;
             } else {

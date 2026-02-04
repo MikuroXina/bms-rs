@@ -7,12 +7,9 @@
 //! - `#SEEK[00-ZZ] n` - It controls playing time of the video BGA. Obsolete.
 //! - `#xxx:05` - Video seek channel. Obsolete.
 
-use std::str::FromStr;
 use std::{cell::RefCell, path::Path, rc::Rc};
 
-use fraction::GenericFraction;
-
-use num::BigUint;
+use strict_num_extended::FinF64;
 
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
@@ -87,10 +84,11 @@ impl VideoProcessor {
             video.video_file = Some(Path::new(args).into());
         }
         if name.eq_ignore_ascii_case("VIDEOF/S") {
-            let frame_rate = Decimal::from_fraction(
-                GenericFraction::<BigUint>::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
-            );
+            let frame_rate = args
+                .parse::<f64>()
+                .ok()
+                .and_then(|v| FinF64::new(v).ok())
+                .ok_or_else(|| ParseWarning::SyntaxError("expected f64".into()))?;
             video.video_fs = Some(frame_rate);
         }
         if name.eq_ignore_ascii_case("VIDEOCOLORS") {
@@ -100,20 +98,19 @@ impl VideoProcessor {
             video.video_colors = Some(colors);
         }
         if name.eq_ignore_ascii_case("VIDEODLY") {
-            let delay = Decimal::from_fraction(
-                GenericFraction::<BigUint>::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
-            );
+            let delay = args
+                .parse::<f64>()
+                .ok()
+                .and_then(|v| FinF64::new(v).ok())
+                .ok_or_else(|| ParseWarning::SyntaxError("expected f64".into()))?;
             video.video_dly = Some(delay);
         }
         if let Some(id) = name.strip_prefix_ignore_case("SEEK") {
-            use fraction::GenericFraction;
-            use num::BigUint;
-
-            let ms = Decimal::from_fraction(
-                GenericFraction::<BigUint>::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
-            );
+            let ms = args
+                .parse::<f64>()
+                .ok()
+                .and_then(|v| FinF64::new(v).ok())
+                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal".into()))?;
             let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = video.seek_defs.get_mut(&id) {

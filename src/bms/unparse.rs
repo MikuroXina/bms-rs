@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 
-use fraction::Integer;
+use num::Integer;
 
 use crate::bms::prelude::*;
 
@@ -725,19 +725,32 @@ impl Bms {
         message_tokens.extend(section_len_tokens);
 
         // Helper closures for mapping definitions
+        // Note: We use f64::to_bits() as key since FinF64 doesn't implement Hash
 
-        let bpm_value_to_id: HashMap<&'a Decimal, ObjId> =
-            self.bpm.bpm_defs.iter().map(|(k, v)| (v, *k)).collect();
-        let stop_value_to_id: HashMap<&'a Decimal, ObjId> =
-            self.stop.stop_defs.iter().map(|(k, v)| (v, *k)).collect();
-        let scroll_value_to_id: HashMap<&'a Decimal, ObjId> = self
+        let bpm_value_to_id: HashMap<u64, ObjId> = self
+            .bpm
+            .bpm_defs
+            .iter()
+            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .collect();
+        let stop_value_to_id: HashMap<u64, ObjId> = self
+            .stop
+            .stop_defs
+            .iter()
+            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .collect();
+        let scroll_value_to_id: HashMap<u64, ObjId> = self
             .scroll
             .scroll_defs
             .iter()
-            .map(|(k, v)| (v, *k))
+            .map(|(k, v)| (v.as_f64().to_bits(), *k))
             .collect();
-        let speed_value_to_id: HashMap<&'a Decimal, ObjId> =
-            self.speed.speed_defs.iter().map(|(k, v)| (v, *k)).collect();
+        let speed_value_to_id: HashMap<u64, ObjId> = self
+            .speed
+            .speed_defs
+            .iter()
+            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .collect();
         let text_value_to_id: HashMap<&'a str, ObjId> = self
             .text
             .texts
@@ -751,8 +764,12 @@ impl Bms {
             .map(|(k, v)| (&v.judge_level, *k))
             .collect();
 
-        let seek_value_to_id: HashMap<&'a Decimal, ObjId> =
-            self.video.seek_defs.iter().map(|(k, v)| (v, *k)).collect();
+        let seek_value_to_id: HashMap<u64, ObjId> = self
+            .video
+            .seek_defs
+            .iter()
+            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
         let mut bpm_message_tokens = Vec::new();
@@ -777,20 +794,19 @@ impl Bms {
         );
         bpm_message_tokens.extend(bpm_u8_message_tokens);
 
-        // Process other type BPM changes using build_event_messages
-        let mut bpm_manager =
-            ObjIdManager::from_entries(bpm_value_to_id.iter().map(|(k, v)| (*k, *v)));
+        // Process other type BPM changes using build_event_messages_owned
+        let mut bpm_manager: HashMap<u64, ObjId> = bpm_value_to_id;
         let EventProcessingResult {
             late_def_tokens: other_late_def_tokens,
             message_tokens: other_message_tokens,
-        } = build_event_messages(
+        } = build_event_messages_owned(
             self.bpm.bpm_changes.iter(),
             Some((
-                |id, bpm: &Decimal| Token::Header {
+                |id, bpm_bits: &u64| Token::Header {
                     name: format!("BPM{id}").into(),
-                    args: bpm.to_string().into(),
+                    args: f64::from_bits(*bpm_bits).to_string().into(),
                 },
-                |ev: &'a BpmChangeObj| &ev.bpm,
+                |ev: &'a BpmChangeObj| ev.bpm.as_f64().to_bits(),
                 &mut bpm_manager,
             )),
             |_ev| Channel::BpmChange,
@@ -799,7 +815,6 @@ impl Bms {
                 id.into_chars()
             },
         );
-        checker.check(bpm_manager.into_assigned_ids());
 
         // Update id_manager with the results
         late_def_tokens.extend(other_late_def_tokens);
@@ -808,19 +823,18 @@ impl Bms {
         message_tokens.extend(bpm_message_tokens);
 
         // Messages: STOP (#xxx09)
-        let mut stop_manager =
-            ObjIdManager::from_entries(stop_value_to_id.iter().map(|(k, v)| (*k, *v)));
+        let mut stop_manager: HashMap<u64, ObjId> = stop_value_to_id;
         let EventProcessingResult {
             late_def_tokens: stop_late_def_tokens,
             message_tokens: stop_message_tokens,
-        } = build_event_messages(
+        } = build_event_messages_owned(
             self.stop.stops.iter(),
             Some((
-                |id, duration: &Decimal| Token::Header {
+                |id, duration_bits: &u64| Token::Header {
                     name: format!("STOP{id}").into(),
-                    args: duration.to_string().into(),
+                    args: f64::from_bits(*duration_bits).to_string().into(),
                 },
-                |ev: &'a StopObj| &ev.duration,
+                |ev: &'a StopObj| ev.duration.as_f64().to_bits(),
                 &mut stop_manager,
             )),
             |_ev| Channel::Stop,
@@ -829,24 +843,22 @@ impl Bms {
                 id.into_chars()
             },
         );
-        checker.check(stop_manager.into_assigned_ids());
         late_def_tokens.extend(stop_late_def_tokens);
         message_tokens.extend(stop_message_tokens);
 
         // Messages: SCROLL (#xxxSC)
-        let mut scroll_manager =
-            ObjIdManager::from_entries(scroll_value_to_id.iter().map(|(k, v)| (*k, *v)));
+        let mut scroll_manager: HashMap<u64, ObjId> = scroll_value_to_id;
         let EventProcessingResult {
             late_def_tokens: scroll_late_def_tokens,
             message_tokens: scroll_message_tokens,
-        } = build_event_messages(
+        } = build_event_messages_owned(
             self.scroll.scrolling_factor_changes.iter(),
             Some((
-                |id, factor: &Decimal| Token::Header {
+                |id, factor_bits: &u64| Token::Header {
                     name: format!("SCROLL{id}").into(),
-                    args: factor.to_string().into(),
+                    args: f64::from_bits(*factor_bits).to_string().into(),
                 },
-                |ev: &'a ScrollingFactorObj| &ev.factor,
+                |ev: &'a ScrollingFactorObj| ev.factor.as_f64().to_bits(),
                 &mut scroll_manager,
             )),
             |_ev| Channel::Scroll,
@@ -855,24 +867,22 @@ impl Bms {
                 id.into_chars()
             },
         );
-        checker.check(scroll_manager.into_assigned_ids());
         late_def_tokens.extend(scroll_late_def_tokens);
         message_tokens.extend(scroll_message_tokens);
 
         // Messages: SPEED (#xxxSP)
-        let mut speed_manager =
-            ObjIdManager::from_entries(speed_value_to_id.iter().map(|(k, v)| (*k, *v)));
+        let mut speed_manager: HashMap<u64, ObjId> = speed_value_to_id;
         let EventProcessingResult {
             late_def_tokens: speed_late_def_tokens,
             message_tokens: speed_message_tokens,
-        } = build_event_messages(
+        } = build_event_messages_owned(
             self.speed.speed_factor_changes.iter(),
             Some((
-                |id, factor: &Decimal| Token::Header {
+                |id, factor_bits: &u64| Token::Header {
                     name: format!("SPEED{id}").into(),
-                    args: factor.to_string().into(),
+                    args: f64::from_bits(*factor_bits).to_string().into(),
                 },
-                |ev: &'a SpeedObj| &ev.factor,
+                |ev: &'a SpeedObj| ev.factor.as_f64().to_bits(),
                 &mut speed_manager,
             )),
             |_ev| Channel::Speed,
@@ -881,7 +891,6 @@ impl Bms {
                 id.into_chars()
             },
         );
-        checker.check(speed_manager.into_assigned_ids());
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
 
@@ -1147,19 +1156,18 @@ impl Bms {
 
         {
             // Messages: SEEK (#xxx05)
-            let mut seek_manager =
-                ObjIdManager::from_entries(seek_value_to_id.iter().map(|(k, v)| (*k, *v)));
+            let mut seek_manager: HashMap<u64, ObjId> = seek_value_to_id;
             let EventProcessingResult {
                 late_def_tokens: seek_late_def_tokens,
                 message_tokens: seek_message_tokens,
-            } = build_event_messages(
+            } = build_event_messages_owned(
                 self.video.seek_events.iter(),
                 Some((
-                    |id, position: &Decimal| Token::Header {
+                    |id, position_bits: &u64| Token::Header {
                         name: format!("SEEK{id}").into(),
-                        args: position.to_string().into(),
+                        args: f64::from_bits(*position_bits).to_string().into(),
                     },
-                    |ev: &'a SeekObj| &ev.position,
+                    |ev: &'a SeekObj| ev.position.as_f64().to_bits(),
                     &mut seek_manager,
                 )),
                 |_ev| Channel::Seek,
@@ -1211,7 +1219,7 @@ impl Bms {
                     [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
                 }, // Option events don't use values
             );
-            checker.check(seek_manager.into_assigned_ids());
+            checker.check(seek_manager.values().copied());
             message_tokens.extend(option_message_tokens);
         };
 
@@ -1367,6 +1375,77 @@ where
     // This is the final step where each message segment is converted into a single Token::Message.
     // The process ensures that all events in a message segment are represented in one message string
     // with correct timing and without information loss.
+    let message_tokens: Vec<Token<'a>> = message_segmented_events
+        .into_iter()
+        .map(|message_segment| {
+            convert_message_segment_to_token(message_segment, &message_formatter)
+        })
+        .collect();
+
+    EventProcessingResult {
+        message_tokens,
+        late_def_tokens,
+    }
+}
+
+/// A version of `build_event_messages` that supports owned keys (like u64 instead of &u64)
+fn build_event_messages_owned<
+    'a,
+    Event: 'a,
+    Key: std::hash::Hash + Eq + Clone,
+    EventIterator,
+    TokenCreator,
+    KeyExtractor,
+    ChannelMapper,
+    MessageFormatter,
+>(
+    event_iter: EventIterator,
+    mut id_allocation: Option<(TokenCreator, KeyExtractor, &mut HashMap<Key, ObjId>)>,
+    channel_mapper: ChannelMapper,
+    message_formatter: MessageFormatter,
+) -> EventProcessingResult<'a>
+where
+    EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
+    TokenCreator: Fn(ObjId, &Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> Key,
+    ChannelMapper: Fn(&'a Event) -> Channel,
+    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
+{
+    let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
+
+    // Process events based on whether id_allocation tuple is provided
+    let processed_events: Vec<EventUnit<'a, Event>> = event_iter
+        .map(|(&time, event)| {
+            let id = id_allocation
+                .as_mut()
+                .and_then(|(token_creator, key_extractor, manager)| {
+                    let key = key_extractor(event);
+                    let _is_assigned = manager.contains_key(&key);
+
+                    manager.get(&key).copied().or_else(|| {
+                        let new_id =
+                            ObjId::all_values().find(|id| !manager.values().any(|&v| v == *id));
+                        if let Some(new_id) = new_id {
+                            manager.insert(key.clone(), new_id);
+                            late_def_tokens.push(token_creator(new_id, &key));
+                        }
+                        new_id
+                    })
+                });
+            EventUnit {
+                time,
+                event,
+                channel: channel_mapper(event),
+                id,
+            }
+        })
+        .collect();
+
+    let grouped_events = group_events_by_track_channel_time(processed_events);
+    let message_segmented_events: Vec<Vec<_>> = grouped_events
+        .into_iter()
+        .flat_map(split_group_into_message_segments)
+        .collect();
     let message_tokens: Vec<Token<'a>> = message_segmented_events
         .into_iter()
         .map(|message_segment| {
