@@ -4,7 +4,7 @@
 
 use strict_num_extended::FinF64;
 
-use super::{super::prompt::Prompter, filter_message, ProcessContext, TokenProcessor};
+use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, filter_message};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{
     model::section_len::SectionLenObjects,

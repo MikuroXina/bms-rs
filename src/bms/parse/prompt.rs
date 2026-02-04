@@ -4,8 +4,9 @@
 
 use std::path::Path;
 
+use strict_num_extended::FinF64;
+
 use crate::bms::{
-    Decimal,
     command::{
         ObjId,
         channel::Channel,
@@ -60,9 +61,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated BPM object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: FinF64,
         /// Incoming definition.
-        newer: Decimal,
+        newer: FinF64,
     },
     /// OPTION definition is duplicated.
     ChangeOption {
@@ -78,18 +79,18 @@ pub enum DefDuplication<'a> {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: FinF64,
         /// Incoming definition.
-        newer: Decimal,
+        newer: FinF64,
     },
     /// SCROLL definition is duplicated.
     ScrollingFactorChange {
         /// Duplicated SCROLL object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: FinF64,
         /// Incoming definition.
-        newer: Decimal,
+        newer: FinF64,
     },
     /// TEXT is duplicated.
     Text {
@@ -150,9 +151,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated STOP object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: FinF64,
         /// Incoming definition.
-        newer: Decimal,
+        newer: FinF64,
     },
     /// BGA ARGB color definition is duplicated.
     BgaArgb {
@@ -186,9 +187,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated Seek event id.
         id: ObjId,
         /// Existing definition.
-        older: &'a Decimal,
+        older: &'a FinF64,
         /// Incoming definition.
-        newer: &'a Decimal,
+        newer: &'a FinF64,
     },
 }
 

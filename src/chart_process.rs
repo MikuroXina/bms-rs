@@ -64,14 +64,11 @@
 //! ```
 
 use crate::bms::prelude::SwBgaEvent;
-use crate::bms::{
-    Decimal,
-    prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
-};
-use crate::bmson::prelude::FinF64;
+use crate::bms::prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
 use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
 use gametime::TimeSpan;
 use num::Zero;
+use strict_num_extended::FinF64;
 
 pub mod base_bpm;
 pub mod processor;
@@ -114,22 +111,22 @@ pub enum ChartEvent {
     /// BPM change
     BpmChange {
         /// New BPM value (beats per minute)
-        bpm: Decimal,
+        bpm: FinF64,
     },
     /// Scroll factor change
     ScrollChange {
         /// Scroll factor (relative value)
-        factor: Decimal,
+        factor: FinF64,
     },
     /// Speed factor change
     SpeedChange {
         /// Spacing factor (relative value)
-        factor: Decimal,
+        factor: FinF64,
     },
     /// Stop scroll event
     Stop {
         /// Stop duration (BMS: converted from chart-defined time units; BMSON: pulse count)
-        duration: Decimal,
+        duration: FinF64,
     },
     /// BGA (background animation) change event
     ///

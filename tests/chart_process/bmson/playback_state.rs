@@ -2,9 +2,9 @@
 
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
+use strict_num_extended::FinF64;
 
 use super::assert_time_close;
 
@@ -49,7 +49,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
     let _ = processor.update(after_scroll);
     let state = processor.playback_state();
-    assert_ne!(*state.current_scroll(), Decimal::try_from(1.0).unwrap());
+    assert_ne!(*state.current_scroll(), FinF64::try_from(1.0).unwrap());
 
     let output2 = parse_bmson(json);
     let bmson2 = output2.bmson.expect("Failed to parse BMSON in test setup");
@@ -64,7 +64,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let reset_state = restarted_processor.playback_state();
     assert_eq!(
         *reset_state.current_scroll(),
-        Decimal::try_from(1.0).unwrap()
+        FinF64::try_from(1.0).unwrap()
     );
 }
 
@@ -184,7 +184,7 @@ fn test_very_long_elapsed_time_no_errors() {
     let _ = processor.update(after_long_time);
 
     let state = processor.playback_state();
-    let expected_bpm = Decimal::try_from(180.0).unwrap();
+    let expected_bpm = FinF64::try_from(180.0).unwrap();
     assert_eq!(
         *state.current_bpm(),
         expected_bpm,

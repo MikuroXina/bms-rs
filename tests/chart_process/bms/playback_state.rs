@@ -1,8 +1,8 @@
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::Decimal;
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
+use strict_num_extended::FinF64;
 
 use bms_rs::chart_process::prelude::*;
 
@@ -17,7 +17,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -64,7 +64,7 @@ fn test_bms_restart_resets_scroll_to_one() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -73,14 +73,14 @@ fn test_bms_restart_resets_scroll_to_one() {
     let after_scroll_change = processor.started_at() + TimeSpan::MILLISECOND * 2700;
     let _ = processor.update(after_scroll_change);
     let state = processor.playback_state();
-    assert_ne!(*state.current_scroll(), Decimal::try_from(1.0).unwrap());
+    assert_ne!(*state.current_scroll(), FinF64::try_from(1.0).unwrap());
 
     let config2 = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms2 = parse_bms_no_warnings(bms_source, config2);
 
     let base_bpm2 = StartBpmGenerator
         .generate(&bms2)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
     let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2);
     let start_time2 = TimeStamp::now();
@@ -88,7 +88,7 @@ fn test_bms_restart_resets_scroll_to_one() {
     let reset_state = restarted_processor.playback_state();
     assert_eq!(
         *reset_state.current_scroll(),
-        Decimal::try_from(1.0).unwrap()
+        FinF64::try_from(1.0).unwrap()
     );
 }
 
@@ -108,7 +108,7 @@ fn test_visible_events_duration_matches_reaction_time() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
     let start_time = TimeStamp::now();
@@ -118,18 +118,18 @@ fn test_visible_events_duration_matches_reaction_time() {
     let initial_state = processor.playback_state();
     assert_eq!(
         *initial_state.current_bpm(),
-        Decimal::try_from(120.0).unwrap()
+        FinF64::try_from(120.0).unwrap()
     );
     assert_eq!(
         *initial_state.current_speed(),
-        Decimal::try_from(1.0).unwrap()
+        FinF64::try_from(1.0).unwrap()
     );
     assert_eq!(
         *initial_state.playback_ratio(),
-        Decimal::try_from(1.0).unwrap()
+        FinF64::try_from(1.0).unwrap()
     );
 
-    let test_base_bpm = BaseBpm::from(Decimal::try_from(120.0).unwrap());
+    let test_base_bpm = BaseBpm::from(FinF64::try_from(120.0).unwrap());
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(
@@ -138,10 +138,10 @@ fn test_visible_events_duration_matches_reaction_time() {
         state.playback_ratio(),
     );
 
-    let velocity = (Decimal::try_from(120.0).unwrap()
-        * Decimal::try_from(1.0).unwrap()
-        * Decimal::try_from(1.0).unwrap()
-        / Decimal::try_from((240) as f64).unwrap())
+    let velocity = (FinF64::try_from(120.0).unwrap()
+        * FinF64::try_from(1.0).unwrap()
+        * FinF64::try_from(1.0).unwrap()
+        / FinF64::try_from((240) as f64).unwrap())
     .unwrap();
     let time_to_cross = visible_window_y.as_ref().as_f64() / velocity.as_f64();
 

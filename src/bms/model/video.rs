@@ -5,6 +5,8 @@ use std::{
     path::PathBuf,
 };
 
+use strict_num_extended::FinF64;
+
 use crate::bms::{parse::Result, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -20,11 +22,11 @@ pub struct Video {
     /// Video color depth. `#VIDEOCOLORS`
     pub video_colors: Option<u8>,
     /// Video delay. `#VIDEODLY`
-    pub video_dly: Option<Decimal>,
+    pub video_dly: Option<FinF64>,
     /// Video frame rate. `#VIDEOF/S`
-    pub video_fs: Option<Decimal>,
+    pub video_fs: Option<FinF64>,
     /// Seek event definitions. `#SEEK`
-    pub seek_defs: HashMap<ObjId, Decimal>,
+    pub seek_defs: HashMap<ObjId, FinF64>,
     /// Seek events, indexed by time. `#xxx05:`
     pub seek_events: BTreeMap<ObjTime, SeekObj>,
 }
