@@ -7,8 +7,6 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use strict_num_extended::FinF64;
-
 use super::{
     super::prompt::{DefDuplication, Prompter},
     ProcessContext, TokenProcessor, parse_hex_values, parse_obj_ids,
@@ -16,7 +14,7 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::bpm::BpmObjects,
+        model::{StringValue, bpm::BpmObjects},
         parse::{ParseWarning, Result},
         prelude::*,
     },
@@ -79,42 +77,36 @@ impl BpmProcessor {
         objects: &mut BpmObjects,
     ) -> Result<()> {
         if name.eq_ignore_ascii_case("BPM") {
-            let bpm: FinF64 = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal BPM".into()))?;
-            objects.bpm = Some(bpm);
+            let string_value = StringValue::new(args.to_string());
+            objects.bpm = Some(string_value);
         }
         if let Some(id) = name
             .strip_prefix_ignore_case("BPM")
             .or_else(|| name.strip_prefix_ignore_case("EXBPM"))
         {
             let bpm_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-            let bpm: FinF64 = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal BPM".into()))?;
+            let string_value = StringValue::new(args.to_string());
             if let Some(older) = objects.bpm_defs.get_mut(&bpm_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::BpmChange {
                         id: bpm_obj_id,
-                        older: *older,
-                        newer: bpm,
+                        older: *older
+                            .value()
+                            .as_ref()
+                            .expect("parsed BPM value should be valid"),
+                        newer: *string_value
+                            .value()
+                            .as_ref()
+                            .expect("parsed BPM value should be valid"),
                     })
-                    .apply_def(older, bpm, bpm_obj_id)?;
+                    .apply_def(older, string_value, bpm_obj_id)?;
             } else {
-                objects.bpm_defs.insert(bpm_obj_id, bpm);
+                objects.bpm_defs.insert(bpm_obj_id, string_value);
             }
         }
         if name.eq_ignore_ascii_case("BASEBPM") {
-            let bpm: FinF64 = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal BPM".into()))?;
-            objects.base_bpm = Some(bpm);
+            let string_value = StringValue::new(args.to_string());
+            objects.base_bpm = Some(string_value);
         }
         Ok(())
     }
@@ -134,11 +126,14 @@ impl BpmProcessor {
             for (time, obj) in pairs {
                 // Record used BPM change id for validity checks
                 objects.bpm_change_ids_used.insert(obj);
-                let bpm = objects
+                let string_value = objects
                     .bpm_defs
                     .get(&obj)
-                    .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
+                let bpm = *string_value
+                    .value()
+                    .as_ref()
+                    .expect("parsed BPM value should be valid");
                 objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)?;
             }
         }

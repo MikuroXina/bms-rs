@@ -8,13 +8,11 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use strict_num_extended::FinF64;
-
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_ids};
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::judge::JudgeObjects,
+        model::{StringValue, judge::JudgeObjects},
         parse::{ParseWarning, Result},
         prelude::*,
     },
@@ -112,12 +110,8 @@ impl JudgeProcessor {
                 .insert(id, ExRankDef { id, judge_level });
         }
         if name.eq_ignore_ascii_case("TOTAL") {
-            let total = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal".into()))?;
-            objects.total = Some(total);
+            let string_value = StringValue::new(args.to_string());
+            objects.total = Some(string_value);
         }
         Ok(())
     }

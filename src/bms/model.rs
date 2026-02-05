@@ -24,6 +24,8 @@ pub mod wav;
 
 // Re-export commonly used types
 pub use notes::Notes;
+// Re-export StringValue from command module for backward compatibility
+pub use crate::bms::command::StringValue;
 
 use std::fmt::Debug;
 
@@ -162,10 +164,10 @@ impl Bms {
         // bpm
         self.bpm.bpm_changes.extend(other.bpm.bpm_changes.clone());
         if other.bpm.bpm.is_some() {
-            self.bpm.bpm = other.bpm.bpm;
+            self.bpm.bpm = other.bpm.bpm.clone();
         }
         if other.bpm.base_bpm.is_some() {
-            self.bpm.base_bpm = other.bpm.base_bpm;
+            self.bpm.base_bpm = other.bpm.base_bpm.clone();
         }
         self.bpm.bpm_defs.extend(other.bpm.bpm_defs.clone());
         self.bpm
@@ -177,7 +179,7 @@ impl Bms {
             self.judge.rank = other.judge.rank;
         }
         if other.judge.total.is_some() {
-            self.judge.total = other.judge.total;
+            self.judge.total = other.judge.total.clone();
         }
         self.judge
             .exrank_defs
@@ -340,10 +342,10 @@ impl Bms {
             self.video.video_colors = other.video.video_colors;
         }
         if other.video.video_dly.is_some() {
-            self.video.video_dly = other.video.video_dly;
+            self.video.video_dly = other.video.video_dly.clone();
         }
         if other.video.video_fs.is_some() {
-            self.video.video_fs = other.video.video_fs;
+            self.video.video_fs = other.video.video_fs.clone();
         }
         self.video.seek_defs.extend(other.video.seek_defs.clone());
         self.video

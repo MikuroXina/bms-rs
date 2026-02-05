@@ -56,29 +56,35 @@ fn test_always_use_older() {
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
-        bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(120.0).unwrap())
+        bms.bpm
+            .bpm_defs
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(120.0).unwrap())
     );
 
     assert_eq!(
         bms.stop
             .stop_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(0.5).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(0.5).unwrap())
     );
 
     assert_eq!(
         bms.scroll
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(1.0).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(1.0).unwrap())
     );
 
     assert_eq!(
         bms.speed
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(1.0).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(1.0).unwrap())
     );
 
     // Check that older values are used for all other conflicts
@@ -133,29 +139,35 @@ fn test_always_use_newer() {
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
-        bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(120.0).unwrap())
+        bms.bpm
+            .bpm_defs
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(120.0).unwrap())
     );
 
     assert_eq!(
         bms.stop
             .stop_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(1.0).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(1.0).unwrap())
     );
 
     assert_eq!(
         bms.scroll
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(2.0).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(2.0).unwrap())
     );
 
     assert_eq!(
         bms.speed
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(1.5).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(1.5).unwrap())
     );
 
     // Check that newer values are used for all other conflicts
@@ -216,29 +228,35 @@ fn test_always_warn_and_use_older() {
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
-        bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(120.0).unwrap())
+        bms.bpm
+            .bpm_defs
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(120.0).unwrap())
     );
 
     assert_eq!(
         bms.stop
             .stop_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(0.5).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(0.5).unwrap())
     );
 
     assert_eq!(
         bms.scroll
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(1.0).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(1.0).unwrap())
     );
 
     assert_eq!(
         bms.speed
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(1.0).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(1.0).unwrap())
     );
 
     // Check that older values are used for all other conflicts
@@ -299,29 +317,35 @@ fn test_always_warn_and_use_newer() {
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
-        bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(120.0).unwrap())
+        bms.bpm
+            .bpm_defs
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(120.0).unwrap())
     );
 
     assert_eq!(
         bms.stop
             .stop_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(1.0).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(1.0).unwrap())
     );
 
     assert_eq!(
         bms.scroll
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(2.0).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(2.0).unwrap())
     );
 
     assert_eq!(
         bms.speed
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&FinF64::new(1.5).unwrap())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(1.5).unwrap())
     );
 
     // Check that newer values are used for all other conflicts

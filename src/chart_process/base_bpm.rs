@@ -105,7 +105,13 @@ impl From<BaseBpm> for FinF64 {
 // ---- Generators for BMS ----
 impl BaseBpmGenerator<Bms> for StartBpmGenerator {
     fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
-        bms.bpm.bpm.as_ref().cloned().map(BaseBpm::new)
+        bms.bpm.bpm.as_ref().map(|bpm| {
+            BaseBpm::new(
+                *bpm.value()
+                    .as_ref()
+                    .expect("parsed BPM value should be valid"),
+            )
+        })
     }
 }
 
@@ -114,7 +120,11 @@ impl BaseBpmGenerator<Bms> for MinBpmGenerator {
         bms.bpm
             .bpm
             .iter()
-            .cloned()
+            .map(|bpm| {
+                *bpm.value()
+                    .as_ref()
+                    .expect("parsed BPM value should be valid")
+            })
             .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
             .min()
             .map(BaseBpm::new)
@@ -126,7 +136,11 @@ impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
         bms.bpm
             .bpm
             .iter()
-            .cloned()
+            .map(|bpm| {
+                *bpm.value()
+                    .as_ref()
+                    .expect("parsed BPM value should be valid")
+            })
             .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
             .max()
             .map(BaseBpm::new)

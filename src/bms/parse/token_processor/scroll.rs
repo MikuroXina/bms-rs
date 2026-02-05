@@ -5,8 +5,6 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use strict_num_extended::FinF64;
-
 use super::{
     super::prompt::{DefDuplication, Prompter},
     ProcessContext, TokenProcessor, parse_obj_ids,
@@ -14,7 +12,7 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::scroll::ScrollObjects,
+        model::{StringValue, scroll::ScrollObjects},
         parse::{ParseWarning, Result},
         prelude::*,
     },
@@ -77,24 +75,24 @@ impl ScrollProcessor {
         objects: &mut ScrollObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SCROLL") {
-            let factor = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| {
-                    ParseWarning::SyntaxError("expected decimal scroll factor".into())
-                })?;
+            let string_value = StringValue::new(args.to_string());
             let scroll_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
             if let Some(older) = objects.scroll_defs.get_mut(&scroll_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::ScrollingFactorChange {
                         id: scroll_obj_id,
-                        older: *older,
-                        newer: factor,
+                        older: *older
+                            .value()
+                            .as_ref()
+                            .expect("parsed scroll factor should be valid"),
+                        newer: *string_value
+                            .value()
+                            .as_ref()
+                            .expect("parsed scroll factor should be valid"),
                     })
-                    .apply_def(older, factor, scroll_obj_id)?;
+                    .apply_def(older, string_value, scroll_obj_id)?;
             } else {
-                objects.scroll_defs.insert(scroll_obj_id, factor);
+                objects.scroll_defs.insert(scroll_obj_id, string_value);
             }
         }
         Ok(())
@@ -113,11 +111,14 @@ impl ScrollProcessor {
             let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
-                let factor = objects
+                let string_value = objects
                     .scroll_defs
                     .get(&obj)
-                    .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
+                let factor = *string_value
+                    .value()
+                    .as_ref()
+                    .expect("parsed scroll factor should be valid");
                 objects
                     .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)?;
             }

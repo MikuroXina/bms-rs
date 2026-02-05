@@ -7,7 +7,7 @@ use std::{
 
 use strict_num_extended::FinF64;
 
-use crate::bms::{parse::Result, prelude::*};
+use crate::bms::{command::StringValue, parse::Result, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -22,11 +22,11 @@ pub struct Video {
     /// Video color depth. `#VIDEOCOLORS`
     pub video_colors: Option<u8>,
     /// Video delay. `#VIDEODLY`
-    pub video_dly: Option<FinF64>,
+    pub video_dly: Option<StringValue<FinF64>>,
     /// Video frame rate. `#VIDEOF/S`
-    pub video_fs: Option<FinF64>,
+    pub video_fs: Option<StringValue<FinF64>>,
     /// Seek event definitions. `#SEEK`
-    pub seek_defs: HashMap<ObjId, FinF64>,
+    pub seek_defs: HashMap<ObjId, StringValue<FinF64>>,
     /// Seek events, indexed by time. `#xxx05:`
     pub seek_events: BTreeMap<ObjTime, SeekObj>,
 }

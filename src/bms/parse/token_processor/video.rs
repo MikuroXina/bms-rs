@@ -9,13 +9,11 @@
 
 use std::{cell::RefCell, path::Path, rc::Rc};
 
-use strict_num_extended::FinF64;
-
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::video::Video,
+        model::{StringValue, video::Video},
         parse::{ParseWarning, Result},
         prelude::*,
     },
@@ -84,12 +82,8 @@ impl VideoProcessor {
             video.video_file = Some(Path::new(args).into());
         }
         if name.eq_ignore_ascii_case("VIDEOF/S") {
-            let frame_rate = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| ParseWarning::SyntaxError("expected f64".into()))?;
-            video.video_fs = Some(frame_rate);
+            let string_value = StringValue::new(args.to_string());
+            video.video_fs = Some(string_value);
         }
         if name.eq_ignore_ascii_case("VIDEOCOLORS") {
             let colors = args
@@ -98,31 +92,29 @@ impl VideoProcessor {
             video.video_colors = Some(colors);
         }
         if name.eq_ignore_ascii_case("VIDEODLY") {
-            let delay = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| ParseWarning::SyntaxError("expected f64".into()))?;
-            video.video_dly = Some(delay);
+            let string_value = StringValue::new(args.to_string());
+            video.video_dly = Some(string_value);
         }
         if let Some(id) = name.strip_prefix_ignore_case("SEEK") {
-            let ms = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal".into()))?;
+            let string_value = StringValue::new(args.to_string());
             let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = video.seek_defs.get_mut(&id) {
                 prompter
                     .handle_def_duplication(DefDuplication::SeekEvent {
                         id,
-                        older,
-                        newer: &ms,
+                        older: older
+                            .value()
+                            .as_ref()
+                            .expect("parsed video parameter should be valid"),
+                        newer: string_value
+                            .value()
+                            .as_ref()
+                            .expect("parsed video parameter should be valid"),
                     })
-                    .apply_def(older, ms, id)?;
+                    .apply_def(older, string_value, id)?;
             } else {
-                video.seek_defs.insert(id, ms);
+                video.seek_defs.insert(id, string_value);
             }
         }
         Ok(())
@@ -143,11 +135,14 @@ impl VideoProcessor {
             let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, seek_id) in pairs {
-                let position = video
+                let string_value = video
                     .seek_defs
                     .get(&seek_id)
-                    .cloned()
                     .ok_or(ParseWarning::UndefinedObject(seek_id))?;
+                let position = *string_value
+                    .value()
+                    .as_ref()
+                    .expect("parsed video parameter should be valid");
                 video.push_seek_event(SeekObj { time, position }, prompter)?;
             }
         }

@@ -6,8 +6,6 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use strict_num_extended::FinF64;
-
 use super::{
     super::prompt::{DefDuplication, Prompter},
     ProcessContext, TokenProcessor, parse_obj_ids,
@@ -15,7 +13,7 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::stop::StopObjects,
+        model::{StringValue, stop::StopObjects},
         parse::{ParseWarning, Result},
         prelude::*,
     },
@@ -77,11 +75,7 @@ impl StopProcessor {
         objects: &mut StopObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("STOP") {
-            let len = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| ParseWarning::SyntaxError("expected decimal stop length".into()))?;
+            let string_value = StringValue::new(args.to_string());
 
             let stop_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
@@ -89,12 +83,18 @@ impl StopProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::Stop {
                         id: stop_obj_id,
-                        older: *older,
-                        newer: len,
+                        older: *older
+                            .value()
+                            .as_ref()
+                            .expect("parsed stop duration should be valid"),
+                        newer: *string_value
+                            .value()
+                            .as_ref()
+                            .expect("parsed stop duration should be valid"),
                     })
-                    .apply_def(older, len, stop_obj_id)?;
+                    .apply_def(older, string_value, stop_obj_id)?;
             } else {
-                objects.stop_defs.insert(stop_obj_id, len);
+                objects.stop_defs.insert(stop_obj_id, string_value);
             }
         }
         if name.eq_ignore_ascii_case("STP") {
@@ -155,11 +155,14 @@ impl StopProcessor {
             for (time, obj) in pairs {
                 // Record used STOP id for validity checks
                 objects.stop_ids_used.insert(obj);
-                let duration = objects
+                let string_value = objects
                     .stop_defs
                     .get(&obj)
-                    .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
+                let duration = *string_value
+                    .value()
+                    .as_ref()
+                    .expect("parsed stop duration should be valid");
                 objects.push_stop(StopObj { time, duration });
             }
         }

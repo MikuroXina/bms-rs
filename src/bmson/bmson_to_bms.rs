@@ -9,7 +9,7 @@ use strict_num_extended::FinF64;
 use thiserror::Error;
 
 use crate::{
-    bms::prelude::*,
+    bms::{command::StringValue, prelude::*},
     bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 
@@ -75,8 +75,8 @@ impl Bms {
             .map(|s| s.clone().into_owned());
         bms.music_info.genre = Some(value.info.genre.into_owned());
         bms.metadata.play_level = Some(value.info.level as u8);
-        bms.judge.total =
-            Some(FinF64::new(value.info.total.as_f64()).expect("total should be finite"));
+        let total = FinF64::new(value.info.total.as_f64()).expect("total should be finite");
+        bms.judge.total = Some(StringValue::from_value(total));
         bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
         bms.sprite.stage_file = value
             .info
@@ -96,8 +96,9 @@ impl Bms {
         bms.judge.rank = Some(JudgeLevel::OtherInt(judge_rank_value));
 
         // Convert initial BPM
-        bms.bpm.bpm =
-            Some(FinF64::new(value.info.init_bpm.as_f64()).expect("init_bpm should be finite"));
+        bms.bpm.bpm = Some(StringValue::from_value(
+            FinF64::new(value.info.init_bpm.as_f64()).expect("init_bpm should be finite"),
+        ));
 
         // Convert resolution
         bms.section_len.section_len_changes.insert(
@@ -118,7 +119,9 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::BpmDefOutOfRange);
                 ObjId::null()
             });
-            bms.bpm.bpm_defs.insert(bpm_def_id, bpm);
+            bms.bpm
+                .bpm_defs
+                .insert(bpm_def_id, StringValue::from_value(bpm));
 
             bms.bpm.bpm_changes.insert(time, BpmChangeObj { time, bpm });
         }
@@ -134,7 +137,9 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::StopDefOutOfRange);
                 ObjId::null()
             });
-            bms.stop.stop_defs.insert(stop_def_id, duration);
+            bms.stop
+                .stop_defs
+                .insert(stop_def_id, StringValue::from_value(duration));
 
             bms.stop.stops.insert(time, StopObj { time, duration });
         }
@@ -150,7 +155,9 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::ScrollDefOutOfRange);
                 ObjId::null()
             });
-            bms.scroll.scroll_defs.insert(scroll_def_id, factor);
+            bms.scroll
+                .scroll_defs
+                .insert(scroll_def_id, StringValue::from_value(factor));
 
             bms.scroll
                 .scrolling_factor_changes

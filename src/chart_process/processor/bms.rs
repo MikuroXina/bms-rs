@@ -9,6 +9,7 @@ use std::{
 use itertools::Itertools;
 use strict_num_extended::FinF64;
 
+use crate::bms::command::StringValue;
 use crate::bms::prelude::*;
 use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
@@ -43,12 +44,9 @@ impl BmsProcessor {
         let y_memo = YMemo::new(bms);
 
         // Initialize BPM: prefer chart initial BPM, otherwise 120
-        let init_bpm = bms
-            .bpm
-            .bpm
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| FinF64::new(120.0).expect("120 should be finite"));
+        let init_bpm = bms.bpm.bpm.as_ref().cloned().unwrap_or_else(|| {
+            StringValue::from_value(FinF64::new(120.0).expect("120 should be finite"))
+        });
 
         // Precompute resource maps
         let wav_files: HashMap<WavId, PathBuf> = bms
@@ -73,7 +71,10 @@ impl BmsProcessor {
             ChartResources::new(wav_files, bmp_files),
             all_events,
             y_memo.flow_events().clone(),
-            init_bpm,
+            *init_bpm
+                .value()
+                .as_ref()
+                .expect("parsed BPM value should be valid"),
             FinF64::new(1.0).expect("1.0 should be finite"),
         )
     }
@@ -662,12 +663,9 @@ pub fn precompute_activate_times(
     points.insert(YCoordinate::zero());
     points.extend(all_events.as_by_y().keys().cloned());
 
-    let init_bpm = bms
-        .bpm
-        .bpm
-        .as_ref()
-        .cloned()
-        .unwrap_or_else(|| FinF64::new(120.0).expect("120 should be finite"));
+    let init_bpm = bms.bpm.bpm.as_ref().cloned().unwrap_or_else(|| {
+        StringValue::from_value(FinF64::new(120.0).expect("120 should be finite"))
+    });
     let bpm_changes: Vec<(YCoordinate, FinF64)> = bms
         .bpm
         .bpm_changes
@@ -691,14 +689,23 @@ pub fn precompute_activate_times(
         .collect();
 
     let mut bpm_map: BTreeMap<YCoordinate, FinF64> = BTreeMap::new();
-    bpm_map.insert(YCoordinate::zero(), init_bpm);
+    bpm_map.insert(
+        YCoordinate::zero(),
+        *init_bpm
+            .value()
+            .as_ref()
+            .expect("parsed BPM value should be valid"),
+    );
     bpm_map.extend(bpm_changes.iter().cloned());
 
     let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
     let mut total_nanos: u64 = 0;
     let mut prev = YCoordinate::zero();
     cum_map.insert(prev.clone(), 0);
-    let mut cur_bpm = init_bpm;
+    let mut cur_bpm = *init_bpm
+        .value()
+        .as_ref()
+        .expect("parsed BPM value should be valid");
     let mut stop_idx = 0usize;
 
     for curr in points {
@@ -724,7 +731,9 @@ pub fn precompute_activate_times(
                     .range(..=sy)
                     .next_back()
                     .map(|(_, b)| *b)
-                    .unwrap_or(init_bpm);
+                    .unwrap_or_else(|| {
+                        *init_bpm.value().as_ref().expect("init BPM should be valid")
+                    });
                 let dur_nanos = (dur_y.as_f64() * 240.0 * NANOS_PER_SECOND as f64
                     / bpm_at_stop.as_f64()) as u64;
                 total_nanos = total_nanos.saturating_add(dur_nanos);

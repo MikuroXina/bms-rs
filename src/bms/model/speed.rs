@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 use strict_num_extended::FinF64;
 
 use crate::bms::{
+    command::StringValue,
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
@@ -14,7 +15,7 @@ use crate::bms::{
 /// This aggregate manages definitions and events of spacing change.
 pub struct SpeedObjects {
     /// Spacing change definitions, indexed by [`ObjId`]. `#SPEED[01-ZZ]`
-    pub speed_defs: HashMap<ObjId, FinF64>,
+    pub speed_defs: HashMap<ObjId, StringValue<FinF64>>,
     /// The spacing factors corresponding to the id of the spacing change object.
     pub speed_factor_changes: BTreeMap<ObjTime, SpeedObj>,
 }

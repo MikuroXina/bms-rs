@@ -27,7 +27,7 @@
 //! let bms = bms.expect("must be parsed");
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
-//! println!("BPM: {}", bms.bpm.bpm.unwrap_or_else(|| strict_num_extended::FinF64::new(120.0).expect("120.0 is finite")));
+//! println!("BPM: {}", bms.bpm.bpm.as_ref().map(|v| v.raw()).unwrap_or("120.0"));
 //! ```
 //!
 //! ## Advanced Usage
@@ -63,7 +63,7 @@
 //! assert_eq!(playing_errors, vec![]);
 //! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
 //! println!("Artist: {}", bms.music_info.artist.as_deref().unwrap_or("Unknown"));
-//! println!("BPM: {}", bms.bpm.bpm.unwrap_or_else(|| strict_num_extended::FinF64::new(120.0).expect("120.0 is finite")));
+//! println!("BPM: {}", bms.bpm.bpm.as_ref().map(|v| v.raw()).unwrap_or("120.0"));
 //! ```
 //!
 //! # Features

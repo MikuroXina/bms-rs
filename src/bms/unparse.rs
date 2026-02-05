@@ -731,25 +731,61 @@ impl Bms {
             .bpm
             .bpm_defs
             .iter()
-            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .map(|(k, v)| {
+                (
+                    v.value()
+                        .as_ref()
+                        .expect("parsed value should be valid")
+                        .as_f64()
+                        .to_bits(),
+                    *k,
+                )
+            })
             .collect();
         let stop_value_to_id: HashMap<u64, ObjId> = self
             .stop
             .stop_defs
             .iter()
-            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .map(|(k, v)| {
+                (
+                    v.value()
+                        .as_ref()
+                        .expect("parsed value should be valid")
+                        .as_f64()
+                        .to_bits(),
+                    *k,
+                )
+            })
             .collect();
         let scroll_value_to_id: HashMap<u64, ObjId> = self
             .scroll
             .scroll_defs
             .iter()
-            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .map(|(k, v)| {
+                (
+                    v.value()
+                        .as_ref()
+                        .expect("parsed value should be valid")
+                        .as_f64()
+                        .to_bits(),
+                    *k,
+                )
+            })
             .collect();
         let speed_value_to_id: HashMap<u64, ObjId> = self
             .speed
             .speed_defs
             .iter()
-            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .map(|(k, v)| {
+                (
+                    v.value()
+                        .as_ref()
+                        .expect("parsed value should be valid")
+                        .as_f64()
+                        .to_bits(),
+                    *k,
+                )
+            })
             .collect();
         let text_value_to_id: HashMap<&'a str, ObjId> = self
             .text
@@ -768,7 +804,16 @@ impl Bms {
             .video
             .seek_defs
             .iter()
-            .map(|(k, v)| (v.as_f64().to_bits(), *k))
+            .map(|(k, v)| {
+                (
+                    v.value()
+                        .as_ref()
+                        .expect("parsed value should be valid")
+                        .as_f64()
+                        .to_bits(),
+                    *k,
+                )
+            })
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)

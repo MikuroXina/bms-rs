@@ -4,14 +4,14 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use strict_num_extended::FinF64;
 
-use crate::bms::prelude::*;
+use crate::bms::{command::StringValue, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// This aggregate manages definitions and events of scroll stop.
 pub struct StopObjects {
     /// Stop definitions, indexed by [`ObjId`]. `#STOP[01-ZZ]`
-    pub stop_defs: HashMap<ObjId, FinF64>,
+    pub stop_defs: HashMap<ObjId, StringValue<FinF64>>,
     /// Stop lengths by stop object id.
     pub stops: BTreeMap<ObjTime, StopObj>,
     /// Record of used STOP ids from `#STOPxx` messages, for validity checks.

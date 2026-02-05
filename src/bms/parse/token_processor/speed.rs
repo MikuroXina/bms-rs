@@ -5,8 +5,6 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use strict_num_extended::FinF64;
-
 use super::{
     super::prompt::{DefDuplication, Prompter},
     ProcessContext, TokenProcessor, parse_obj_ids,
@@ -14,7 +12,7 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::speed::SpeedObjects,
+        model::{StringValue, speed::SpeedObjects},
         parse::{ParseWarning, Result},
         prelude::*,
     },
@@ -77,25 +75,25 @@ impl SpeedProcessor {
         objects: &mut SpeedObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SPEED") {
-            let factor = args
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| {
-                    ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
-                })?;
+            let string_value = StringValue::new(args.to_string());
             let speed_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = objects.speed_defs.get_mut(&speed_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::SpeedFactorChange {
                         id: speed_obj_id,
-                        older: *older,
-                        newer: factor,
+                        older: *older
+                            .value()
+                            .as_ref()
+                            .expect("parsed speed factor should be valid"),
+                        newer: *string_value
+                            .value()
+                            .as_ref()
+                            .expect("parsed speed factor should be valid"),
                     })
-                    .apply_def(older, factor, speed_obj_id)?;
+                    .apply_def(older, string_value, speed_obj_id)?;
             } else {
-                objects.speed_defs.insert(speed_obj_id, factor);
+                objects.speed_defs.insert(speed_obj_id, string_value);
             }
         }
         Ok(())
@@ -114,11 +112,14 @@ impl SpeedProcessor {
             let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
-                let factor = objects
+                let string_value = objects
                     .speed_defs
                     .get(&obj)
-                    .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
+                let factor = *string_value
+                    .value()
+                    .as_ref()
+                    .expect("parsed speed factor should be valid");
                 objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
             }
         }

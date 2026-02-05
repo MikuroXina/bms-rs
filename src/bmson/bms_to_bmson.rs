@@ -163,7 +163,12 @@ impl Bms {
                         warnings.push(BmsToBmsonWarning::MissingBpm);
                         120.0
                     },
-                    |bpm| bpm.as_f64(),
+                    |bpm| {
+                        bpm.value()
+                            .as_ref()
+                            .expect("parsed BPM value should be valid")
+                            .as_f64()
+                    },
                 );
                 PositiveF64::new(bpm_value).ok().unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidBpm);
@@ -177,7 +182,13 @@ impl Bms {
                         warnings.push(BmsToBmsonWarning::MissingTotal);
                         100.0
                     },
-                    |total| total.as_f64(),
+                    |total| {
+                        total
+                            .value()
+                            .as_ref()
+                            .expect("parsed value should be valid")
+                            .as_f64()
+                    },
                 );
                 FinF64::new(total_value).ok().unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidTotal);

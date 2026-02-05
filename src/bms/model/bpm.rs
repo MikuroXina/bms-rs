@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 use strict_num_extended::FinF64;
 
 use crate::bms::{
+    command::StringValue,
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
@@ -14,11 +15,11 @@ use crate::bms::{
 /// This aggregate manages definition and events of BPM change on playing.
 pub struct BpmObjects {
     /// The initial BPM of the score.
-    pub bpm: Option<FinF64>,
+    pub bpm: Option<StringValue<FinF64>>,
     /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
-    pub bpm_defs: HashMap<ObjId, FinF64>,
+    pub bpm_defs: HashMap<ObjId, StringValue<FinF64>>,
     /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
-    pub base_bpm: Option<FinF64>,
+    pub base_bpm: Option<StringValue<FinF64>>,
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,

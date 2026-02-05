@@ -51,13 +51,9 @@ impl SectionLenProcessor {
         if channel == Channel::SectionLen {
             let message = filter_message(message);
             let message = message.as_ref();
-            let length = message
-                .parse::<f64>()
-                .ok()
-                .and_then(|v| FinF64::new(v).ok())
-                .ok_or_else(|| {
-                    ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
-                })?;
+            let length = message.parse::<FinF64>().map_err(|_| {
+                ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
+            })?;
             if length < FinF64::ZERO {
                 return Err(ParseWarning::SyntaxError(
                     "section length must be non-negative".to_string(),

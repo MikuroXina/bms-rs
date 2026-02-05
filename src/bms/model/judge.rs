@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use strict_num_extended::FinF64;
 
 use crate::bms::{
+    command::StringValue,
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
@@ -16,7 +17,7 @@ pub struct JudgeObjects {
     /// The judgement level of the score.
     pub rank: Option<JudgeLevel>,
     /// The total gauge percentage when all notes is got as PERFECT.
-    pub total: Option<FinF64>,
+    pub total: Option<StringValue<FinF64>>,
     /// Storage for `#EXRANK` definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Judge events, indexed by time. `#xxxA0:`
