@@ -18,6 +18,8 @@ use crate::{
 
 use strict_num_extended::{FinF64, PositiveF64};
 
+const DAMAGE_VALUE_FIN: FinF64 = FinF64::new_const(100.0);
+
 /// Warnings that occur during conversion from `Bms` to `Bmson`.
 #[derive(Debug, Clone, Copy, Error, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -253,7 +255,7 @@ impl Bms {
                     .map(|map| map.kind())
                 {
                     Some(NoteKind::Landmine) => {
-                        let damage = FinF64::new(100.0).expect("100.0 should be a valid FinF64");
+                        let damage = DAMAGE_VALUE_FIN;
                         mine_map.entry(note.wav_id).or_default().push(MineEvent {
                             x: note_lane,
                             y: pulses,

@@ -18,6 +18,10 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoor
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
+const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
+const ONE_FIN: FinF64 = FinF64::new_const(1.0);
+const DEFAULT_BPM_FIN: FinF64 = FinF64::new_const(120.0);
+
 /// BMS format parser.
 ///
 /// This struct serves as a namespace for BMS parsing functions.
@@ -44,9 +48,12 @@ impl BmsProcessor {
         let y_memo = YMemo::new(bms);
 
         // Initialize BPM: prefer chart initial BPM, otherwise 120
-        let init_bpm = bms.bpm.bpm.as_ref().cloned().unwrap_or_else(|| {
-            StringValue::from_value(FinF64::new(120.0).expect("120 should be finite"))
-        });
+        let init_bpm = bms
+            .bpm
+            .bpm
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM_FIN));
 
         // Precompute resource maps
         let wav_files: HashMap<WavId, PathBuf> = bms
@@ -75,7 +82,7 @@ impl BmsProcessor {
                 .value()
                 .as_ref()
                 .expect("parsed BPM value should be valid"),
-            FinF64::new(1.0).expect("1.0 should be finite"),
+            ONE_FIN,
         )
     }
 
@@ -92,7 +99,7 @@ impl BmsProcessor {
             return;
         };
 
-        if max_y.0 <= FinF64::new(0.0).expect("0 should be finite") {
+        if max_y.0 <= ZERO_FIN {
             return;
         }
 
@@ -144,7 +151,7 @@ impl YMemo {
     fn new(bms: &Bms) -> Self {
         let mut y_by_track: BTreeMap<Track, FinF64> = BTreeMap::new();
         let mut last_track = 0;
-        let mut y = FinF64::new(0.0).expect("0 should be finite");
+        let mut y = ZERO_FIN;
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
             let passed_sections = (track.0 - last_track).saturating_sub(1);
             y = FinF64::new(y.as_f64() + passed_sections as f64).expect("y should be finite");
@@ -176,21 +183,18 @@ impl YMemo {
                 FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
                     .expect("fraction should be finite")
             } else {
-                FinF64::new(0.0).expect("0 should be finite")
+                ZERO_FIN
             };
             let factor = bms
                 .speed
                 .speed_factor_changes
                 .range(..=time)
                 .last()
-                .map_or_else(
-                    || FinF64::new(1.0).expect("1.0 should be finite"),
-                    |(_, obj)| obj.factor,
-                );
+                .map_or_else(|| ONE_FIN, |(_, obj)| obj.factor);
             YCoordinate(
                 FinF64::new(section_y.as_f64() + fraction.as_f64())
                     .and_then(|s| FinF64::new(s.as_f64() * factor.as_f64()))
-                    .unwrap_or_else(|_| FinF64::new(0.0).expect("0 should be finite")),
+                    .unwrap_or(ZERO_FIN),
             )
         };
 
@@ -252,16 +256,17 @@ impl YMemo {
             FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
                 .expect("fraction should be finite")
         } else {
-            FinF64::new(0.0).expect("0 should be finite")
+            ZERO_FIN
         };
-        let factor = self.speed_changes.range(..=time).last().map_or_else(
-            || FinF64::new(1.0).expect("1.0 should be finite"),
-            |(_, obj)| obj.factor,
-        );
+        let factor = self
+            .speed_changes
+            .range(..=time)
+            .last()
+            .map_or_else(|| ONE_FIN, |(_, obj)| obj.factor);
         YCoordinate(
             FinF64::new(section_y.as_f64() + fraction.as_f64())
                 .and_then(|s| FinF64::new(s.as_f64() * factor.as_f64()))
-                .unwrap_or_else(|_| FinF64::new(0.0).expect("0 should be finite")),
+                .unwrap_or(ZERO_FIN),
         )
     }
 
@@ -279,10 +284,7 @@ impl YMemo {
             .speed_changes
             .range(..=ObjTime::start_of(track))
             .last()
-            .map_or_else(
-                || FinF64::new(1.0).expect("1.0 should be finite"),
-                |(_, obj)| obj.factor,
-            );
+            .map_or_else(|| ONE_FIN, |(_, obj)| obj.factor);
         YCoordinate(FinF64::new(section_y.as_f64() * factor.as_f64()).expect("y should be finite"))
     }
 
@@ -663,9 +665,12 @@ pub fn precompute_activate_times(
     points.insert(YCoordinate::zero());
     points.extend(all_events.as_by_y().keys().cloned());
 
-    let init_bpm = bms.bpm.bpm.as_ref().cloned().unwrap_or_else(|| {
-        StringValue::from_value(FinF64::new(120.0).expect("120 should be finite"))
-    });
+    let init_bpm = bms
+        .bpm
+        .bpm
+        .as_ref()
+        .cloned()
+        .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM_FIN));
     let bpm_changes: Vec<(YCoordinate, FinF64)> = bms
         .bpm
         .bpm_changes

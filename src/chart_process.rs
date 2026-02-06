@@ -70,6 +70,8 @@ use gametime::TimeSpan;
 use num::Zero;
 use strict_num_extended::FinF64;
 
+const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
+
 pub mod base_bpm;
 pub mod processor;
 
@@ -347,8 +349,8 @@ impl YCoordinate {
 
     /// Creates a zero of Y coordinate.
     #[must_use]
-    pub fn zero() -> Self {
-        Self(FinF64::new(0.0).expect("0 should be finite"))
+    pub const fn zero() -> Self {
+        Self(ZERO_FIN)
     }
 
     /// Returns the inner f64 value.
@@ -380,7 +382,7 @@ impl std::ops::Add for YCoordinate {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self(FinF64::new(self.0.as_f64() + rhs.0.as_f64()).expect("sum should be finite"))
+        Self((self.0 + rhs.0).expect("sum should be finite"))
     }
 }
 
@@ -388,7 +390,7 @@ impl std::ops::Add for &YCoordinate {
     type Output = YCoordinate;
 
     fn add(self, rhs: Self) -> Self::Output {
-        YCoordinate(FinF64::new(self.0.as_f64() + rhs.0.as_f64()).expect("sum should be finite"))
+        YCoordinate((self.0 + rhs.0).expect("sum should be finite"))
     }
 }
 
@@ -396,7 +398,7 @@ impl std::ops::Sub for YCoordinate {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(FinF64::new(self.0.as_f64() - rhs.0.as_f64()).expect("difference should be finite"))
+        Self((self.0 - rhs.0).expect("difference should be finite"))
     }
 }
 
@@ -404,9 +406,7 @@ impl std::ops::Sub for &YCoordinate {
     type Output = YCoordinate;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        YCoordinate(
-            FinF64::new(self.0.as_f64() - rhs.0.as_f64()).expect("difference should be finite"),
-        )
+        YCoordinate((self.0 - rhs.0).expect("difference should be finite"))
     }
 }
 
@@ -414,7 +414,7 @@ impl std::ops::Mul for YCoordinate {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Self(FinF64::new(self.0.as_f64() * rhs.0.as_f64()).expect("product should be finite"))
+        Self((self.0 * rhs.0).expect("product should be finite"))
     }
 }
 
@@ -422,7 +422,7 @@ impl std::ops::Div for YCoordinate {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        Self(FinF64::new(self.0.as_f64() / rhs.0.as_f64()).expect("quotient should be finite"))
+        Self((self.0 / rhs.0).expect("quotient should be finite"))
     }
 }
 
@@ -430,15 +430,13 @@ impl std::ops::Div for &YCoordinate {
     type Output = YCoordinate;
 
     fn div(self, rhs: Self) -> Self::Output {
-        YCoordinate(
-            FinF64::new(self.0.as_f64() / rhs.0.as_f64()).expect("quotient should be finite"),
-        )
+        YCoordinate((self.0 / rhs.0).expect("quotient should be finite"))
     }
 }
 
 impl Zero for YCoordinate {
     fn zero() -> Self {
-        Self(FinF64::new(0.0).expect("0 should be finite"))
+        Self(ZERO_FIN)
     }
 
     fn is_zero(&self) -> bool {

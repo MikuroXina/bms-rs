@@ -18,6 +18,7 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoor
 use crate::util::StrExtension;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
+const DEFAULT_SPEED_FACTOR: FinF64 = FinF64::new_const(1.0);
 
 /// BMSON format parser.
 ///
@@ -125,7 +126,7 @@ impl BmsonProcessor {
             all_events,
             flow_events_by_y,
             init_bpm,
-            FinF64::new(1.0).expect("1.0 should be finite"), // BMSON doesn't have Speed concept, default to 1.0
+            DEFAULT_SPEED_FACTOR, // BMSON doesn't have Speed concept, default to 1.0
         )
     }
 }
