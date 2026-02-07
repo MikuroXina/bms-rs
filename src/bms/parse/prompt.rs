@@ -3,9 +3,11 @@
 //! An object implementing [`Prompter`] is required by [`super::Bms::from_token_stream`]. It is used to handle conflicts and prompt workarounds on parsing the BMS file.
 
 use std::path::Path;
+use std::str::FromStr;
+
+use strict_num_extended::FinF64;
 
 use crate::bms::{
-    Decimal,
     command::{
         ObjId,
         channel::Channel,
@@ -60,9 +62,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated BPM object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
         /// Incoming definition.
-        newer: Decimal,
+        newer: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
     },
     /// OPTION definition is duplicated.
     ChangeOption {
@@ -78,18 +80,18 @@ pub enum DefDuplication<'a> {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
         /// Incoming definition.
-        newer: Decimal,
+        newer: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
     },
     /// SCROLL definition is duplicated.
     ScrollingFactorChange {
         /// Duplicated SCROLL object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
         /// Incoming definition.
-        newer: Decimal,
+        newer: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
     },
     /// TEXT is duplicated.
     Text {
@@ -150,9 +152,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated STOP object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
         /// Incoming definition.
-        newer: Decimal,
+        newer: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
     },
     /// BGA ARGB color definition is duplicated.
     BgaArgb {
@@ -186,9 +188,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated Seek event id.
         id: ObjId,
         /// Existing definition.
-        older: &'a Decimal,
+        older: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
         /// Incoming definition.
-        newer: &'a Decimal,
+        newer: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
     },
 }
 

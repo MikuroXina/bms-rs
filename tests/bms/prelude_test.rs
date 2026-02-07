@@ -1,5 +1,8 @@
+use strict_num_extended::FinF64;
+
 use bms_rs::bms::prelude::*;
-use num::{BigUint, One};
+
+use num::BigUint;
 
 #[test]
 fn test_prelude_imports() {
@@ -66,15 +69,15 @@ fn test_prelude_imports() {
     };
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
-        bpm: Decimal::from(120),
+        bpm: FinF64::try_from(120.0).unwrap(),
     };
     let _section_len_change_obj = SectionLenChangeObj {
         track: _track,
-        length: Decimal::from(4),
+        length: FinF64::try_from(4.0).unwrap(),
     };
     let _stop_obj = StopObj {
         time: _obj_time,
-        duration: Decimal::one(),
+        duration: FinF64::try_from(1.0).unwrap(),
     };
     let _bga_obj = BgaObj {
         time: _obj_time,
@@ -83,11 +86,11 @@ fn test_prelude_imports() {
     };
     let _scrolling_factor_obj = ScrollingFactorObj {
         time: _obj_time,
-        factor: Decimal::one(),
+        factor: FinF64::try_from(1.0).unwrap(),
     };
     let _speed_obj = SpeedObj {
         time: _obj_time,
-        factor: Decimal::one(),
+        factor: FinF64::try_from(1.0).unwrap(),
     };
 
     // Test prompt types

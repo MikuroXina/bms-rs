@@ -24,6 +24,8 @@ pub mod wav;
 
 // Re-export commonly used types
 pub use notes::Notes;
+// Re-export StringValue from command module for backward compatibility
+pub use crate::bms::command::StringValue;
 
 use std::fmt::Debug;
 
@@ -39,7 +41,7 @@ use self::{
 use self::{option::OptionObjects, resources::Resources};
 
 /// A score data aggregate of BMS format.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms {
     /// Manager of BGA (Background Animation) and BGI (Background Image) definitions and events.

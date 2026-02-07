@@ -1,9 +1,9 @@
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
 
-use bms_rs::bms::Decimal;
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
+use strict_num_extended::FinF64;
+
 use bms_rs::chart_process::prelude::*;
 
 use super::{MICROSECOND_EPSILON, assert_time_close, parse_bms_no_warnings};
@@ -17,9 +17,9 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
@@ -64,29 +64,32 @@ fn test_bms_restart_resets_scroll_to_one() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let after_scroll_change = processor.started_at() + TimeSpan::MILLISECOND * 2700;
     let _ = processor.update(after_scroll_change);
     let state = processor.playback_state();
-    assert_ne!(*state.current_scroll(), Decimal::one());
+    assert_ne!(*state.current_scroll(), FinF64::try_from(1.0).unwrap());
 
     let config2 = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms2 = parse_bms_no_warnings(bms_source, config2);
 
     let base_bpm2 = StartBpmGenerator
         .generate(&bms2)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
-    let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2);
+    let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2).expect("failed to parse chart");
     let start_time2 = TimeStamp::now();
     let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
     let reset_state = restarted_processor.playback_state();
-    assert_eq!(*reset_state.current_scroll(), Decimal::one());
+    assert_eq!(
+        *reset_state.current_scroll(),
+        FinF64::try_from(1.0).unwrap()
+    );
 }
 
 #[test]
@@ -105,19 +108,28 @@ fn test_visible_events_duration_matches_reaction_time() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
     let _start_time = start_time;
 
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), Decimal::from(120));
-    assert_eq!(*initial_state.current_speed(), Decimal::one());
-    assert_eq!(*initial_state.playback_ratio(), Decimal::one());
+    assert_eq!(
+        *initial_state.current_bpm(),
+        FinF64::try_from(120.0).unwrap()
+    );
+    assert_eq!(
+        *initial_state.current_speed(),
+        FinF64::try_from(1.0).unwrap()
+    );
+    assert_eq!(
+        *initial_state.playback_ratio(),
+        FinF64::try_from(1.0).unwrap()
+    );
 
-    let test_base_bpm = BaseBpm::from(Decimal::from(120));
+    let test_base_bpm = BaseBpm::from(FinF64::try_from(120.0).unwrap());
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(
@@ -126,9 +138,13 @@ fn test_visible_events_duration_matches_reaction_time() {
         state.playback_ratio(),
     );
 
-    let velocity = Decimal::from(120) * Decimal::one() * Decimal::one() / Decimal::from(240u64);
-    let time_to_cross = visible_window_y.as_ref() / velocity;
+    let velocity = (FinF64::try_from(120.0).unwrap()
+        * FinF64::try_from(1.0).unwrap()
+        * FinF64::try_from(1.0).unwrap()
+        / FinF64::try_from((240) as f64).unwrap())
+    .unwrap();
+    let time_to_cross = visible_window_y.as_ref().as_f64() / velocity.as_f64();
 
-    let actual_time_to_cross_f64 = time_to_cross.to_f64().unwrap_or(0.0);
+    let actual_time_to_cross_f64 = time_to_cross;
     assert_time_close(0.6, actual_time_to_cross_f64, "time_to_cross");
 }

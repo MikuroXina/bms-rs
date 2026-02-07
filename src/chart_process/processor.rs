@@ -5,9 +5,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
-use crate::bms::Decimal;
 use crate::bms::command::channel::NoteKind;
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use strict_num_extended::FinF64;
 
 pub mod bms;
 pub mod bmson;
@@ -525,9 +525,9 @@ pub struct PlayableChart {
     /// Flow event mapping (affects playback speed).
     pub(crate) flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
     /// Initial BPM.
-    pub(crate) init_bpm: Decimal,
+    pub(crate) init_bpm: FinF64,
     /// Initial Speed (BMS-specific, BMSON defaults to 1.0).
-    pub(crate) init_speed: Decimal,
+    pub(crate) init_speed: FinF64,
 }
 
 impl PlayableChart {
@@ -551,13 +551,13 @@ impl PlayableChart {
 
     /// Get initial BPM.
     #[must_use]
-    pub const fn init_bpm(&self) -> &Decimal {
+    pub const fn init_bpm(&self) -> &FinF64 {
         &self.init_bpm
     }
 
     /// Get initial Speed.
     #[must_use]
-    pub const fn init_speed(&self) -> &Decimal {
+    pub const fn init_speed(&self) -> &FinF64 {
         &self.init_speed
     }
 
@@ -588,8 +588,8 @@ impl PlayableChart {
         resources: ChartResources,
         events: AllEventsIndex,
         flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
-        init_bpm: Decimal,
-        init_speed: Decimal,
+        init_bpm: FinF64,
+        init_speed: FinF64,
     ) -> Self {
         Self {
             resources,

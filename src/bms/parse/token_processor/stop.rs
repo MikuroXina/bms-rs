@@ -4,9 +4,7 @@
 //! - `#xxx09:` - Stop channel.
 //! - `#STP xxx.yyy time` - It stops `time` milliseconds at section `xxx` and its position (`yyy` / 1000).
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
-
-use fraction::GenericFraction;
+use std::{cell::RefCell, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -15,7 +13,7 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::stop::StopObjects,
+        model::{StringValue, stop::StopObjects},
         parse::{ParseWarning, Result},
         prelude::*,
     },
@@ -77,10 +75,7 @@ impl StopProcessor {
         objects: &mut StopObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("STOP") {
-            let len =
-                Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
-                    ParseWarning::SyntaxError("expected decimal stop length".into())
-                })?);
+            let string_value = StringValue::new(args.to_string());
 
             let stop_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
@@ -88,12 +83,12 @@ impl StopProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::Stop {
                         id: stop_obj_id,
-                        older: older.clone(),
-                        newer: len.clone(),
+                        older: older.value(),
+                        newer: string_value.value(),
                     })
-                    .apply_def(older, len, stop_obj_id)?;
+                    .apply_def(older, string_value, stop_obj_id)?;
             } else {
-                objects.stop_defs.insert(stop_obj_id, len);
+                objects.stop_defs.insert(stop_obj_id, string_value);
             }
         }
         if name.eq_ignore_ascii_case("STP") {
@@ -154,11 +149,16 @@ impl StopProcessor {
             for (time, obj) in pairs {
                 // Record used STOP id for validity checks
                 objects.stop_ids_used.insert(obj);
-                let duration = objects
+                let string_value = objects
                     .stop_defs
                     .get(&obj)
-                    .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
+
+                // Try to get the duration; if parsing failed, skip this object
+                let Ok(&duration) = string_value.value().as_ref() else {
+                    continue;
+                };
+
                 objects.push_stop(StopObj { time, duration });
             }
         }
