@@ -90,14 +90,8 @@ impl BpmProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::BpmChange {
                         id: bpm_obj_id,
-                        older: *older
-                            .value()
-                            .as_ref()
-                            .expect("parsed BPM value should be valid"),
-                        newer: *string_value
-                            .value()
-                            .as_ref()
-                            .expect("parsed BPM value should be valid"),
+                        older: older.value(),
+                        newer: string_value.value(),
                     })
                     .apply_def(older, string_value, bpm_obj_id)?;
             } else {
@@ -130,10 +124,10 @@ impl BpmProcessor {
                     .bpm_defs
                     .get(&obj)
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                let bpm = *string_value
-                    .value()
-                    .as_ref()
-                    .expect("parsed BPM value should be valid");
+                let bpm = match string_value.value() {
+                    Ok(value) => *value,
+                    Err(_) => continue,
+                };
                 objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)?;
             }
         }

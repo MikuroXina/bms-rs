@@ -103,14 +103,8 @@ impl VideoProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::SeekEvent {
                         id,
-                        older: older
-                            .value()
-                            .as_ref()
-                            .expect("parsed video parameter should be valid"),
-                        newer: string_value
-                            .value()
-                            .as_ref()
-                            .expect("parsed video parameter should be valid"),
+                        older: older.value(),
+                        newer: string_value.value(),
                     })
                     .apply_def(older, string_value, id)?;
             } else {
@@ -139,11 +133,17 @@ impl VideoProcessor {
                     .seek_defs
                     .get(&seek_id)
                     .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                let position = *string_value
-                    .value()
-                    .as_ref()
-                    .expect("parsed video parameter should be valid");
-                video.push_seek_event(SeekObj { time, position }, prompter)?;
+                let position_value = match string_value.value() {
+                    Ok(value) => value,
+                    Err(_) => continue,
+                };
+                video.push_seek_event(
+                    SeekObj {
+                        time,
+                        position: *position_value,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

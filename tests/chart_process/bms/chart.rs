@@ -26,7 +26,7 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::start();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
     let _events = processor.update(start_time + TimeSpan::SECOND * 2);
@@ -66,7 +66,7 @@ fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
     let config = default_config().prompter(AlwaysUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
 
     let note_events: Vec<_> = chart
         .events()

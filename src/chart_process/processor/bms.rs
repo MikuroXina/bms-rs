@@ -10,12 +10,12 @@ use itertools::Itertools;
 use strict_num_extended::FinF64;
 
 use crate::bms::command::StringValue;
+use crate::bms::parse::check_playing::PlayingError;
 use crate::bms::prelude::*;
 use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
-
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
@@ -42,8 +42,73 @@ fn convert_stop_duration_to_beats(duration_192nd: FinF64) -> FinF64 {
 
 impl BmsProcessor {
     /// Parse BMS file and return a `PlayableChart` containing all precomputed data.
-    #[must_use]
-    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> PlayableChart {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PlayingError::InvalidBpm`] if the BPM value could not be parsed.
+    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> Result<PlayableChart, PlayingError> {
+        // === Validate all StringValue definitions ===
+        let mut errors = Vec::new();
+
+        // Validate BPM definitions
+        for string_value in bms.bpm.bpm_defs.values() {
+            if let Err(e) = string_value.value() {
+                errors.push(PlayingError::InvalidBpm {
+                    raw: string_value.raw().to_string(),
+                    error: format!("{:?}", e),
+                });
+            }
+        }
+
+        // Validate STOP definitions
+        for (obj_id, string_value) in &bms.stop.stop_defs {
+            if let Err(e) = string_value.value() {
+                errors.push(PlayingError::InvalidStop {
+                    obj_id: *obj_id,
+                    raw: string_value.raw().to_string(),
+                    error: format!("{:?}", e),
+                });
+            }
+        }
+
+        // Validate SPEED definitions
+        for (obj_id, string_value) in &bms.speed.speed_defs {
+            if let Err(e) = string_value.value() {
+                errors.push(PlayingError::InvalidSpeed {
+                    obj_id: *obj_id,
+                    raw: string_value.raw().to_string(),
+                    error: format!("{:?}", e),
+                });
+            }
+        }
+
+        // Validate SCROLL definitions
+        for (obj_id, string_value) in &bms.scroll.scroll_defs {
+            if let Err(e) = string_value.value() {
+                errors.push(PlayingError::InvalidScroll {
+                    obj_id: *obj_id,
+                    raw: string_value.raw().to_string(),
+                    error: format!("{:?}", e),
+                });
+            }
+        }
+
+        // Validate SEEK definitions
+        for (obj_id, string_value) in &bms.video.seek_defs {
+            if let Err(e) = string_value.value() {
+                errors.push(PlayingError::InvalidSeek {
+                    obj_id: *obj_id,
+                    raw: string_value.raw().to_string(),
+                    error: format!("{:?}", e),
+                });
+            }
+        }
+
+        // If there are errors, return the first one
+        if let Some(err) = errors.into_iter().next() {
+            return Err(err);
+        }
+
         // Pre-calculate Y coordinate by tracks
         let y_memo = YMemo::new(bms);
 
@@ -72,18 +137,24 @@ impl BmsProcessor {
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
         // Precompute activate times
-        let all_events = precompute_activate_times(bms, &all_events, &y_memo);
+        let all_events = precompute_activate_times(bms, &all_events, &y_memo)?;
 
-        PlayableChart::from_parts(
+        // Get initial BPM value
+        let init_bpm_value = *init_bpm
+            .value()
+            .as_ref()
+            .map_err(|e| PlayingError::InvalidBpm {
+                raw: init_bpm.raw().to_string(),
+                error: format!("{:?}", e),
+            })?;
+
+        Ok(PlayableChart::from_parts(
             ChartResources::new(wav_files, bmp_files),
             all_events,
             y_memo.flow_events().clone(),
-            *init_bpm
-                .value()
-                .as_ref()
-                .expect("parsed BPM value should be valid"),
+            init_bpm_value,
             ONE_FIN,
-        )
+        ))
     }
 
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
@@ -654,12 +725,15 @@ impl AllEventsIndex {
 }
 
 /// Precompute absolute `activate_time` for all events based on BPM segmentation and Stops.
-#[must_use]
+///
+/// # Errors
+///
+/// Returns [`PlayingError::InvalidBpm`] if the initial BPM value could not be parsed.
 pub fn precompute_activate_times(
     bms: &Bms,
     all_events: &AllEventsIndex,
     y_memo: &YMemo,
-) -> AllEventsIndex {
+) -> Result<AllEventsIndex, PlayingError> {
     use std::collections::{BTreeMap, BTreeSet};
     let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
     points.insert(YCoordinate::zero());
@@ -694,23 +768,21 @@ pub fn precompute_activate_times(
         .collect();
 
     let mut bpm_map: BTreeMap<YCoordinate, FinF64> = BTreeMap::new();
-    bpm_map.insert(
-        YCoordinate::zero(),
-        *init_bpm
-            .value()
-            .as_ref()
-            .expect("parsed BPM value should be valid"),
-    );
+    let init_bpm_value = *init_bpm
+        .value()
+        .as_ref()
+        .map_err(|e| PlayingError::InvalidBpm {
+            raw: init_bpm.raw().to_string(),
+            error: format!("{:?}", e),
+        })?;
+    bpm_map.insert(YCoordinate::zero(), init_bpm_value);
     bpm_map.extend(bpm_changes.iter().cloned());
 
     let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
     let mut total_nanos: u64 = 0;
     let mut prev = YCoordinate::zero();
     cum_map.insert(prev.clone(), 0);
-    let mut cur_bpm = *init_bpm
-        .value()
-        .as_ref()
-        .expect("parsed BPM value should be valid");
+    let mut cur_bpm = init_bpm_value;
     let mut stop_idx = 0usize;
 
     for curr in points {
@@ -736,9 +808,7 @@ pub fn precompute_activate_times(
                     .range(..=sy)
                     .next_back()
                     .map(|(_, b)| *b)
-                    .unwrap_or_else(|| {
-                        *init_bpm.value().as_ref().expect("init BPM should be valid")
-                    });
+                    .unwrap_or(init_bpm_value);
                 let dur_nanos = (dur_y.as_f64() * 240.0 * NANOS_PER_SECOND as f64
                     / bpm_at_stop.as_f64()) as u64;
                 total_nanos = total_nanos.saturating_add(dur_nanos);
@@ -770,7 +840,7 @@ pub fn precompute_activate_times(
             (y_coord.clone(), new_events)
         })
         .collect();
-    AllEventsIndex::new(new_map)
+    Ok(AllEventsIndex::new(new_map))
 }
 
 /// Generate a static chart event for a BMS note object.
@@ -822,11 +892,152 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
 }
 
 impl TryFrom<Bms> for PlayableChart {
-    type Error = ();
+    type Error = PlayingError;
 
     fn try_from(bms: Bms) -> Result<Self, Self::Error> {
-        Ok(BmsProcessor::parse::<
-            crate::bms::command::channel::mapper::KeyLayoutBeat,
-        >(&bms))
+        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&bms)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bms::command::StringValue;
+    use crate::bms::command::channel::mapper::KeyLayoutBeat;
+
+    /// Test that parsing fails when BPM value is invalid (non-numeric string)
+    #[test]
+    fn test_parse_invalid_bpm() {
+        // Create a BMS object with an invalid BPM value
+        let mut bms = Bms::default();
+        bms.bpm.bpm = Some(StringValue::new("invalid_bpm"));
+
+        // Try to parse, should return InvalidBpm error
+        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+        assert!(result.is_err());
+        match result {
+            Err(PlayingError::InvalidBpm { raw, error }) => {
+                assert_eq!(raw, "invalid_bpm");
+                // Verify error message contains details
+                assert!(error.contains("invalid") || error.contains("digit") || !error.is_empty());
+            }
+            _ => panic!("Expected PlayingError::InvalidBpm, got: {:?}", result),
+        }
+    }
+
+    /// Test that parsing fails when BPM value is an empty string
+    #[test]
+    fn test_parse_empty_bpm() {
+        let mut bms = Bms::default();
+        bms.bpm.bpm = Some(StringValue::new(""));
+
+        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+        assert!(result.is_err());
+        match result {
+            Err(PlayingError::InvalidBpm { raw, .. }) => {
+                assert_eq!(raw, "");
+            }
+            _ => panic!(
+                "Expected PlayingError::InvalidBpm for empty BPM, got: {:?}",
+                result
+            ),
+        }
+    }
+
+    /// Test that parsing fails when BPM value is NaN-like
+    #[test]
+    fn test_parse_nan_bpm() {
+        let mut bms = Bms::default();
+        bms.bpm.bpm = Some(StringValue::new("NaN"));
+
+        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+        assert!(result.is_err());
+        match result {
+            Err(PlayingError::InvalidBpm { raw, .. }) => {
+                assert_eq!(raw, "NaN");
+            }
+            _ => panic!(
+                "Expected PlayingError::InvalidBpm for NaN BPM, got: {:?}",
+                result
+            ),
+        }
+    }
+
+    /// Test that parsing succeeds with default BPM (120) when no BPM is defined
+    #[test]
+    fn test_parse_missing_bpm_uses_default() {
+        // Create a BMS object without BPM definition
+        let bms = Bms::default();
+
+        // Parse should succeed with default BPM (120)
+        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+        assert!(
+            result.is_ok(),
+            "Parse should succeed with missing BPM: {:?}",
+            result
+        );
+        let chart = result.unwrap();
+        assert_eq!(
+            chart.init_bpm, DEFAULT_BPM_FIN,
+            "Should use default BPM of 120"
+        );
+    }
+
+    /// Test that parsing succeeds with valid BPM value
+    #[test]
+    fn test_parse_valid_bpm() {
+        let mut bms = Bms::default();
+        bms.bpm.bpm = Some(StringValue::new("150.5"));
+
+        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+        assert!(
+            result.is_ok(),
+            "Parse should succeed with valid BPM: {:?}",
+            result
+        );
+        let chart = result.unwrap();
+        assert_eq!(chart.init_bpm, FinF64::new(150.5).unwrap());
+    }
+
+    /// Test that parsing succeeds with BPM value containing special characters
+    #[test]
+    fn test_parse_bpm_with_special_chars() {
+        let mut bms = Bms::default();
+        bms.bpm.bpm = Some(StringValue::new("abc123!@#"));
+
+        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+        assert!(result.is_err());
+        match result {
+            Err(PlayingError::InvalidBpm { raw, .. }) => {
+                assert_eq!(raw, "abc123!@#");
+            }
+            _ => panic!(
+                "Expected PlayingError::InvalidBpm for special characters, got: {:?}",
+                result
+            ),
+        }
+    }
+
+    /// Test that error information is preserved correctly
+    #[test]
+    fn test_error_contains_raw_value() {
+        let invalid_value = "not_a_number";
+        let mut bms = Bms::default();
+        bms.bpm.bpm = Some(StringValue::new(invalid_value));
+
+        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+
+        match result {
+            Err(PlayingError::InvalidBpm { raw, .. }) => {
+                assert_eq!(raw, invalid_value);
+            }
+            _ => panic!("Expected PlayingError::InvalidBpm"),
+        }
     }
 }

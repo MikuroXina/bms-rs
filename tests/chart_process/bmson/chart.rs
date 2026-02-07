@@ -7,7 +7,7 @@ use bms_rs::chart_process::PlayheadEvent;
 use bms_rs::chart_process::prelude::*;
 
 fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {
-    // 使用近似比较来处理浮点数精度问题
+    // Use approximate comparison to handle floating-point precision issues
     let tolerance = 1e-9;
 
     assert!(
@@ -38,7 +38,7 @@ fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {
         state2.playback_ratio()
     );
 
-    // Y position 可能累积更多误差，使用更大的容差
+    // Y position may accumulate more errors, use larger tolerance
     let y_tolerance = 1e-12;
     assert!(
         (state1.progressed_y().value().as_f64() - state2.progressed_y().value().as_f64()).abs()
@@ -50,14 +50,14 @@ fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {
 }
 
 fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
-    // 先打印事件数量以便调试
+    // Print event count first for debugging
     println!(
         "Event count: left={}, right={}",
         events1.len(),
         events2.len()
     );
 
-    // 如果事件数量不匹配，打印详细的事件列表
+    // If event counts don't match, print detailed event lists
     if events1.len() != events2.len() {
         let mut ev1 = events1.to_vec();
         let mut ev2 = events2.to_vec();
@@ -114,7 +114,7 @@ fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
 
     let tolerance = 1e-12;
     for (e1, e2) in ev1.iter().zip(ev2.iter()) {
-        // 使用近似比较来处理浮点数精度问题
+        // Use approximate comparison to handle floating-point precision issues
         assert!(
             (e1.position().value().as_f64() - e2.position().value().as_f64()).abs() < tolerance,
             "Event position mismatch: left={}, right={}",
@@ -237,20 +237,22 @@ fn test_update_consistency_extreme_many_intervals() {
 
     assert_playback_state_equal(player1.playback_state(), player2.playback_state());
 
-    // 由于浮点数精度累积问题，多次小间隔更新和单次大间隔更新可能会导致
-    // 边界上的事件触发不一致。这里我们允许一个事件的差异。
+    // Due to floating-point precision accumulation issues, multiple small-interval
+    // updates and single large-interval updates may cause inconsistent event triggering
+    // at boundaries. Here we allow a difference of one event.
     //
-    // 具体来说，如果某个音符恰好位于更新边界的 y 位置上，
-    // 在一种情况下它会被包含（触发），在另一种情况下可能不会。
-    // 这是 f64 浮点数精度的固有限制，在实际应用中影响很小。
+    // Specifically, if a note is exactly at the y position of an update boundary,
+    // it may be included (triggered) in one case but not in the other.
+    // This is an inherent limitation of f64 floating-point precision and has
+    // minimal impact in practical applications.
     let event_count_diff = (events1_total.len() as i64 - events2_total.len() as i64).abs();
     if event_count_diff <= 1 {
-        // 事件数量相差不超过1，这是可以接受的
-        // 我们仍然检查共同的事件是否一致
+        // Event count difference is no more than 1, which is acceptable
+        // We still check that the common events are consistent
         let tolerance = 1e-9;
         let mut matched = 0;
 
-        // 使用简单的匹配策略：对于 events1 中的每个事件，在 events2 中寻找近似匹配
+        // Use simple matching strategy: for each event in events1, find an approximate match in events2
         for e1 in &events1_total {
             for e2 in &events2_total {
                 let pos_match = (e1.position().value().as_f64() - e2.position().value().as_f64())
@@ -266,7 +268,7 @@ fn test_update_consistency_extreme_many_intervals() {
             }
         }
 
-        // 确保至少有 min(events1, events2) - 1 个事件匹配
+        // Ensure at least min(events1, events2) - 1 events match
         let min_events = events1_total.len().min(events2_total.len());
         assert!(
             matched >= min_events.saturating_sub(1),
@@ -277,7 +279,7 @@ fn test_update_consistency_extreme_many_intervals() {
             events2_total.len()
         );
     } else {
-        // 如果差异超过1，仍然使用严格的断言
+        // If difference exceeds 1, still use strict assertion
         assert_events_equal(&events1_total, &events2_total);
     }
 }

@@ -216,7 +216,8 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
                 .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).expect("120 should be finite")));
 
             // Use KeyLayoutBeat mapper (supports 7+1k)
-            let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+            let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
+                .map_err(|e| format!("Failed to parse chart: {}", e))?;
             (chart, base_bpm)
         }
         "bmson" => {

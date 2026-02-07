@@ -83,14 +83,8 @@ impl StopProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::Stop {
                         id: stop_obj_id,
-                        older: *older
-                            .value()
-                            .as_ref()
-                            .expect("parsed stop duration should be valid"),
-                        newer: *string_value
-                            .value()
-                            .as_ref()
-                            .expect("parsed stop duration should be valid"),
+                        older: older.value(),
+                        newer: string_value.value(),
                     })
                     .apply_def(older, string_value, stop_obj_id)?;
             } else {
@@ -159,10 +153,12 @@ impl StopProcessor {
                     .stop_defs
                     .get(&obj)
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                let duration = *string_value
-                    .value()
-                    .as_ref()
-                    .expect("parsed stop duration should be valid");
+
+                // Try to get the duration; if parsing failed, skip this object
+                let Ok(&duration) = string_value.value().as_ref() else {
+                    continue;
+                };
+
                 objects.push_stop(StopObj { time, duration });
             }
         }

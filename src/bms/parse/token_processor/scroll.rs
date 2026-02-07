@@ -81,14 +81,8 @@ impl ScrollProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::ScrollingFactorChange {
                         id: scroll_obj_id,
-                        older: *older
-                            .value()
-                            .as_ref()
-                            .expect("parsed scroll factor should be valid"),
-                        newer: *string_value
-                            .value()
-                            .as_ref()
-                            .expect("parsed scroll factor should be valid"),
+                        older: older.value(),
+                        newer: string_value.value(),
                     })
                     .apply_def(older, string_value, scroll_obj_id)?;
             } else {
@@ -115,12 +109,17 @@ impl ScrollProcessor {
                     .scroll_defs
                     .get(&obj)
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                let factor = *string_value
-                    .value()
-                    .as_ref()
-                    .expect("parsed scroll factor should be valid");
-                objects
-                    .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)?;
+                let factor = match string_value.value() {
+                    Ok(value) => value,
+                    Err(_) => continue,
+                };
+                objects.push_scrolling_factor_change(
+                    ScrollingFactorObj {
+                        time,
+                        factor: *factor,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

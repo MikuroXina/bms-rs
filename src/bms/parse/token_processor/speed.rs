@@ -82,14 +82,8 @@ impl SpeedProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::SpeedFactorChange {
                         id: speed_obj_id,
-                        older: *older
-                            .value()
-                            .as_ref()
-                            .expect("parsed speed factor should be valid"),
-                        newer: *string_value
-                            .value()
-                            .as_ref()
-                            .expect("parsed speed factor should be valid"),
+                        older: older.value(),
+                        newer: string_value.value(),
                     })
                     .apply_def(older, string_value, speed_obj_id)?;
             } else {
@@ -116,10 +110,11 @@ impl SpeedProcessor {
                     .speed_defs
                     .get(&obj)
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                let factor = *string_value
-                    .value()
-                    .as_ref()
-                    .expect("parsed speed factor should be valid");
+                // Get factor, skip this object if parsing failed
+                let factor = match string_value.value() {
+                    Ok(v) => *v,
+                    Err(_) => continue, // Skip objects with parse errors
+                };
                 objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
             }
         }
