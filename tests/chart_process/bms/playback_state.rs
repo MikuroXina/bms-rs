@@ -17,7 +17,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| PositiveF64::try_from(120.0).unwrap());
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -64,7 +64,7 @@ fn test_bms_restart_resets_scroll_to_one() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| PositiveF64::try_from(120.0).unwrap());
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -80,7 +80,7 @@ fn test_bms_restart_resets_scroll_to_one() {
 
     let base_bpm2 = StartBpmGenerator
         .generate(&bms2)
-        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| PositiveF64::try_from(120.0).unwrap());
     let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
     let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2).expect("failed to parse chart");
     let start_time2 = TimeStamp::now();
@@ -108,7 +108,7 @@ fn test_visible_events_duration_matches_reaction_time() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| PositiveF64::try_from(120.0).unwrap());
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -129,7 +129,7 @@ fn test_visible_events_duration_matches_reaction_time() {
         FinF64::try_from(1.0).unwrap()
     );
 
-    let test_base_bpm = BaseBpm::from(PositiveF64::try_from(120.0).unwrap());
+    let test_base_bpm = PositiveF64::try_from(120.0).unwrap();
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(
@@ -143,7 +143,7 @@ fn test_visible_events_duration_matches_reaction_time() {
         * FinF64::try_from(1.0).unwrap()
         / FinF64::try_from((240) as f64).unwrap())
     .unwrap();
-    let time_to_cross = visible_window_y.as_ref().as_f64() / velocity.as_f64();
+    let time_to_cross = visible_window_y.as_f64() / velocity.as_f64();
 
     let actual_time_to_cross_f64 = time_to_cross;
     assert_time_close(0.6, actual_time_to_cross_f64, "time_to_cross");

@@ -4,17 +4,19 @@
 //! allowing users to import all needed items in one go.
 
 // Re-export types
+pub use super::FlowEvent;
 pub use super::base_bpm::{
-    BaseBpm, BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator,
-    StartBpmGenerator,
+    BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator,
 };
 pub use super::player::{DisplayRatio, VisibleRangePerBpm};
 pub use super::processor::{
     AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, PlayableChart,
     WavId,
 };
-pub use super::{FlowEvent, YCoordinate};
 pub use gametime::TimeSpan;
+
+// Re-export NonNegativeF64 for use in place of YCoordinate
+pub use strict_num_extended::NonNegativeF64;
 
 // Re-export event types
 pub use super::{ChartEvent, PlayheadEvent};

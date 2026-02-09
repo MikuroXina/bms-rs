@@ -108,7 +108,7 @@ async fn main() -> Result<(), String> {
                 "[Playback] Time: {:.1}s | BPM: {:.1} | Y: {:.2} | Speed: {:.2} | Scroll: {:.2} | Missed: {}",
                 elapsed.as_secs_f64(),
                 state.current_bpm().as_f64(),
-                state.progressed_y().value().as_f64(),
+                state.progressed_y().as_f64(),
                 state.current_speed().as_f64(),
                 state.current_scroll().as_f64(),
                 missed_sounds,
@@ -186,8 +186,8 @@ struct Config {
 ///
 /// # Returns
 ///
-/// Returns parsed `PlayableChart` and `BaseBpm`.
-fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
+/// Returns parsed `PlayableChart` and base BPM value.
+fn load_chart(path: &Path) -> Result<(PlayableChart, PositiveF64), String> {
     // Read file content
     // First read as bytes
     let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file: {}", e))?;
@@ -210,10 +210,10 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
             let output = parse_bms(&content, default_config());
             let bms = output.bms.map_err(|e| format!("Parse error: {:?}", e))?;
 
-            // First generate BaseBpm from BMS
-            let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or_else(|| {
-                BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive"))
-            });
+            // First generate base BPM from BMS
+            let base_bpm = StartBpmGenerator
+                .generate(&bms)
+                .unwrap_or_else(|| PositiveF64::new(120.0).expect("120 should be positive"));
 
             // Use KeyLayoutBeat mapper (supports 7+1k)
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
@@ -227,10 +227,10 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
                 let bmson = serde_json::from_str(&content)
                     .map_err(|e| format!("JSON parse error: {}", e))?;
 
-                // First generate BaseBpm from BMSON
-                let base_bpm = StartBpmGenerator.generate(&bmson).unwrap_or_else(|| {
-                    BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive"))
-                });
+                // First generate base BPM from BMSON
+                let base_bpm = StartBpmGenerator
+                    .generate(&bmson)
+                    .unwrap_or_else(|| PositiveF64::new(120.0).expect("120 should be positive"));
 
                 let chart = BmsonProcessor::parse(&bmson);
                 (chart, base_bpm)
@@ -525,7 +525,7 @@ fn render_info(player: &ChartPlayer) {
     );
 
     // Display progress (current Y coordinate)
-    let y = state.progressed_y().value().as_f64();
+    let y = state.progressed_y().as_f64();
     macroquad::prelude::draw_text(
         &format!("Position: {:.2}", y),
         10.0,

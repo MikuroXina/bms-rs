@@ -67,11 +67,9 @@ use crate::bms::prelude::SwBgaEvent;
 use crate::bms::prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
 use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
 use gametime::TimeSpan;
-use num::Zero;
 use strict_num_extended::FinF64;
+use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
-
-const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
 
 pub mod base_bpm;
 pub mod processor;
@@ -87,7 +85,7 @@ pub mod prelude;
 /// These events represent actual events during chart playback, such as note triggers, BGM playback,
 /// BPM changes, etc.
 ///
-/// The effects of [`ChartEvent`] members on [`YCoordinate`] and [`player::DisplayRatio`] are calculated by the corresponding
+/// The effects of [`ChartEvent`] members on Y coordinates and [`player::DisplayRatio`] are calculated by the corresponding
 /// processor implementation, so there's no need to recalculate them.
 #[derive(Debug, Clone)]
 pub enum ChartEvent {
@@ -102,7 +100,7 @@ pub enum ChartEvent {
         /// Corresponding sound resource ID (if any)
         wav_id: Option<WavId>,
         /// Note length (end position for long notes, None for regular notes)
-        length: Option<YCoordinate>,
+        length: Option<NonNegativeF64>,
         /// Note continue play span. None for BMS; in BMSON, Some(span) when Note.c is true.
         continue_play: Option<TimeSpan>,
     },
@@ -222,7 +220,7 @@ pub struct PlayheadEvent {
     /// Event identifier
     pub id: ChartEventId,
     /// Event position on timeline (y coordinate)
-    pub position: YCoordinate,
+    pub position: NonNegativeF64,
     /// Chart event
     pub event: ChartEvent,
     /// Activate time since chart playback started
@@ -234,7 +232,7 @@ impl PlayheadEvent {
     #[must_use]
     pub const fn new(
         id: ChartEventId,
-        position: YCoordinate,
+        position: NonNegativeF64,
         event: ChartEvent,
         activate_time: TimeSpan,
     ) -> Self {
@@ -254,7 +252,7 @@ impl PlayheadEvent {
 
     /// Get event position
     #[must_use]
-    pub const fn position(&self) -> &YCoordinate {
+    pub const fn position(&self) -> &NonNegativeF64 {
         &self.position
     }
 
@@ -294,153 +292,4 @@ pub enum FlowEvent {
     Speed(PositiveF64),
     /// Scroll factor change event.
     Scroll(FinF64),
-}
-
-/// Y coordinate wrapper type, using finite f64 numbers.
-///
-/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct YCoordinate(pub FinF64);
-
-impl std::hash::Hash for YCoordinate {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        // Hash the f64 value using its bit representation
-        self.0.as_f64().to_bits().hash(state);
-    }
-}
-
-impl PartialOrd for YCoordinate {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        // Use f64::total_cmp for consistent ordering including NaN handling
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for YCoordinate {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Use f64::total_cmp for consistent ordering including NaN handling
-        self.0.as_f64().total_cmp(&other.0.as_f64())
-    }
-}
-
-impl AsRef<FinF64> for YCoordinate {
-    fn as_ref(&self) -> &FinF64 {
-        &self.0
-    }
-}
-
-impl YCoordinate {
-    /// Create a new `YCoordinate`
-    #[must_use]
-    pub const fn new(value: FinF64) -> Self {
-        Self(value)
-    }
-
-    /// Returns a reference to the contained value.
-    #[must_use]
-    pub const fn value(&self) -> &FinF64 {
-        &self.0
-    }
-
-    /// Consumes self and returns the contained value.
-    #[must_use]
-    pub const fn into_value(self) -> FinF64 {
-        self.0
-    }
-
-    /// Creates a zero of Y coordinate.
-    #[must_use]
-    pub const fn zero() -> Self {
-        Self(ZERO_FIN)
-    }
-
-    /// Returns the inner f64 value.
-    #[must_use]
-    pub const fn as_f64(&self) -> f64 {
-        self.0.as_f64()
-    }
-}
-
-impl From<FinF64> for YCoordinate {
-    fn from(value: FinF64) -> Self {
-        Self(value)
-    }
-}
-
-impl From<YCoordinate> for FinF64 {
-    fn from(value: YCoordinate) -> Self {
-        value.0
-    }
-}
-
-impl From<f64> for YCoordinate {
-    fn from(value: f64) -> Self {
-        Self(FinF64::new(value).expect("value should be finite"))
-    }
-}
-
-impl std::ops::Add for YCoordinate {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self((self.0 + rhs.0).expect("sum should be finite"))
-    }
-}
-
-impl std::ops::Add for &YCoordinate {
-    type Output = YCoordinate;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        YCoordinate((self.0 + rhs.0).expect("sum should be finite"))
-    }
-}
-
-impl std::ops::Sub for YCoordinate {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self((self.0 - rhs.0).expect("difference should be finite"))
-    }
-}
-
-impl std::ops::Sub for &YCoordinate {
-    type Output = YCoordinate;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        YCoordinate((self.0 - rhs.0).expect("difference should be finite"))
-    }
-}
-
-impl std::ops::Mul for YCoordinate {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        Self((self.0 * rhs.0).expect("product should be finite"))
-    }
-}
-
-impl std::ops::Div for YCoordinate {
-    type Output = Self;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        Self((self.0 / rhs.0).expect("quotient should be finite"))
-    }
-}
-
-impl std::ops::Div for &YCoordinate {
-    type Output = YCoordinate;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        YCoordinate((self.0 / rhs.0).expect("quotient should be finite"))
-    }
-}
-
-impl Zero for YCoordinate {
-    fn zero() -> Self {
-        Self(ZERO_FIN)
-    }
-
-    fn is_zero(&self) -> bool {
-        self.0.as_f64() == 0.0
-    }
 }

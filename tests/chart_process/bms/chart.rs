@@ -24,7 +24,7 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| PositiveF64::new(120.0).expect("120 should be positive"));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::start();
@@ -74,7 +74,7 @@ fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
         .iter()
         .filter_map(|ev| {
             if let ChartEvent::Note { key, wav_id, .. } = ev.event() {
-                Some((ev.position().clone(), *key, *wav_id))
+                Some((*ev.position(), *key, *wav_id))
             } else {
                 None
             }
@@ -82,10 +82,31 @@ fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
         .collect();
 
     let expected_events = vec![
-        (YCoordinate::from(1.0), Key::Key(1), Some(WavId::new(1))),
-        (YCoordinate::from(1.0), Key::Key(2), Some(WavId::new(2))),
-        (YCoordinate::from(1.0), Key::Key(3), Some(WavId::new(3))),
-        (YCoordinate::from(1.0), Key::Key(4), Some(WavId::new(4))),
+        (
+            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            Key::Key(1),
+            Some(WavId::new(1)),
+        ),
+        (
+            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            Key::Key(3),
+            Some(WavId::new(1)),
+        ),
+        (
+            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            Key::Key(2),
+            Some(WavId::new(2)),
+        ),
+        (
+            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            Key::Key(3),
+            Some(WavId::new(3)),
+        ),
+        (
+            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            Key::Key(4),
+            Some(WavId::new(4)),
+        ),
     ];
 
     assert_eq!(note_events, expected_events);

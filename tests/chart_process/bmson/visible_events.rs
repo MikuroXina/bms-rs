@@ -99,7 +99,7 @@ fn test_visible_events_duration_matches_reaction_time() {
         FinF64::try_from(1.0).unwrap()
     );
 
-    let test_base_bpm = BaseBpm::from(PositiveF64::try_from(120.0).unwrap());
+    let test_base_bpm = PositiveF64::try_from(120.0).unwrap();
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(
@@ -111,7 +111,7 @@ fn test_visible_events_duration_matches_reaction_time() {
     let velocity = (PositiveF64::try_from(120.0).unwrap() * PositiveF64::try_from(1.0).unwrap()
         / PositiveF64::try_from((240) as f64).unwrap())
     .unwrap();
-    let time_to_cross = visible_window_y.as_ref().as_f64() / velocity.as_f64();
+    let time_to_cross = visible_window_y.as_f64() / velocity.as_f64();
 
     let actual_time_to_cross_f64 = time_to_cross;
     assert_time_close(0.6, actual_time_to_cross_f64, "time_to_cross");
@@ -149,7 +149,7 @@ fn test_visible_events_duration_with_playback_ratio() {
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
     let _start_time = TimeStamp::start();
 
-    let test_base_bpm = BaseBpm::from(PositiveF64::try_from(120.0).unwrap());
+    let test_base_bpm = PositiveF64::try_from(120.0).unwrap();
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
 
     let state = processor.playback_state();
@@ -174,9 +174,8 @@ fn test_visible_events_duration_with_playback_ratio() {
         state_0_5.playback_ratio(),
     );
 
-    let ratio =
-        (*visible_window_y_ratio_0_5.as_ref() / *visible_window_y_ratio_1.as_ref()).unwrap();
-    let ratio_f64 = ratio.as_f64();
+    let ratio = visible_window_y_ratio_0_5.as_f64() / visible_window_y_ratio_1.as_f64();
+    let ratio_f64 = ratio;
     assert_time_close(
         0.5,
         ratio_f64,
@@ -186,7 +185,7 @@ fn test_visible_events_duration_with_playback_ratio() {
     let velocity = (PositiveF64::try_from(120.0).unwrap() * PositiveF64::try_from(0.5).unwrap()
         / PositiveF64::try_from((240) as f64).unwrap())
     .unwrap();
-    let time_to_cross = visible_window_y_ratio_0_5.as_ref().as_f64() / velocity.as_f64();
+    let time_to_cross = visible_window_y_ratio_0_5.as_f64() / velocity.as_f64();
 
     let actual_time_to_cross_f64 = time_to_cross;
     assert_time_close(0.6, actual_time_to_cross_f64, "time_to_cross");
@@ -223,7 +222,7 @@ fn test_visible_events_with_boundary_conditions() {
     let start_time = TimeStamp::now();
     let _processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
-    let test_base_bpm = BaseBpm::from(PositiveF64::try_from(120.0).unwrap());
+    let test_base_bpm = PositiveF64::try_from(120.0).unwrap();
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
 
     let very_small_ratio = FinF64::try_from((1) as f64).unwrap();
@@ -234,7 +233,7 @@ fn test_visible_events_with_boundary_conditions() {
     );
 
     assert!(
-        *visible_window_y.as_ref() >= FinF64::try_from(0.0).unwrap(),
+        visible_window_y.as_f64() >= 0.0,
         "visible_window_y should be non-negative even with very small playback_ratio"
     );
 
@@ -245,11 +244,11 @@ fn test_visible_events_with_boundary_conditions() {
         &normal_ratio,
     );
 
-    let expected_ratio = very_small_ratio / normal_ratio;
-    let actual_ratio = *visible_window_y.as_ref() / *visible_window_y_normal.as_ref();
+    let expected_ratio = (very_small_ratio / normal_ratio).unwrap();
+    let actual_ratio = visible_window_y.as_f64() / visible_window_y_normal.as_f64();
 
-    let actual_ratio_f64 = actual_ratio.unwrap().as_f64();
-    let expected_ratio_f64 = expected_ratio.unwrap().as_f64();
+    let actual_ratio_f64 = actual_ratio;
+    let expected_ratio_f64 = expected_ratio.as_f64();
     assert_time_close(
         expected_ratio_f64,
         actual_ratio_f64,

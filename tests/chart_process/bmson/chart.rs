@@ -41,11 +41,10 @@ fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {
     // Y position may accumulate more errors, use larger tolerance
     let y_tolerance = 1e-12;
     assert!(
-        (state1.progressed_y().value().as_f64() - state2.progressed_y().value().as_f64()).abs()
-            < y_tolerance,
+        (state1.progressed_y().as_f64() - state2.progressed_y().as_f64()).abs() < y_tolerance,
         "Y position mismatch: left={}, right={}",
-        state1.progressed_y().value(),
-        state2.progressed_y().value()
+        state1.progressed_y().as_f64(),
+        state2.progressed_y().as_f64()
     );
 }
 
@@ -63,14 +62,14 @@ fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
         let mut ev2 = events2.to_vec();
         ev1.sort_by(|a, b| {
             a.position()
-                .value()
-                .partial_cmp(b.position().value())
+                .as_f64()
+                .partial_cmp(&b.position().as_f64())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         ev2.sort_by(|a, b| {
             a.position()
-                .value()
-                .partial_cmp(b.position().value())
+                .as_f64()
+                .partial_cmp(&b.position().as_f64())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -79,7 +78,7 @@ fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
             println!(
                 "  [{}] y={:?}, event={:?}",
                 i,
-                e.position().value(),
+                e.position().as_f64(),
                 e.event()
             );
         }
@@ -89,7 +88,7 @@ fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
             println!(
                 "  [{}] y={:?}, event={:?}",
                 i,
-                e.position().value(),
+                e.position().as_f64(),
                 e.event()
             );
         }
@@ -101,14 +100,14 @@ fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
     let mut ev2 = events2.to_vec();
     ev1.sort_by(|a, b| {
         a.position()
-            .value()
-            .partial_cmp(b.position().value())
+            .as_f64()
+            .partial_cmp(&b.position().as_f64())
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     ev2.sort_by(|a, b| {
         a.position()
-            .value()
-            .partial_cmp(b.position().value())
+            .as_f64()
+            .partial_cmp(&b.position().as_f64())
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -116,10 +115,10 @@ fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
     for (e1, e2) in ev1.iter().zip(ev2.iter()) {
         // Use approximate comparison to handle floating-point precision issues
         assert!(
-            (e1.position().value().as_f64() - e2.position().value().as_f64()).abs() < tolerance,
+            (e1.position().as_f64() - e2.position().as_f64()).abs() < tolerance,
             "Event position mismatch: left={}, right={}",
-            e1.position().value(),
-            e2.position().value()
+            e1.position().as_f64(),
+            e2.position().as_f64()
         );
 
         if std::mem::discriminant(e1.event()) != std::mem::discriminant(e2.event()) {
@@ -255,9 +254,7 @@ fn test_update_consistency_extreme_many_intervals() {
         // Use simple matching strategy: for each event in events1, find an approximate match in events2
         for e1 in &events1_total {
             for e2 in &events2_total {
-                let pos_match = (e1.position().value().as_f64() - e2.position().value().as_f64())
-                    .abs()
-                    < tolerance;
+                let pos_match = (e1.position().as_f64() - e2.position().as_f64()).abs() < tolerance;
                 let type_match =
                     std::mem::discriminant(e1.event()) == std::mem::discriminant(e2.event());
 

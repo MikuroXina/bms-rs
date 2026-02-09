@@ -7,10 +7,10 @@ use std::ops::{Bound, RangeBounds};
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
-use strict_num_extended::{FinF64, PositiveF64};
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::chart_process::processor::AllEventsIndex;
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
@@ -35,7 +35,7 @@ pub struct ChartPlayer {
     pub(crate) all_events: AllEventsIndex,
 
     // Flow event indexing
-    pub(crate) flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+    pub(crate) flow_events_by_y: BTreeMap<NonNegativeF64, Vec<FlowEvent>>,
 
     // Playback state (always initialized after construction)
     playback_state: PlaybackState,
@@ -65,7 +65,7 @@ impl ChartPlayer {
     ///
     /// let start_time = TimeStamp::now();
     /// let base_bpm = StartBpmGenerator.generate(&bms)?;
-    /// let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    /// let visible_range = VisibleRangePerBpm::new(base_bpm, reaction_time);
     /// let chart = BmsProcessor::parse(&bms);
     ///
     /// let mut player = ChartPlayer::start(chart, visible_range, start_time);
@@ -100,7 +100,7 @@ impl ChartPlayer {
                 PositiveF64::new(init_speed.as_f64()).expect("init_speed should be positive"),
                 FinF64::new(1.0).expect("1 should be finite"),
                 FinF64::new(1.0).expect("1 should be finite"),
-                YCoordinate::zero(),
+                NonNegativeF64::ZERO,
             ),
         }
     }
@@ -127,11 +127,11 @@ impl ChartPlayer {
     /// speed changes that occur during the time slice, updating the internal
     /// `playback_state` accordingly.
     pub fn update(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
-        let prev_y = self.playback_state.progressed_y.clone();
+        let prev_y = self.playback_state.progressed_y;
         let speed = self.playback_state.current_speed;
         self.step_to(now, speed);
 
-        let cur_y = self.playback_state.progressed_y.clone();
+        let cur_y = self.playback_state.progressed_y;
 
         // Calculate preload range: current y + visible y range
         let visible_y_length = self.visible_window_y(&speed);
@@ -155,8 +155,7 @@ impl ChartPlayer {
         // Sort to maintain stable order
         triggered_events.sort_by(|a, b| {
             a.position()
-                .value()
-                .partial_cmp(b.position().value())
+                .partial_cmp(b.position())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -262,12 +261,13 @@ impl ChartPlayer {
         let visible_window_y = self.visible_window_y(&self.playback_state.current_speed);
         let scroll_factor = &self.playback_state.current_scroll;
 
-        let view_start = current_y.clone();
-        let view_end = current_y.clone() + visible_window_y.clone();
+        let view_start = *current_y;
+        let view_end = NonNegativeF64::new(current_y.as_f64() + visible_window_y.as_f64())
+            .expect("view_end should be non-negative");
 
         let visible_events = self
             .all_events
-            .events_in_y_range((Bound::Excluded(&view_start), Bound::Included(&view_end)));
+            .events_in_y_range((Bound::Excluded(view_start), Bound::Included(view_end)));
 
         visible_events
             .iter()
@@ -285,7 +285,8 @@ impl ChartPlayer {
                     ..
                 } = event_with_pos.event()
                 {
-                    let end_y = event_y.clone() + length.clone();
+                    let end_y = NonNegativeF64::new(event_y.as_f64() + length.as_f64())
+                        .expect("end_y should be non-negative");
                     Self::compute_display_ratio(&end_y, current_y, &visible_window_y, scroll_factor)
                 } else {
                     start_display_ratio.clone()
@@ -367,29 +368,29 @@ impl ChartPlayer {
     #[must_use]
     pub fn next_flow_event_after(
         &self,
-        y_from_exclusive: &YCoordinate,
-    ) -> Option<(YCoordinate, FlowEvent)> {
+        y_from_exclusive: &NonNegativeF64,
+    ) -> Option<(NonNegativeF64, FlowEvent)> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
             .next()
-            .and_then(|(y, events)| events.first().cloned().map(|evt| (y.clone(), evt)))
+            .and_then(|(y, events)| events.first().cloned().map(|evt| (*y, evt)))
     }
 
     /// Get the next flow event Y position after the given Y (exclusive).
     #[must_use]
-    fn next_flow_event_y_after(&self, y_from_exclusive: &YCoordinate) -> Option<YCoordinate> {
+    fn next_flow_event_y_after(&self, y_from_exclusive: NonNegativeF64) -> Option<NonNegativeF64> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
             .next()
-            .map(|(y, _)| y.clone())
+            .map(|(y, _)| *y)
     }
 
     /// Apply all flow events at the given Y position.
-    fn apply_flow_events_at(&mut self, y: &YCoordinate) {
+    fn apply_flow_events_at(&mut self, y: NonNegativeF64) {
         // Remove events from the map to take ownership, avoiding borrow conflicts
-        if let Some(events) = self.flow_events_by_y.remove(y) {
+        if let Some(events) = self.flow_events_by_y.remove(&y) {
             for event in events {
                 self.apply_flow_event(event);
             }
@@ -426,72 +427,64 @@ impl ChartPlayer {
 
         let mut remaining_time = now - last;
         let mut cur_vel = self.calculate_velocity(&speed);
-        let mut cur_y = self.playback_state.progressed_y.clone();
+        let mut cur_y = self.playback_state.progressed_y;
 
         // Advance in segments until time slice is used up
         loop {
-            let cur_y_now = cur_y.clone();
-            let next_event_y = self.next_flow_event_y_after(&cur_y_now);
+            let cur_y_now = cur_y;
+            let next_event_y = self.next_flow_event_y_after(cur_y_now);
 
             if next_event_y.is_none() || cur_vel.as_f64() <= 0.0 || remaining_time <= TimeSpan::ZERO
             {
                 // Advance directly to the end
-                let delta_y = FinF64::new(
-                    cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
-                        / NANOS_PER_SECOND as f64,
-                )
-                .expect("delta_y should be finite");
-                cur_y = cur_y_now + YCoordinate::new(delta_y);
+                let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
+                    / NANOS_PER_SECOND as f64;
+                cur_y = NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
+                    .expect("cur_y should be non-negative");
                 break;
             }
 
             let Some(event_y) = next_event_y else {
-                let delta_y = FinF64::new(
-                    cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
-                        / NANOS_PER_SECOND as f64,
-                )
-                .expect("delta_y should be finite");
-                cur_y = cur_y_now + YCoordinate::new(delta_y);
+                let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
+                    / NANOS_PER_SECOND as f64;
+                cur_y = NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
+                    .expect("cur_y should be non-negative");
                 break;
             };
 
             if event_y <= cur_y_now {
                 // Defense: avoid infinite loop if event position doesn't advance
                 // Apply all events at this Y position
-                self.apply_flow_events_at(&event_y);
+                self.apply_flow_events_at(event_y);
                 cur_vel = self.calculate_velocity(&speed);
                 cur_y = cur_y_now;
                 continue;
             }
 
             // Time required to reach event
-            let distance = event_y.clone() - cur_y_now.clone();
+            let distance = event_y - cur_y_now;
             if cur_vel.as_f64() > 0.0 {
-                let time_to_event_nanos = ((distance.value().as_f64() / cur_vel.as_f64())
-                    * NANOS_PER_SECOND as f64) as u64;
+                let time_to_event_nanos =
+                    ((distance.as_f64() / cur_vel.as_f64()) * NANOS_PER_SECOND as f64) as u64;
                 let time_to_event =
                     TimeSpan::from_duration(Duration::from_nanos(time_to_event_nanos));
 
                 if time_to_event <= remaining_time {
                     // First advance to event point
-                    cur_y = event_y.clone();
+                    cur_y = event_y;
                     remaining_time -= time_to_event;
                     // Apply all events at this Y position
-                    self.apply_flow_events_at(&event_y);
+                    self.apply_flow_events_at(event_y);
                     cur_vel = self.calculate_velocity(&speed);
                     continue;
                 }
             }
 
             // Time not enough to reach event, advance and end
-            cur_y = cur_y_now
-                + YCoordinate::new(
-                    FinF64::new(
-                        cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
-                            / NANOS_PER_SECOND as f64,
-                    )
-                    .expect("delta_y should be finite"),
-                );
+            let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
+                / NANOS_PER_SECOND as f64;
+            cur_y = NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
+                .expect("cur_y should be non-negative");
             break;
         }
 
@@ -502,7 +495,7 @@ impl ChartPlayer {
 
     /// Get visible window length in Y units.
     #[must_use]
-    pub fn visible_window_y(&self, speed: &PositiveF64) -> YCoordinate {
+    pub fn visible_window_y(&self, speed: &PositiveF64) -> NonNegativeF64 {
         self.visible_range_per_bpm.window_y(
             &self.playback_state.current_bpm,
             speed,
@@ -513,7 +506,7 @@ impl ChartPlayer {
     /// Get events in a Y range.
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
-        R: Clone + std::ops::RangeBounds<YCoordinate>,
+        R: Clone + std::ops::RangeBounds<NonNegativeF64>,
     {
         self.all_events.events_in_y_range(range)
     }
@@ -522,11 +515,12 @@ impl ChartPlayer {
     pub fn update_preloaded_events(&mut self, preload_end_y: &FinF64) {
         use std::ops::Bound::{Excluded, Included};
 
-        let cur_y = &self.playback_state.progressed_y;
-        let preload_end_y_coord = YCoordinate::new(*preload_end_y);
+        let cur_y = self.playback_state.progressed_y;
+        let preload_end_y_coord = NonNegativeF64::new(preload_end_y.as_f64())
+            .expect("preload_end_y should be non-negative");
         let new_preloaded_events = self
             .all_events
-            .events_in_y_range((Excluded(cur_y), Included(&preload_end_y_coord)));
+            .events_in_y_range((Excluded(&cur_y), Included(&preload_end_y_coord)));
 
         self.preloaded_events = new_preloaded_events;
     }
@@ -567,15 +561,15 @@ impl ChartPlayer {
     /// Compute display ratio for an event.
     #[must_use]
     pub fn compute_display_ratio(
-        event_y: &YCoordinate,
-        current_y: &YCoordinate,
-        visible_window_y: &YCoordinate,
+        event_y: &NonNegativeF64,
+        current_y: &NonNegativeF64,
+        visible_window_y: &NonNegativeF64,
         scroll_factor: &FinF64,
     ) -> DisplayRatio {
-        let window_value = visible_window_y.value();
+        let window_value = *visible_window_y;
         if window_value.as_f64() > 0.0 {
             let ratio_value = FinF64::new(
-                (event_y - current_y).value().as_f64() / window_value.as_f64()
+                (event_y.as_f64() - current_y.as_f64()) / window_value.as_f64()
                     * scroll_factor.as_f64(),
             )
             .expect("ratio should be finite");
@@ -603,7 +597,7 @@ pub struct PlaybackState {
     /// Current playback ratio
     pub playback_ratio: FinF64,
     /// Current Y position in chart
-    pub progressed_y: YCoordinate,
+    pub progressed_y: NonNegativeF64,
 }
 
 impl PlaybackState {
@@ -614,7 +608,7 @@ impl PlaybackState {
         current_speed: PositiveF64,
         current_scroll: FinF64,
         playback_ratio: FinF64,
-        progressed_y: YCoordinate,
+        progressed_y: NonNegativeF64,
     ) -> Self {
         Self {
             current_bpm,
@@ -651,7 +645,7 @@ impl PlaybackState {
 
     /// Get current Y position.
     #[must_use]
-    pub const fn progressed_y(&self) -> &YCoordinate {
+    pub const fn progressed_y(&self) -> &NonNegativeF64 {
         &self.progressed_y
     }
 }
@@ -675,11 +669,8 @@ impl VisibleRangePerBpm {
     /// Create a new `VisibleRangePerBpm` from base BPM and reaction time.
     /// See [`crate::chart_process`] for the formula.
     #[must_use]
-    pub fn new(
-        base_bpm: &crate::chart_process::base_bpm::BaseBpm,
-        reaction_time: TimeSpan,
-    ) -> Self {
-        if base_bpm.value().as_f64() == 0.0 {
+    pub fn new(base_bpm: &PositiveF64, reaction_time: TimeSpan) -> Self {
+        if base_bpm.as_f64() == 0.0 {
             Self {
                 value: FinF64::new(0.0).expect("0 should be finite"),
                 base_bpm: FinF64::new(0.0).expect("0 should be finite"),
@@ -689,13 +680,11 @@ impl VisibleRangePerBpm {
             let reaction_time_seconds =
                 FinF64::new(reaction_time.as_nanos().max(0) as f64 / NANOS_PER_SECOND as f64)
                     .expect("reaction_time should be finite");
-            let value =
-                FinF64::new(reaction_time_seconds.as_f64() * 240.0 / base_bpm.value().as_f64())
-                    .expect("value should be finite");
+            let value = FinF64::new(reaction_time_seconds.as_f64() * 240.0 / base_bpm.as_f64())
+                .expect("value should be finite");
             Self {
                 value,
-                base_bpm: FinF64::new(base_bpm.value().as_f64())
-                    .expect("base_bpm should be finite"),
+                base_bpm: FinF64::new(base_bpm.as_f64()).expect("base_bpm should be finite"),
                 reaction_time_seconds,
             }
         }
@@ -722,12 +711,12 @@ impl VisibleRangePerBpm {
         current_bpm: &PositiveF64,
         current_speed: &PositiveF64,
         playback_ratio: &FinF64,
-    ) -> YCoordinate {
+    ) -> NonNegativeF64 {
         let speed_factor = FinF64::new(current_speed.as_f64() * playback_ratio.as_f64())
             .expect("speed_factor should be finite");
 
         if current_bpm.as_f64() == 0.0 {
-            return YCoordinate::zero();
+            return NonNegativeF64::ZERO;
         }
 
         // Goal: time = reaction_time * base_bpm / current_bpm
@@ -743,7 +732,7 @@ impl VisibleRangePerBpm {
                 / current_bpm.as_f64(),
         )
         .expect("adjusted should be finite");
-        YCoordinate::new(adjusted)
+        NonNegativeF64::new(adjusted.as_f64()).expect("adjusted should be non-negative")
     }
 
     /// Calculate reaction time from visible range per BPM.
@@ -846,7 +835,6 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart_process::base_bpm::BaseBpm;
     use crate::chart_process::processor::{ChartResources, PlayableChart};
 
     #[test]
@@ -862,7 +850,7 @@ mod tests {
         let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(
-                &BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive")),
+                &PositiveF64::new(120.0).expect("120 should be positive"),
                 TimeSpan::SECOND,
             ),
             TimeStamp::now(),
@@ -883,7 +871,7 @@ mod tests {
     fn test_flow_event_application_after_start() {
         use std::collections::BTreeMap;
 
-        let y_event = YCoordinate::from(100.0);
+        let y_event = NonNegativeF64::new(100.0).expect("100 should be non-negative");
 
         let mut flow_events_by_y = BTreeMap::new();
         flow_events_by_y.insert(
@@ -905,7 +893,7 @@ mod tests {
         let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(
-                &BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive")),
+                &PositiveF64::new(120.0).expect("120 should be positive"),
                 TimeSpan::SECOND,
             ),
             TimeStamp::now(),
@@ -926,9 +914,9 @@ mod tests {
 
     #[test]
     fn test_display_ratio_computation() {
-        let current_y = YCoordinate::from(10.0);
-        let event_y = YCoordinate::from(11.0);
-        let visible_window_y = YCoordinate::from(2.0);
+        let current_y = NonNegativeF64::new(10.0).expect("10 should be non-negative");
+        let event_y = NonNegativeF64::new(11.0).expect("11 should be non-negative");
+        let visible_window_y = NonNegativeF64::new(2.0).expect("2 should be non-negative");
         let scroll_factor = FinF64::new(1.0).expect("1 should be finite");
 
         let ratio = ChartPlayer::compute_display_ratio(
@@ -947,7 +935,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         // Setup: Create flow events at the same Y position
-        let y_event = YCoordinate::from(100.0);
+        let y_event = NonNegativeF64::new(100.0).expect("100 should be non-negative");
 
         let mut flow_events_by_y = BTreeMap::new();
         flow_events_by_y.insert(
@@ -970,10 +958,10 @@ mod tests {
         let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(
-                &BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive")),
+                &PositiveF64::new(120.0).expect("120 should be positive"),
                 TimeSpan::SECOND,
             ),
-            start_time,
+            TimeStamp::now(),
         );
 
         // Initial state
@@ -984,7 +972,9 @@ mod tests {
         // Calculate time needed: distance / velocity
         // velocity = (bpm / 240) * speed * playback_ratio = (120 / 240) * 1 * 1 = 0.5
         // time = distance / velocity = 100 / 0.5 = 200 seconds
-        let advance_time = start_time + TimeSpan::from_duration(Duration::from_secs_f64(200.0));
+        // Add a small epsilon to account for floating-point precision issues
+        let advance_time =
+            start_time + TimeSpan::from_duration(Duration::from_secs_f64(200.0 + 0.001));
         let speed = PositiveF64::new(1.0).expect("1 should be positive");
 
         player.step_to(advance_time, speed);
