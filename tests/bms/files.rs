@@ -1,4 +1,4 @@
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use bms_rs::bms::prelude::*;
 
@@ -21,7 +21,7 @@ fn test_lal() {
     assert_eq!(bms.music_info.genre.as_deref(), Some("Hi-Tech Rave"));
     assert_eq!(
         bms.bpm.bpm.as_ref().map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(151.0).unwrap())
+        Some(PositiveF64::try_from(151.0).unwrap())
     );
     assert_eq!(bms.metadata.play_level, Some(7));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
@@ -54,7 +54,7 @@ fn test_nc() {
     assert_eq!(bms.music_info.subtitle.as_deref(), Some("[STX]"));
     assert_eq!(
         bms.bpm.bpm.as_ref().map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(100.0).unwrap())
+        Some(PositiveF64::try_from(100.0).unwrap())
     );
     assert_eq!(bms.metadata.play_level, Some(5));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
@@ -94,7 +94,7 @@ fn test_j219() {
     assert_eq!(bms.music_info.genre.as_deref(), Some("EURO BEAT"));
     assert_eq!(
         bms.bpm.bpm.as_ref().map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(147.0).unwrap())
+        Some(PositiveF64::try_from(147.0).unwrap())
     );
     assert_eq!(bms.metadata.play_level, Some(6));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
@@ -186,14 +186,14 @@ fn test_bemuse_ext() {
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(1.0).unwrap())
+        Some(PositiveF64::try_from(1.0).unwrap())
     );
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("02", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(0.5).unwrap())
+        Some(PositiveF64::try_from(0.5).unwrap())
     );
 
     eprintln!("{bms:?}");

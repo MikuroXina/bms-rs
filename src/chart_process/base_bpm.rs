@@ -3,7 +3,7 @@
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
-use strict_num_extended::FinF64;
+use strict_num_extended::PositiveF64;
 
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {
@@ -26,21 +26,21 @@ pub struct MaxBpmGenerator;
 
 /// Generator that uses a manually specified BPM value.
 #[derive(Debug, Clone, Copy)]
-pub struct ManualBpmGenerator(pub FinF64);
+pub struct ManualBpmGenerator(pub PositiveF64);
 
-impl AsRef<FinF64> for ManualBpmGenerator {
-    fn as_ref(&self) -> &FinF64 {
+impl AsRef<PositiveF64> for ManualBpmGenerator {
+    fn as_ref(&self) -> &PositiveF64 {
         &self.0
     }
 }
 
-impl From<FinF64> for ManualBpmGenerator {
-    fn from(value: FinF64) -> Self {
+impl From<PositiveF64> for ManualBpmGenerator {
+    fn from(value: PositiveF64) -> Self {
         Self(value)
     }
 }
 
-impl From<ManualBpmGenerator> for FinF64 {
+impl From<ManualBpmGenerator> for PositiveF64 {
     fn from(value: ManualBpmGenerator) -> Self {
         value.0
     }
@@ -49,23 +49,23 @@ impl From<ManualBpmGenerator> for FinF64 {
 impl ManualBpmGenerator {
     /// Returns a reference to the contained BPM value.
     #[must_use]
-    pub const fn value(&self) -> &FinF64 {
+    pub const fn value(&self) -> &PositiveF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained BPM value.
     #[must_use]
-    pub const fn into_value(self) -> FinF64 {
+    pub const fn into_value(self) -> PositiveF64 {
         self.0
     }
 }
 
-/// Base BPM wrapper type, encapsulating a `FinF64` value.
+/// Base BPM wrapper type, encapsulating a `PositiveF64` value.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct BaseBpm(pub FinF64);
+pub struct BaseBpm(pub PositiveF64);
 
-impl AsRef<FinF64> for BaseBpm {
-    fn as_ref(&self) -> &FinF64 {
+impl AsRef<PositiveF64> for BaseBpm {
+    fn as_ref(&self) -> &PositiveF64 {
         &self.0
     }
 }
@@ -73,30 +73,30 @@ impl AsRef<FinF64> for BaseBpm {
 impl BaseBpm {
     /// Create a new `BaseBpm`
     #[must_use]
-    pub const fn new(value: FinF64) -> Self {
+    pub const fn new(value: PositiveF64) -> Self {
         Self(value)
     }
 
     /// Returns a reference to the contained BPM value.
     #[must_use]
-    pub const fn value(&self) -> &FinF64 {
+    pub const fn value(&self) -> &PositiveF64 {
         &self.0
     }
 
     /// Consumes self and returns the contained BPM value.
     #[must_use]
-    pub const fn into_value(self) -> FinF64 {
+    pub const fn into_value(self) -> PositiveF64 {
         self.0
     }
 }
 
-impl From<FinF64> for BaseBpm {
-    fn from(value: FinF64) -> Self {
+impl From<PositiveF64> for BaseBpm {
+    fn from(value: PositiveF64) -> Self {
         Self(value)
     }
 }
 
-impl From<BaseBpm> for FinF64 {
+impl From<BaseBpm> for PositiveF64 {
     fn from(value: BaseBpm) -> Self {
         value.0
     }
@@ -157,7 +157,7 @@ impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        FinF64::new(bmson.info.init_bpm.as_f64())
+        PositiveF64::new(bmson.info.init_bpm.as_f64())
             .ok()
             .map(BaseBpm::new)
     }
@@ -169,7 +169,9 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
         std::iter::once(bmson.info.init_bpm)
             .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
             .min()
-            .map(|bpm| BaseBpm::new(FinF64::new(bpm.as_f64()).expect("BPM should be finite")))
+            .map(|bpm| {
+                BaseBpm::new(PositiveF64::new(bpm.as_f64()).expect("BPM should be positive"))
+            })
     }
 }
 
@@ -179,7 +181,9 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
         std::iter::once(bmson.info.init_bpm)
             .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
             .max()
-            .map(|bpm| BaseBpm::new(FinF64::new(bpm.as_f64()).expect("BPM should be finite")))
+            .map(|bpm| {
+                BaseBpm::new(PositiveF64::new(bpm.as_f64()).expect("BPM should be positive"))
+            })
     }
 }
 

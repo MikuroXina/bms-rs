@@ -20,6 +20,7 @@ use crate::{
     },
     util::StrExtension,
 };
+use strict_num_extended::PositiveF64;
 
 /// It processes `#BPM` and `#BPMxx` definitions and objects on `BpmChange` and `BpmChangeU8` channels.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,7 +78,7 @@ impl BpmProcessor {
         objects: &mut BpmObjects,
     ) -> Result<()> {
         if name.eq_ignore_ascii_case("BPM") {
-            let string_value = StringValue::new(args.to_string());
+            let string_value: StringValue<PositiveF64> = StringValue::new(args.to_string());
             objects.bpm = Some(string_value);
         }
         if let Some(id) = name
@@ -85,7 +86,7 @@ impl BpmProcessor {
             .or_else(|| name.strip_prefix_ignore_case("EXBPM"))
         {
             let bpm_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-            let string_value = StringValue::new(args.to_string());
+            let string_value: StringValue<PositiveF64> = StringValue::new(args.to_string());
             if let Some(older) = objects.bpm_defs.get_mut(&bpm_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::BpmChange {
@@ -99,7 +100,7 @@ impl BpmProcessor {
             }
         }
         if name.eq_ignore_ascii_case("BASEBPM") {
-            let string_value = StringValue::new(args.to_string());
+            let string_value: StringValue<PositiveF64> = StringValue::new(args.to_string());
             objects.base_bpm = Some(string_value);
         }
         Ok(())

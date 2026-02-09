@@ -7,7 +7,7 @@ use std::{
 };
 
 use itertools::Itertools;
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use crate::bms::command::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
@@ -19,8 +19,8 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoor
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
-const ONE_FIN: FinF64 = FinF64::new_const(1.0);
-const DEFAULT_BPM_FIN: FinF64 = FinF64::new_const(120.0);
+const DEFAULT_BPM_FIN: PositiveF64 = PositiveF64::new_const(120.0);
+const DEFAULT_SPEED_POSITIVE: PositiveF64 = PositiveF64::new_const(1.0);
 
 /// BMS format parser.
 ///
@@ -153,7 +153,7 @@ impl BmsProcessor {
             all_events,
             y_memo.flow_events().clone(),
             init_bpm_value,
-            ONE_FIN,
+            DEFAULT_SPEED_POSITIVE,
         ))
     }
 
@@ -261,7 +261,7 @@ impl YMemo {
                 .speed_factor_changes
                 .range(..=time)
                 .last()
-                .map_or_else(|| ONE_FIN, |(_, obj)| obj.factor);
+                .map_or_else(|| DEFAULT_SPEED_POSITIVE, |(_, obj)| obj.factor);
             YCoordinate(
                 FinF64::new(section_y.as_f64() + fraction.as_f64())
                     .and_then(|s| FinF64::new(s.as_f64() * factor.as_f64()))
@@ -333,7 +333,7 @@ impl YMemo {
             .speed_changes
             .range(..=time)
             .last()
-            .map_or_else(|| ONE_FIN, |(_, obj)| obj.factor);
+            .map_or_else(|| DEFAULT_SPEED_POSITIVE, |(_, obj)| obj.factor);
         YCoordinate(
             FinF64::new(section_y.as_f64() + fraction.as_f64())
                 .and_then(|s| FinF64::new(s.as_f64() * factor.as_f64()))
@@ -355,7 +355,7 @@ impl YMemo {
             .speed_changes
             .range(..=ObjTime::start_of(track))
             .last()
-            .map_or_else(|| ONE_FIN, |(_, obj)| obj.factor);
+            .map_or_else(|| DEFAULT_SPEED_POSITIVE, |(_, obj)| obj.factor);
         YCoordinate(FinF64::new(section_y.as_f64() * factor.as_f64()).expect("y should be finite"))
     }
 
@@ -745,12 +745,12 @@ pub fn precompute_activate_times(
         .as_ref()
         .cloned()
         .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM_FIN));
-    let bpm_changes: Vec<(YCoordinate, FinF64)> = bms
+    let bpm_changes: Vec<(YCoordinate, PositiveF64)> = bms
         .bpm
         .bpm_changes
-        .values()
-        .map(|change| {
-            let y = y_memo.get_y(change.time);
+        .iter()
+        .map(|(obj_time, change)| {
+            let y = y_memo.get_y(*obj_time);
             (y, change.bpm)
         })
         .collect();
@@ -767,7 +767,7 @@ pub fn precompute_activate_times(
         .sorted_by_key(|(y, _)| y.clone())
         .collect();
 
-    let mut bpm_map: BTreeMap<YCoordinate, FinF64> = BTreeMap::new();
+    let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
     let init_bpm_value = *init_bpm
         .value()
         .as_ref()
@@ -1001,7 +1001,7 @@ mod tests {
             result
         );
         let chart = result.unwrap();
-        assert_eq!(chart.init_bpm, FinF64::new(150.5).unwrap());
+        assert_eq!(chart.init_bpm, PositiveF64::new(150.5).unwrap());
     }
 
     /// Test that parsing succeeds with BPM value containing special characters

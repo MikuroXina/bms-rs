@@ -1,6 +1,6 @@
 //! Definitions of the note object.
 
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use crate::bms::command::{
     JudgeLevel, ObjId,
@@ -53,7 +53,7 @@ pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The BPM to be.
-    pub bpm: FinF64,
+    pub bpm: PositiveF64,
 }
 
 impl PartialEq for BpmChangeObj {
@@ -253,7 +253,7 @@ pub struct SpeedObj {
     /// The time to begin the change of spacing factor.
     pub time: ObjTime,
     /// The spacing factor to be.
-    pub factor: FinF64,
+    pub factor: PositiveF64,
 }
 
 impl PartialEq for SpeedObj {

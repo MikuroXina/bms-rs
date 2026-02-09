@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 use thiserror::Error;
 
 use crate::{
@@ -97,7 +97,7 @@ impl Bms {
 
         // Convert initial BPM
         bms.bpm.bpm = Some(StringValue::from_value(
-            FinF64::new(value.info.init_bpm.as_f64()).expect("init_bpm should be finite"),
+            PositiveF64::new(value.info.init_bpm.as_f64()).expect("init_bpm should be positive"),
         ));
 
         // Convert resolution
@@ -112,7 +112,7 @@ impl Bms {
         // Convert BPM events
         for bpm_event in value.bpm_events {
             let time = convert_pulse_to_obj_time(bpm_event.y, resolution);
-            let bpm = FinF64::new(bpm_event.bpm.as_f64()).expect("bpm should be finite");
+            let bpm = PositiveF64::new(bpm_event.bpm.as_f64()).expect("bpm should be positive");
 
             // Add to scope_defines
             let bpm_def_id = bpm_def_obj_id_issuer.next().unwrap_or_else(|| {

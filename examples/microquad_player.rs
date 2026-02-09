@@ -18,7 +18,7 @@ use kira::{
 use macroquad::prelude::Color;
 use macroquad::prelude::*;
 use rayon::prelude::*;
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 fn window_conf() -> Conf {
     Conf {
@@ -211,9 +211,9 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
             let bms = output.bms.map_err(|e| format!("Parse error: {:?}", e))?;
 
             // First generate BaseBpm from BMS
-            let base_bpm = StartBpmGenerator
-                .generate(&bms)
-                .unwrap_or_else(|| BaseBpm::new(FinF64::new(120.0).expect("120 should be finite")));
+            let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or_else(|| {
+                BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive"))
+            });
 
             // Use KeyLayoutBeat mapper (supports 7+1k)
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
@@ -229,7 +229,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
 
                 // First generate BaseBpm from BMSON
                 let base_bpm = StartBpmGenerator.generate(&bmson).unwrap_or_else(|| {
-                    BaseBpm::new(FinF64::new(120.0).expect("120 should be finite"))
+                    BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive"))
                 });
 
                 let chart = BmsonProcessor::parse(&bmson);

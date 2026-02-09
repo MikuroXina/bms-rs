@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,
 };
 
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
@@ -18,7 +18,7 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoor
 use crate::util::StrExtension;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
-const DEFAULT_SPEED_FACTOR: FinF64 = FinF64::new_const(1.0);
+const DEFAULT_SPEED_FACTOR: PositiveF64 = PositiveF64::new_const(1.0);
 
 /// BMSON format parser.
 ///
@@ -30,8 +30,8 @@ impl BmsonProcessor {
     /// Parse BMSON file and return a `PlayableChart` containing all precomputed data.
     #[must_use]
     pub fn parse(bmson: &Bmson<'_>) -> PlayableChart {
-        let init_bpm: FinF64 =
-            FinF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be finite");
+        let init_bpm: PositiveF64 =
+            PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
         let pulses_denom = FinF64::new((4 * bmson.info.resolution.get()) as f64)
             .expect("pulses_denom should be finite");
         let pulses_to_y = |pulses: i64| {
@@ -95,7 +95,7 @@ impl BmsonProcessor {
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0 as i64);
             flow_events_by_y.entry(y).or_default().push(FlowEvent::Bpm(
-                FinF64::new(ev.bpm.as_f64()).expect("bpm should be finite"),
+                PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
             ));
         }
         for ScrollEvent { y, rate } in &bmson.scroll_events {
@@ -223,14 +223,14 @@ impl AllEventsIndex {
                 ));
             }
         }
-        let init_bpm: FinF64 =
-            FinF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be finite");
-        let mut bpm_map: BTreeMap<YCoordinate, FinF64> = BTreeMap::new();
+        let init_bpm: PositiveF64 =
+            PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
+        let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
         bpm_map.insert(YCoordinate::zero(), init_bpm);
         for ev in &bmson.bpm_events {
             bpm_map.insert(
                 pulses_to_y(ev.y.0),
-                FinF64::new(ev.bpm.as_f64()).expect("bpm should be finite"),
+                PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
             );
         }
         let mut stop_list: Vec<(YCoordinate, u64)> = bmson
@@ -338,7 +338,7 @@ impl AllEventsIndex {
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0);
             let event = ChartEvent::BpmChange {
-                bpm: FinF64::new(ev.bpm.as_f64()).expect("bpm should be finite"),
+                bpm: PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);

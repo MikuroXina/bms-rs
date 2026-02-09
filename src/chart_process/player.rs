@@ -7,7 +7,7 @@ use std::ops::{Bound, RangeBounds};
 use std::time::Duration;
 
 use gametime::{TimeSpan, TimeStamp};
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use crate::chart_process::processor::AllEventsIndex;
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
@@ -96,8 +96,8 @@ impl ChartPlayer {
             all_events,
             flow_events_by_y: flow_events,
             playback_state: PlaybackState::new(
-                init_bpm,
-                init_speed,
+                PositiveF64::new(init_bpm.as_f64()).expect("init_bpm should be positive"),
+                PositiveF64::new(init_speed.as_f64()).expect("init_speed should be positive"),
                 FinF64::new(1.0).expect("1 should be finite"),
                 FinF64::new(1.0).expect("1 should be finite"),
                 YCoordinate::zero(),
@@ -328,7 +328,7 @@ impl ChartPlayer {
     /// Calculate velocity with caching.
     ///
     /// See [`crate::chart_process`] for the formula.
-    pub fn calculate_velocity(&mut self, speed: &FinF64) -> FinF64 {
+    pub fn calculate_velocity(&mut self, speed: &PositiveF64) -> FinF64 {
         if self.velocity_dirty || self.cached_velocity.is_none() {
             let computed = self.compute_velocity(*speed);
             self.cached_velocity = Some(computed);
@@ -343,7 +343,7 @@ impl ChartPlayer {
     }
 
     /// Compute velocity without caching (internal use).
-    fn compute_velocity(&self, speed: FinF64) -> FinF64 {
+    fn compute_velocity(&self, speed: PositiveF64) -> FinF64 {
         let current_bpm = self.playback_state.current_bpm;
         let playback_ratio = self.playback_state.playback_ratio;
 
@@ -418,7 +418,7 @@ impl ChartPlayer {
     /// Advance time to `now`, performing segmented integration.
     ///
     /// This is the core time progression algorithm, shared between BMS and BMSON.
-    fn step_to(&mut self, now: TimeStamp, speed: FinF64) {
+    fn step_to(&mut self, now: TimeStamp, speed: PositiveF64) {
         let last = self.last_poll_at;
         if now <= last {
             return;
@@ -502,7 +502,7 @@ impl ChartPlayer {
 
     /// Get visible window length in Y units.
     #[must_use]
-    pub fn visible_window_y(&self, speed: &FinF64) -> YCoordinate {
+    pub fn visible_window_y(&self, speed: &PositiveF64) -> YCoordinate {
         self.visible_range_per_bpm.window_y(
             &self.playback_state.current_bpm,
             speed,
@@ -595,9 +595,9 @@ impl ChartPlayer {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlaybackState {
     /// Current BPM value
-    pub current_bpm: FinF64,
+    pub current_bpm: PositiveF64,
     /// Current speed factor (BMS only, BMSON always 1.0)
-    pub current_speed: FinF64,
+    pub current_speed: PositiveF64,
     /// Current scroll factor
     pub current_scroll: FinF64,
     /// Current playback ratio
@@ -610,8 +610,8 @@ impl PlaybackState {
     /// Create a new playback state.
     #[must_use]
     pub const fn new(
-        current_bpm: FinF64,
-        current_speed: FinF64,
+        current_bpm: PositiveF64,
+        current_speed: PositiveF64,
         current_scroll: FinF64,
         playback_ratio: FinF64,
         progressed_y: YCoordinate,
@@ -627,13 +627,13 @@ impl PlaybackState {
 
     /// Get current BPM.
     #[must_use]
-    pub const fn current_bpm(&self) -> &FinF64 {
+    pub const fn current_bpm(&self) -> &PositiveF64 {
         &self.current_bpm
     }
 
     /// Get current speed factor.
     #[must_use]
-    pub const fn current_speed(&self) -> &FinF64 {
+    pub const fn current_speed(&self) -> &PositiveF64 {
         &self.current_speed
     }
 
@@ -694,7 +694,8 @@ impl VisibleRangePerBpm {
                     .expect("value should be finite");
             Self {
                 value,
-                base_bpm: *base_bpm.value(),
+                base_bpm: FinF64::new(base_bpm.value().as_f64())
+                    .expect("base_bpm should be finite"),
                 reaction_time_seconds,
             }
         }
@@ -718,8 +719,8 @@ impl VisibleRangePerBpm {
     #[must_use]
     pub fn window_y(
         &self,
-        current_bpm: &FinF64,
-        current_speed: &FinF64,
+        current_bpm: &PositiveF64,
+        current_speed: &PositiveF64,
         playback_ratio: &FinF64,
     ) -> YCoordinate {
         let speed_factor = FinF64::new(current_speed.as_f64() * playback_ratio.as_f64())
@@ -854,20 +855,20 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             BTreeMap::new(),
-            FinF64::new(120.0).expect("120 should be finite"),
-            FinF64::new(1.0).expect("1 should be finite"),
+            PositiveF64::new(120.0).expect("120 should be positive"),
+            PositiveF64::new(1.0).expect("1 should be positive"),
         );
 
         let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(
-                &BaseBpm::new(FinF64::new(120.0).expect("120 should be finite")),
+                &BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive")),
                 TimeSpan::SECOND,
             ),
             TimeStamp::now(),
         );
 
-        let speed = FinF64::new(1.0).expect("1 should be finite");
+        let speed = PositiveF64::new(1.0).expect("1 should be positive");
 
         // First call computes velocity
         let v1 = player.calculate_velocity(&speed);
@@ -888,7 +889,7 @@ mod tests {
         flow_events_by_y.insert(
             y_event,
             vec![
-                FlowEvent::Bpm(FinF64::new(180.0).expect("180 should be finite")),
+                FlowEvent::Bpm(PositiveF64::new(180.0).expect("180 should be positive")),
                 FlowEvent::Scroll(FinF64::new(1.5).expect("1.5 should be finite")),
             ],
         );
@@ -897,14 +898,14 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
-            FinF64::new(120.0).expect("120 should be finite"),
-            FinF64::new(1.0).expect("1 should be finite"),
+            PositiveF64::new(120.0).expect("120 should be positive"),
+            PositiveF64::new(1.0).expect("1 should be positive"),
         );
 
         let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(
-                &BaseBpm::new(FinF64::new(120.0).expect("120 should be finite")),
+                &BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive")),
                 TimeSpan::SECOND,
             ),
             TimeStamp::now(),
@@ -916,7 +917,7 @@ mod tests {
 
         // Apply BPM change
         player.apply_flow_event(FlowEvent::Bpm(
-            FinF64::new(180.0).expect("180 should be finite"),
+            PositiveF64::new(180.0).expect("180 should be positive"),
         ));
 
         assert!((player.playback_state().current_bpm().as_f64() - 180.0).abs() < f64::EPSILON);
@@ -952,7 +953,7 @@ mod tests {
         flow_events_by_y.insert(
             y_event,
             vec![
-                FlowEvent::Bpm(FinF64::new(180.0).expect("180 should be finite")),
+                FlowEvent::Bpm(PositiveF64::new(180.0).expect("180 should be positive")),
                 FlowEvent::Scroll(FinF64::new(1.5).expect("1.5 should be finite")),
             ],
         );
@@ -961,15 +962,15 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
-            FinF64::new(120.0).expect("120 should be finite"),
-            FinF64::new(1.0).expect("1 should be finite"),
+            PositiveF64::new(120.0).expect("120 should be positive"),
+            PositiveF64::new(1.0).expect("1 should be positive"),
         );
 
         let start_time = TimeStamp::now();
         let mut player = ChartPlayer::start(
             chart,
             VisibleRangePerBpm::new(
-                &BaseBpm::new(FinF64::new(120.0).expect("120 should be finite")),
+                &BaseBpm::new(PositiveF64::new(120.0).expect("120 should be positive")),
                 TimeSpan::SECOND,
             ),
             start_time,
@@ -984,7 +985,7 @@ mod tests {
         // velocity = (bpm / 240) * speed * playback_ratio = (120 / 240) * 1 * 1 = 0.5
         // time = distance / velocity = 100 / 0.5 = 200 seconds
         let advance_time = start_time + TimeSpan::from_duration(Duration::from_secs_f64(200.0));
-        let speed = FinF64::new(1.0).expect("1 should be finite");
+        let speed = PositiveF64::new(1.0).expect("1 should be positive");
 
         player.step_to(advance_time, speed);
 

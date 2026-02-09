@@ -4,7 +4,7 @@ use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use bms_rs::chart_process::prelude::*;
 
@@ -19,7 +19,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -28,11 +28,11 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let initial_state = processor.playback_state();
     assert_eq!(
         *initial_state.current_bpm(),
-        FinF64::try_from(120.0).unwrap()
+        PositiveF64::try_from(120.0).unwrap()
     );
     assert_eq!(
         *initial_state.current_speed(),
-        FinF64::try_from(1.0).unwrap()
+        PositiveF64::try_from(1.0).unwrap()
     );
     assert_eq!(
         *initial_state.current_scroll(),
@@ -107,7 +107,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -138,7 +138,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -147,13 +147,13 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let initial_state = processor.playback_state();
     assert_eq!(
         *initial_state.current_bpm(),
-        FinF64::try_from(151.0).unwrap()
+        PositiveF64::try_from(151.0).unwrap()
     );
 
     let after_first_change = start_time + TimeSpan::SECOND * 2;
     let _ = processor.update(after_first_change);
-    let bpm_75_5 = FinF64::from_str("75.5").unwrap_or_else(|err| {
-        panic!("Failed to parse FinF64 literal in test: {err:?}");
+    let bpm_75_5 = PositiveF64::from_str("75.5").unwrap_or_else(|err| {
+        panic!("Failed to parse PositiveF64 literal in test: {err:?}");
     });
     let state = processor.playback_state();
     assert_eq!(*state.current_bpm(), bpm_75_5);
@@ -202,7 +202,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -317,16 +317,20 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
-    let start_time = TimeStamp::start();
+    let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let initial_state = processor.playback_state();
     assert_eq!(
         *initial_state.current_bpm(),
-        FinF64::try_from(120.0).unwrap()
+        PositiveF64::try_from(120.0).unwrap()
+    );
+    assert_eq!(
+        *initial_state.current_scroll(),
+        FinF64::try_from(1.0).unwrap()
     );
     assert_eq!(
         *initial_state.current_scroll(),
@@ -342,10 +346,7 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     );
 
     let state = processor.playback_state();
-    assert!(
-        *state.current_bpm() > FinF64::try_from(0.0).unwrap(),
-        "BPM should be valid"
-    );
+    assert!(state.current_bpm().as_f64() > 0.0, "BPM should be valid");
     assert!(
         *state.current_scroll() > FinF64::try_from(0.0).unwrap(),
         "Scroll should be valid"
@@ -410,7 +411,7 @@ fn test_custom_visibility_range() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::MILLISECOND * 600);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -453,7 +454,7 @@ fn test_visibility_range_bound_types() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::MILLISECOND * 600);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();

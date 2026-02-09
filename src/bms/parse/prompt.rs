@@ -5,7 +5,7 @@
 use std::path::Path;
 use std::str::FromStr;
 
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use crate::bms::{
     command::{
@@ -62,9 +62,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated BPM object id.
         id: ObjId,
         /// Existing definition.
-        older: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
+        older: &'a core::result::Result<PositiveF64, <PositiveF64 as FromStr>::Err>,
         /// Incoming definition.
-        newer: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
+        newer: &'a core::result::Result<PositiveF64, <PositiveF64 as FromStr>::Err>,
     },
     /// OPTION definition is duplicated.
     ChangeOption {
@@ -80,9 +80,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
-        older: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
+        older: &'a core::result::Result<PositiveF64, <PositiveF64 as FromStr>::Err>,
         /// Incoming definition.
-        newer: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
+        newer: &'a core::result::Result<PositiveF64, <PositiveF64 as FromStr>::Err>,
     },
     /// SCROLL definition is duplicated.
     ScrollingFactorChange {

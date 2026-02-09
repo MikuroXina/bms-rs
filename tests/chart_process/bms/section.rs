@@ -2,7 +2,7 @@ use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
-use strict_num_extended::FinF64;
+use strict_num_extended::PositiveF64;
 
 use bms_rs::chart_process::prelude::*;
 
@@ -90,7 +90,7 @@ fn test_bms_zero_length_section_comprehensive() {
     let _config = default_config().prompter(AlwaysWarnAndUseNewer);
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
 
@@ -147,7 +147,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -190,14 +190,14 @@ fn test_bms_very_small_section_no_division_by_zero() {
     }
 
     let state = processor.playback_state();
-    let expected_bpm = FinF64::try_from(120.0).unwrap();
+    let expected_bpm = PositiveF64::try_from(120.0).unwrap();
     assert_eq!(
         *state.current_bpm(),
         expected_bpm,
         "BPM should be {} after processing",
         expected_bpm,
     );
-    let expected_speed = FinF64::try_from(1.0).unwrap();
+    let expected_speed = PositiveF64::try_from(1.0).unwrap();
     assert_eq!(
         *state.current_speed(),
         expected_speed,
@@ -235,7 +235,7 @@ fn test_bms_consecutive_zero_length_sections() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();

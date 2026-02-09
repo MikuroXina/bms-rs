@@ -69,6 +69,7 @@ use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
 use gametime::TimeSpan;
 use num::Zero;
 use strict_num_extended::FinF64;
+use strict_num_extended::PositiveF64;
 
 const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
 
@@ -113,7 +114,7 @@ pub enum ChartEvent {
     /// BPM change
     BpmChange {
         /// New BPM value (beats per minute)
-        bpm: FinF64,
+        bpm: PositiveF64,
     },
     /// Scroll factor change
     ScrollChange {
@@ -123,7 +124,7 @@ pub enum ChartEvent {
     /// Speed factor change
     SpeedChange {
         /// Spacing factor (relative value)
-        factor: FinF64,
+        factor: PositiveF64,
     },
     /// Stop scroll event
     Stop {
@@ -288,9 +289,9 @@ impl std::hash::Hash for PlayheadEvent {
 #[derive(Debug, Clone)]
 pub enum FlowEvent {
     /// BPM change event.
-    Bpm(FinF64),
+    Bpm(PositiveF64),
     /// Speed factor change event (BMS only).
-    Speed(FinF64),
+    Speed(PositiveF64),
     /// Scroll factor change event.
     Scroll(FinF64),
 }

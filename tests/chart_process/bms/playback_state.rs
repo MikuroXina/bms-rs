@@ -2,7 +2,7 @@ use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use bms_rs::chart_process::prelude::*;
 
@@ -17,7 +17,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -64,7 +64,7 @@ fn test_bms_restart_resets_scroll_to_one() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -80,7 +80,7 @@ fn test_bms_restart_resets_scroll_to_one() {
 
     let base_bpm2 = StartBpmGenerator
         .generate(&bms2)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
     let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2).expect("failed to parse chart");
     let start_time2 = TimeStamp::now();
@@ -108,7 +108,7 @@ fn test_visible_events_duration_matches_reaction_time() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(FinF64::try_from(120.0).unwrap()));
+        .unwrap_or_else(|| BaseBpm::new(PositiveF64::try_from(120.0).unwrap()));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -118,18 +118,18 @@ fn test_visible_events_duration_matches_reaction_time() {
     let initial_state = processor.playback_state();
     assert_eq!(
         *initial_state.current_bpm(),
-        FinF64::try_from(120.0).unwrap()
+        PositiveF64::try_from(120.0).unwrap()
     );
     assert_eq!(
         *initial_state.current_speed(),
-        FinF64::try_from(1.0).unwrap()
+        PositiveF64::try_from(1.0).unwrap()
     );
     assert_eq!(
         *initial_state.playback_ratio(),
         FinF64::try_from(1.0).unwrap()
     );
 
-    let test_base_bpm = BaseBpm::from(FinF64::try_from(120.0).unwrap());
+    let test_base_bpm = BaseBpm::from(PositiveF64::try_from(120.0).unwrap());
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(

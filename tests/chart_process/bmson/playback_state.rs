@@ -4,7 +4,7 @@ use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use super::assert_time_close;
 
@@ -184,7 +184,7 @@ fn test_very_long_elapsed_time_no_errors() {
     let _ = processor.update(after_long_time);
 
     let state = processor.playback_state();
-    let expected_bpm = FinF64::try_from(180.0).unwrap();
+    let expected_bpm = PositiveF64::try_from(180.0).unwrap();
     assert_eq!(
         *state.current_bpm(),
         expected_bpm,

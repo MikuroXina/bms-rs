@@ -1,4 +1,4 @@
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, PositiveF64};
 
 use bms_rs::bms::prelude::*;
 
@@ -69,7 +69,7 @@ fn test_prelude_imports() {
     };
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
-        bpm: FinF64::try_from(120.0).unwrap(),
+        bpm: PositiveF64::try_from(120.0).unwrap(),
     };
     let _section_len_change_obj = SectionLenChangeObj {
         track: _track,
@@ -90,7 +90,7 @@ fn test_prelude_imports() {
     };
     let _speed_obj = SpeedObj {
         time: _obj_time,
-        factor: FinF64::try_from(1.0).unwrap(),
+        factor: PositiveF64::try_from(1.0).unwrap(),
     };
 
     // Test prompt types
