@@ -135,15 +135,16 @@ impl ChartPlayer {
 
         // Calculate preload range: current y + visible y range
         let visible_y_length = self.visible_window_y(&speed);
-        let preload_end_y = FinF64::new(cur_y.as_f64() + visible_y_length.as_f64())
-            .expect("preload_end_y should be finite");
+        let preload_end_y = (cur_y + visible_y_length).expect("preload_end_y should be finite");
 
         use std::ops::Bound::{Excluded, Included};
 
         // Collect events triggered at current moment
         let mut triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(&cur_y)));
 
-        self.update_preloaded_events(&preload_end_y);
+        self.update_preloaded_events(
+            &FinF64::new(preload_end_y.as_f64()).expect("preload_end_y should be finite"),
+        );
 
         // Apply Speed changes
         for event in &triggered_events {
@@ -262,8 +263,7 @@ impl ChartPlayer {
         let scroll_factor = &self.playback_state.current_scroll;
 
         let view_start = *current_y;
-        let view_end = NonNegativeF64::new(current_y.as_f64() + visible_window_y.as_f64())
-            .expect("view_end should be non-negative");
+        let view_end = (*current_y + visible_window_y).expect("view_end should be non-negative");
 
         let visible_events = self
             .all_events
@@ -285,7 +285,8 @@ impl ChartPlayer {
                     ..
                 } = event_with_pos.event()
                 {
-                    let end_y = NonNegativeF64::new(event_y.as_f64() + length.as_f64())
+                    let end_y = (event_y.as_f64() + length.as_f64())
+                        .try_into()
                         .expect("end_y should be non-negative");
                     Self::compute_display_ratio(&end_y, current_y, &visible_window_y, scroll_factor)
                 } else {
@@ -352,10 +353,10 @@ impl ChartPlayer {
             FinF64::new(f64::EPSILON).expect("EPSILON should be finite")
         } else {
             let denom = 240.0f64;
-            let base = current_bpm.as_f64() / denom;
-            let v1 = base * speed.as_f64();
-            let v = v1 * playback_ratio.as_f64();
-            FinF64::new(v.max(f64::EPSILON)).expect("velocity should be finite")
+            let base = current_bpm / denom;
+            let v1 = (base * speed).expect("multiplication should succeed");
+            let v = (v1 * playback_ratio).expect("multiplication should succeed");
+            FinF64::new(v.as_f64().max(f64::EPSILON)).expect("velocity should be finite")
         }
     }
 
@@ -533,12 +534,12 @@ impl ChartPlayer {
 
     /// Checks if a note's position overlaps with the visibility range.
     fn overlaps_visibility_range(&self, ratio_start: FinF64, ratio_end: FinF64) -> bool {
-        let note_min = if ratio_start.as_f64() < ratio_end.as_f64() {
+        let note_min = if ratio_start < ratio_end {
             ratio_start
         } else {
             ratio_end
         };
-        let note_max = if ratio_start.as_f64() > ratio_end.as_f64() {
+        let note_max = if ratio_start > ratio_end {
             ratio_start
         } else {
             ratio_end
@@ -547,13 +548,13 @@ impl ChartPlayer {
         let (vis_min, vis_max) = &self.visibility_range;
         let is_already_end = match vis_min {
             Bound::Unbounded => false,
-            Bound::Included(min) => note_max.as_f64() < min.as_f64(),
-            Bound::Excluded(min) => note_max.as_f64() <= min.as_f64(),
+            Bound::Included(min) => note_max < *min,
+            Bound::Excluded(min) => note_max <= *min,
         };
         let is_not_started_yet = match vis_max {
             Bound::Unbounded => false,
-            Bound::Included(max) => max.as_f64() < note_min.as_f64(),
-            Bound::Excluded(max) => max.as_f64() <= note_min.as_f64(),
+            Bound::Included(max) => *max < note_min,
+            Bound::Excluded(max) => *max <= note_min,
         };
         !(is_already_end || is_not_started_yet)
     }
@@ -731,7 +732,7 @@ impl VisibleRangePerBpm {
             velocity.as_f64() * self.reaction_time_seconds.as_f64() * self.base_bpm.as_f64()
                 / current_bpm.as_f64(),
         )
-        .expect("adjusted should be finite");
+        .expect("adjusted should be non-negative");
         NonNegativeF64::new(adjusted.as_f64()).expect("adjusted should be non-negative")
     }
 
@@ -751,8 +752,7 @@ impl VisibleRangePerBpm {
 impl From<FinF64> for VisibleRangePerBpm {
     fn from(value: FinF64) -> Self {
         let base_bpm = FinF64::new(1.0).expect("1 should be finite");
-        let reaction_time_seconds =
-            FinF64::new(value.as_f64() / 240.0).expect("reaction_time should be finite");
+        let reaction_time_seconds = (value / 240.0).expect("reaction_time should be finite");
         Self {
             value,
             base_bpm,

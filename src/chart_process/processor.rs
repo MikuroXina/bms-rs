@@ -228,8 +228,7 @@ impl AllEventsIndex {
             } = ev.event()
             {
                 let start_y = ev.position();
-                let end_y = NonNegativeF64::new(start_y.as_f64() + length.as_f64())
-                    .expect("end_y should be non-negative");
+                let end_y = (*start_y + *length).expect("end_y should be non-negative");
 
                 visible_ln_by_start.insert(*start_y, idx);
                 visible_ln_by_end.insert(end_y, idx);

@@ -166,7 +166,9 @@ impl AllEventsIndex {
         };
         let pulses_to_y = |pulses: u64| -> NonNegativeF64 {
             let pulses = FinF64::new(pulses as f64).expect("pulses should be finite");
-            NonNegativeF64::new(pulses.as_f64() * denom_inv.as_f64())
+            (pulses * denom_inv)
+                .expect("pulses * denom_inv should not overflow")
+                .try_into()
                 .expect("y should be non-negative")
         };
         let mut points: BTreeSet<NonNegativeF64> = BTreeSet::new();
@@ -293,7 +295,8 @@ impl AllEventsIndex {
                 if let Some((side, key)) = lane_from_x(bmson.info.mode_hint.as_ref(), *x) {
                     let length = (*l > 0).then(|| {
                         let end_y = pulses_to_y(y.0 + l);
-                        NonNegativeF64::new(end_y.as_f64() - y_coord.as_f64())
+                        (end_y - y_coord)
+                            .try_into()
                             .expect("length should be non-negative")
                     });
                     let kind = if *l > 0 {

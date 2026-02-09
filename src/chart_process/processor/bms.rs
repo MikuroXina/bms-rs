@@ -38,7 +38,7 @@ pub struct BmsProcessor;
 /// - Formula: beats = `192nd_note_value` / 48
 #[must_use]
 fn convert_stop_duration_to_beats(duration_192nd: FinF64) -> FinF64 {
-    FinF64::new(duration_192nd.as_f64() / 48.0).expect("result should be finite")
+    (duration_192nd / 48.0).expect("result should be finite")
 }
 
 impl BmsProcessor {
@@ -226,10 +226,9 @@ impl YMemo {
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
             let passed_sections = (track.0 - last_track).saturating_sub(1);
             y = FinF64::new(y.as_f64() + passed_sections as f64).expect("y should be finite");
-            y = FinF64::new(y.as_f64() + section_len_change.length.as_f64())
-                .expect("y should be finite");
+            y = (y + section_len_change.length).expect("y should be finite");
             y_by_track.insert(track, y);
-            last_track = track.0;
+            last_track = 0;
         }
 
         let zero_length_tracks: std::collections::HashSet<Track> = bms
