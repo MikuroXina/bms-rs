@@ -125,9 +125,8 @@ impl BpmProcessor {
                     .bpm_defs
                     .get(&obj)
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                let bpm = match string_value.value() {
-                    Ok(value) => *value,
-                    Err(_) => continue,
+                let Ok(&bpm) = string_value.value().as_ref() else {
+                    continue;
                 };
                 objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)?;
             }

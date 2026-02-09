@@ -133,17 +133,10 @@ impl VideoProcessor {
                     .seek_defs
                     .get(&seek_id)
                     .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                let position_value = match string_value.value() {
-                    Ok(value) => value,
-                    Err(_) => continue,
+                let Ok(&position) = string_value.value().as_ref() else {
+                    continue;
                 };
-                video.push_seek_event(
-                    SeekObj {
-                        time,
-                        position: *position_value,
-                    },
-                    prompter,
-                )?;
+                video.push_seek_event(SeekObj { time, position }, prompter)?;
             }
         }
         Ok(warnings)

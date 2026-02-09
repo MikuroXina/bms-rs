@@ -112,11 +112,16 @@ impl SpeedProcessor {
                     .get(&obj)
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
                 // Get factor, skip this object if parsing failed
-                let factor = match string_value.value() {
-                    Ok(v) => *v,
-                    Err(_) => continue, // Skip objects with parse errors
+                let Ok(factor) = string_value.value() else {
+                    continue;
                 };
-                objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
+                objects.push_speed_factor_change(
+                    SpeedObj {
+                        time,
+                        factor: *factor,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)

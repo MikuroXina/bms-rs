@@ -109,17 +109,11 @@ impl ScrollProcessor {
                     .scroll_defs
                     .get(&obj)
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                let factor = match string_value.value() {
-                    Ok(value) => value,
-                    Err(_) => continue,
+                let Ok(&factor) = string_value.value().as_ref() else {
+                    continue;
                 };
-                objects.push_scrolling_factor_change(
-                    ScrollingFactorObj {
-                        time,
-                        factor: *factor,
-                    },
-                    prompter,
-                )?;
+                objects
+                    .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)?;
             }
         }
         Ok(warnings)
