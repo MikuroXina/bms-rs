@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use strict_num_extended::{FinF64, PositiveF64};
+use strict_num_extended::FinF64;
 use thiserror::Error;
 
 use crate::{
@@ -75,7 +75,7 @@ impl Bms {
             .map(|s| s.clone().into_owned());
         bms.music_info.genre = Some(value.info.genre.into_owned());
         bms.metadata.play_level = Some(value.info.level as u8);
-        let total = FinF64::new(value.info.total.as_f64()).expect("total should be finite");
+        let total = value.info.total;
         bms.judge.total = Some(StringValue::from_value(total));
         bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
         bms.sprite.stage_file = value
@@ -96,9 +96,7 @@ impl Bms {
         bms.judge.rank = Some(JudgeLevel::OtherInt(judge_rank_value));
 
         // Convert initial BPM
-        bms.bpm.bpm = Some(StringValue::from_value(
-            PositiveF64::new(value.info.init_bpm.as_f64()).expect("init_bpm should be positive"),
-        ));
+        bms.bpm.bpm = Some(StringValue::from_value(value.info.init_bpm));
 
         // Convert resolution
         bms.section_len.section_len_changes.insert(
@@ -147,8 +145,7 @@ impl Bms {
         // Convert scroll events
         for scroll_event in value.scroll_events {
             let time = convert_pulse_to_obj_time(scroll_event.y, resolution);
-            let factor =
-                FinF64::new(scroll_event.rate.as_f64()).expect("scroll rate should be finite");
+            let factor = scroll_event.rate;
 
             // Add to scope_defines
             let scroll_def_id = scroll_def_obj_id_issuer.next().unwrap_or_else(|| {

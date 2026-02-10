@@ -93,8 +93,8 @@ impl ChartPlayer {
             all_events,
             flow_events_by_y: flow_events,
             playback_state: PlaybackState::new(
-                PositiveF64::new(init_bpm.as_f64()).expect("init_bpm should be positive"),
-                PositiveF64::new(init_speed.as_f64()).expect("init_speed should be positive"),
+                init_bpm,
+                init_speed,
                 ONE_FIN,
                 ONE_FIN,
                 NonNegativeF64::ZERO,
