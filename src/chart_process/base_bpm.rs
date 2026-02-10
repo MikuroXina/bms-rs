@@ -111,7 +111,7 @@ impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<PositiveF64> {
-        PositiveF64::new(bmson.info.init_bpm.as_f64()).ok()
+        Some(bmson.info.init_bpm)
     }
 }
 
@@ -121,7 +121,6 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
         std::iter::once(bmson.info.init_bpm)
             .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
             .min()
-            .map(|bpm| PositiveF64::new(bpm.as_f64()).expect("BPM should be positive"))
     }
 }
 
@@ -131,7 +130,6 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
         std::iter::once(bmson.info.init_bpm)
             .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
             .max()
-            .map(|bpm| PositiveF64::new(bpm.as_f64()).expect("BPM should be positive"))
     }
 }
 

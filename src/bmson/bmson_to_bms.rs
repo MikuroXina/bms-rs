@@ -112,7 +112,7 @@ impl Bms {
         // Convert BPM events
         for bpm_event in value.bpm_events {
             let time = convert_pulse_to_obj_time(bpm_event.y, resolution);
-            let bpm = PositiveF64::new(bpm_event.bpm.as_f64()).expect("bpm should be positive");
+            let bpm = bpm_event.bpm;
 
             // Add to scope_defines
             let bpm_def_id = bpm_def_obj_id_issuer.next().unwrap_or_else(|| {
