@@ -63,11 +63,10 @@ impl ManualBpmGenerator {
 // ---- Generators for BMS ----
 impl BaseBpmGenerator<Bms> for StartBpmGenerator {
     fn generate(&self, bms: &Bms) -> Option<PositiveF64> {
-        bms.bpm.bpm.as_ref().map(|bpm| {
-            *bpm.value()
-                .as_ref()
-                .expect("parsed BPM value should be valid")
-        })
+        bms.bpm
+            .bpm
+            .as_ref()
+            .and_then(|bpm| bpm.value().as_ref().ok().copied())
     }
 }
 
@@ -76,11 +75,7 @@ impl BaseBpmGenerator<Bms> for MinBpmGenerator {
         bms.bpm
             .bpm
             .iter()
-            .map(|bpm| {
-                *bpm.value()
-                    .as_ref()
-                    .expect("parsed BPM value should be valid")
-            })
+            .filter_map(|bpm| bpm.value().as_ref().ok().copied())
             .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
             .min()
     }
@@ -91,11 +86,7 @@ impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
         bms.bpm
             .bpm
             .iter()
-            .map(|bpm| {
-                *bpm.value()
-                    .as_ref()
-                    .expect("parsed BPM value should be valid")
-            })
+            .filter_map(|bpm| bpm.value().as_ref().ok().copied())
             .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
             .max()
     }

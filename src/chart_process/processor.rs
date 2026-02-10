@@ -13,6 +13,22 @@ use strict_num_extended::PositiveF64;
 pub mod bms;
 pub mod bmson;
 
+// Common constants for strict-num types to reduce .expect() usage
+use strict_num_extended::FinF64;
+
+/// Zero value for `FinF64`
+pub const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
+/// One value for `FinF64`  
+pub const ONE_FIN: FinF64 = FinF64::new_const(1.0);
+/// One value for `PositiveF64`
+pub const ONE_POSITIVE: PositiveF64 = PositiveF64::new_const(1.0);
+/// One value for `NonNegativeF64`
+pub const ONE_NON_NEGATIVE: NonNegativeF64 = NonNegativeF64::new_const(1.0);
+/// Default BPM value (120.0)
+pub const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
+/// EPSILON value for `FinF64`
+pub const EPSILON_FIN: FinF64 = FinF64::new_const(f64::EPSILON);
+
 /// WAV audio file ID wrapper type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WavId(pub usize);
@@ -612,6 +628,23 @@ mod tests {
     use crate::chart_process::{ChartEvent, PlayheadEvent, TimeSpan};
     use strict_num_extended::NonNegativeF64;
 
+    // Test constants
+
+    /// Test Y constant (3.0)
+    const TEST_Y_3: NonNegativeF64 = NonNegativeF64::new_const(3.0);
+    /// Test Y constant (5.0)
+    const TEST_Y_5: NonNegativeF64 = NonNegativeF64::new_const(5.0);
+    /// Test Y constant (6.0)
+    const TEST_Y_6: NonNegativeF64 = NonNegativeF64::new_const(6.0);
+    /// Test Y constant (7.0)
+    const TEST_Y_7: NonNegativeF64 = NonNegativeF64::new_const(7.0);
+    /// Test Y constant (10.0)
+    const TEST_Y_10: NonNegativeF64 = NonNegativeF64::new_const(10.0);
+    /// Test Y constant (15.0)
+    const TEST_Y_15: NonNegativeF64 = NonNegativeF64::new_const(15.0);
+    /// Test Y constant (20.0)
+    const TEST_Y_20: NonNegativeF64 = NonNegativeF64::new_const(20.0);
+
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
         let y_coord = NonNegativeF64::new(y).expect("y should be non-negative");
         PlayheadEvent::new(
@@ -624,8 +657,8 @@ mod tests {
 
     #[test]
     fn events_in_y_range_uses_btreemap_order_and_preserves_group_order() {
-        let y0 = NonNegativeF64::new(0.0).expect("0 should be non-negative");
-        let y1 = NonNegativeF64::new(1.0).expect("1 should be non-negative");
+        let y0 = NonNegativeF64::ZERO;
+        let y1 = crate::chart_process::processor::ONE_NON_NEGATIVE;
 
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
@@ -652,11 +685,11 @@ mod tests {
     fn events_in_time_range_respects_bounds_and_orders_within_same_time() {
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::new(0.0).expect("0 should be non-negative"),
+            NonNegativeF64::ZERO,
             vec![mk_event(2, 0.0, 1), mk_event(1, 0.0, 1)],
         );
         map.insert(
-            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            crate::chart_process::processor::ONE_NON_NEGATIVE,
             vec![mk_event(3, 1.0, 2)],
         );
 
@@ -675,12 +708,9 @@ mod tests {
         use std::ops::Bound::{Included, Unbounded};
 
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 1)]);
         map.insert(
-            NonNegativeF64::new(0.0).expect("0 should be non-negative"),
-            vec![mk_event(1, 0.0, 1)],
-        );
-        map.insert(
-            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            crate::chart_process::processor::ONE_NON_NEGATIVE,
             vec![mk_event(2, 1.0, 2)],
         );
 
@@ -704,12 +734,9 @@ mod tests {
     #[test]
     fn events_in_time_range_offset_from_returns_empty_when_end_is_negative() {
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
         map.insert(
-            NonNegativeF64::new(0.0).expect("0 should be non-negative"),
-            vec![mk_event(1, 0.0, 0)],
-        );
-        map.insert(
-            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            crate::chart_process::processor::ONE_NON_NEGATIVE,
             vec![mk_event(2, 1.0, 1)],
         );
 
@@ -730,10 +757,7 @@ mod tests {
     #[test]
     fn events_in_time_range_offset_from_excludes_zero_when_end_is_excluded() {
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
-        map.insert(
-            NonNegativeF64::new(0.0).expect("0 should be non-negative"),
-            vec![mk_event(1, 0.0, 0)],
-        );
+        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -749,12 +773,9 @@ mod tests {
     #[test]
     fn events_in_time_range_offset_from_clamps_negative_start_to_zero() {
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
         map.insert(
-            NonNegativeF64::new(0.0).expect("0 should be non-negative"),
-            vec![mk_event(1, 0.0, 0)],
-        );
-        map.insert(
-            NonNegativeF64::new(1.0).expect("1 should be non-negative"),
+            crate::chart_process::processor::ONE_NON_NEGATIVE,
             vec![mk_event(2, 1.0, 1)],
         );
 
@@ -776,37 +797,30 @@ mod tests {
         // Test case 1: LN start and end within view
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+            TEST_Y_5,
             vec![PlayheadEvent::new(
                 ChartEventId::new(1),
-                NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+                TEST_Y_5,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(NonNegativeF64::new(3.0).expect("3 should be non-negative")), // ends at 8.0
+                    length: Some(TEST_Y_3), // ends at 8.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
             )],
         );
-        map.insert(
-            NonNegativeF64::new(15.0).expect("15 should be non-negative"),
-            vec![mk_event(2, 15.0, 0)],
-        );
+        map.insert(TEST_Y_15, vec![mk_event(2, 15.0, 0)]);
 
         let idx = AllEventsIndex::new(map);
 
         // LN should be included (start=5.0, end=8.0, both within range)
         assert!(
             idx.events_in_y_range((
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(0.0).expect("0 should be non-negative")
-                ),
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(10.0).expect("10 should be non-negative")
-                ),
+                std::ops::Bound::Included(NonNegativeF64::ZERO),
+                std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
@@ -819,16 +833,16 @@ mod tests {
         // Test case 2: LN starts before view, ends within view
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+            TEST_Y_5,
             vec![PlayheadEvent::new(
                 ChartEventId::new(1),
-                NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+                TEST_Y_5,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(NonNegativeF64::new(3.0).expect("3 should be non-negative")), // ends at 8.0
+                    length: Some(TEST_Y_3), // ends at 8.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -840,12 +854,8 @@ mod tests {
         // LN should be included (intersects with view)
         assert!(
             idx.events_in_y_range((
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(7.0).expect("7 should be non-negative")
-                ),
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(10.0).expect("10 should be non-negative")
-                ),
+                std::ops::Bound::Included(TEST_Y_7),
+                std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
@@ -858,16 +868,16 @@ mod tests {
         // Test case 3: LN starts within view, ends after view
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+            TEST_Y_5,
             vec![PlayheadEvent::new(
                 ChartEventId::new(1),
-                NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+                TEST_Y_5,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(NonNegativeF64::new(10.0).expect("10 should be non-negative")), // ends at 15.0
+                    length: Some(TEST_Y_10), // ends at 15.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -879,12 +889,8 @@ mod tests {
         // LN should be included (intersects with view)
         assert!(
             idx.events_in_y_range((
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(0.0).expect("0 should be non-negative")
-                ),
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(10.0).expect("10 should be non-negative")
-                ),
+                std::ops::Bound::Included(NonNegativeF64::ZERO),
+                std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
@@ -897,16 +903,16 @@ mod tests {
         // Test case 4: LN starts before and ends after view (fully covers)
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::new(0.0).expect("0 should be non-negative"),
+            NonNegativeF64::ZERO,
             vec![PlayheadEvent::new(
                 ChartEventId::new(1),
-                NonNegativeF64::new(0.0).expect("0 should be non-negative"),
+                NonNegativeF64::ZERO,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(NonNegativeF64::new(20.0).expect("20 should be non-negative")), // ends at 20.0
+                    length: Some(TEST_Y_20), // ends at 20.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -918,12 +924,8 @@ mod tests {
         // LN should be included (fully covers the view)
         assert!(
             idx.events_in_y_range((
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(5.0).expect("5 should be non-negative")
-                ),
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(15.0).expect("15 should be non-negative")
-                ),
+                std::ops::Bound::Included(TEST_Y_5),
+                std::ops::Bound::Included(TEST_Y_15),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
@@ -936,37 +938,30 @@ mod tests {
         // Test case 5: LN completely before view
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::new(0.0).expect("0 should be non-negative"),
+            NonNegativeF64::ZERO,
             vec![PlayheadEvent::new(
                 ChartEventId::new(1),
-                NonNegativeF64::new(0.0).expect("0 should be non-negative"),
+                NonNegativeF64::ZERO,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(NonNegativeF64::new(3.0).expect("3 should be non-negative")), // ends at 3.0
+                    length: Some(TEST_Y_3), // ends at 3.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
             )],
         );
-        map.insert(
-            NonNegativeF64::new(10.0).expect("10 should be non-negative"),
-            vec![mk_event(2, 10.0, 0)],
-        );
+        map.insert(TEST_Y_10, vec![mk_event(2, 10.0, 0)]);
 
         let idx = AllEventsIndex::new(map);
 
         // Query range [5.0, 15.0]
         let got_ids: Vec<usize> = idx
             .events_in_y_range((
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(5.0).expect("5 should be non-negative"),
-                ),
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(15.0).expect("15 should be non-negative"),
-                ),
+                std::ops::Bound::Included(TEST_Y_5),
+                std::ops::Bound::Included(TEST_Y_15),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
@@ -982,21 +977,18 @@ mod tests {
     fn events_in_y_range_excludes_ln_after_view() {
         // Test case 6: LN completely after view
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
         map.insert(
-            NonNegativeF64::new(0.0).expect("0 should be non-negative"),
-            vec![mk_event(1, 0.0, 0)],
-        );
-        map.insert(
-            NonNegativeF64::new(20.0).expect("20 should be non-negative"),
+            TEST_Y_20,
             vec![PlayheadEvent::new(
                 ChartEventId::new(2),
-                NonNegativeF64::new(20.0).expect("20 should be non-negative"),
+                TEST_Y_20,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(NonNegativeF64::new(5.0).expect("5 should be non-negative")), // ends at 25.0
+                    length: Some(TEST_Y_5), // ends at 25.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -1008,12 +1000,8 @@ mod tests {
         // Query range [0.0, 10.0]
         let got_ids: Vec<usize> = idx
             .events_in_y_range((
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(0.0).expect("0 should be non-negative"),
-                ),
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(10.0).expect("10 should be non-negative"),
-                ),
+                std::ops::Bound::Included(NonNegativeF64::ZERO),
+                std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
@@ -1030,16 +1018,16 @@ mod tests {
         // Test that LN is not added twice when both start and end in range
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+            TEST_Y_5,
             vec![PlayheadEvent::new(
                 ChartEventId::new(1),
-                NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+                TEST_Y_5,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(NonNegativeF64::new(3.0).expect("3 should be non-negative")), // ends at 8.0
+                    length: Some(TEST_Y_3), // ends at 8.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -1051,12 +1039,8 @@ mod tests {
         // Query range [0.0, 10.0] (both start and end within range)
         let got_ids: Vec<usize> = idx
             .events_in_y_range((
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(0.0).expect("0 should be non-negative"),
-                ),
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(10.0).expect("10 should be non-negative"),
-                ),
+                std::ops::Bound::Included(NonNegativeF64::ZERO),
+                std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
             .map(|ev| ev.id.value())
@@ -1073,25 +1057,18 @@ mod tests {
         // For long notes, if they intersect with view (even if start is excluded), they are included
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::new(5.0).expect("5 should be non-negative"),
+            TEST_Y_5,
             vec![mk_event(1, 5.0, 0)], // Normal note at 5.0
         );
-        map.insert(
-            NonNegativeF64::new(6.0).expect("6 should be non-negative"),
-            vec![mk_event(2, 6.0, 0)],
-        );
+        map.insert(TEST_Y_6, vec![mk_event(2, 6.0, 0)]);
 
         let idx = AllEventsIndex::new(map);
 
         // Query range (5.0, 10.0] - should exclude event at 5.0
         let got_ids: Vec<usize> = idx
             .events_in_y_range((
-                std::ops::Bound::Excluded(
-                    NonNegativeF64::new(5.0).expect("5 should be non-negative"),
-                ),
-                std::ops::Bound::Included(
-                    NonNegativeF64::new(10.0).expect("10 should be non-negative"),
-                ),
+                std::ops::Bound::Excluded(TEST_Y_5),
+                std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
             .map(|ev| ev.id.value())

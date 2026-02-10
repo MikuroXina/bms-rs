@@ -9,7 +9,7 @@ use std::time::Duration;
 use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
-use crate::chart_process::processor::AllEventsIndex;
+use crate::chart_process::processor::{AllEventsIndex, EPSILON_FIN, ONE_FIN, ZERO_FIN};
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
@@ -86,10 +86,7 @@ impl ChartPlayer {
             started_at: start_time,
             last_poll_at: start_time,
             visible_range_per_bpm,
-            visibility_range: (
-                Bound::Included(FinF64::new(0.0).expect("0 should be finite")),
-                Bound::Included(FinF64::new(1.0).expect("1 should be finite")),
-            ),
+            visibility_range: (Bound::Included(ZERO_FIN), Bound::Included(ONE_FIN)),
             cached_velocity: None,
             velocity_dirty: true,
             preloaded_events: Vec::new(),
@@ -98,8 +95,8 @@ impl ChartPlayer {
             playback_state: PlaybackState::new(
                 PositiveF64::new(init_bpm.as_f64()).expect("init_bpm should be positive"),
                 PositiveF64::new(init_speed.as_f64()).expect("init_speed should be positive"),
-                FinF64::new(1.0).expect("1 should be finite"),
-                FinF64::new(1.0).expect("1 should be finite"),
+                ONE_FIN,
+                ONE_FIN,
                 NonNegativeF64::ZERO,
             ),
         }
@@ -350,7 +347,7 @@ impl ChartPlayer {
         let playback_ratio = self.playback_state.playback_ratio;
 
         if current_bpm.as_f64() <= 0.0 {
-            FinF64::new(f64::EPSILON).expect("EPSILON should be finite")
+            EPSILON_FIN
         } else {
             let denom = 240.0f64;
             let base = current_bpm / denom;
@@ -673,9 +670,9 @@ impl VisibleRangePerBpm {
     pub fn new(base_bpm: &PositiveF64, reaction_time: TimeSpan) -> Self {
         if base_bpm.as_f64() == 0.0 {
             Self {
-                value: FinF64::new(0.0).expect("0 should be finite"),
-                base_bpm: FinF64::new(0.0).expect("0 should be finite"),
-                reaction_time_seconds: FinF64::new(0.0).expect("0 should be finite"),
+                value: ZERO_FIN,
+                base_bpm: ZERO_FIN,
+                reaction_time_seconds: ZERO_FIN,
             }
         } else {
             let reaction_time_seconds =
@@ -751,7 +748,7 @@ impl VisibleRangePerBpm {
 
 impl From<FinF64> for VisibleRangePerBpm {
     fn from(value: FinF64) -> Self {
-        let base_bpm = FinF64::new(1.0).expect("1 should be finite");
+        let base_bpm = ONE_FIN;
         let reaction_time_seconds = (value / 240.0).expect("reaction_time should be finite");
         Self {
             value,
@@ -801,14 +798,14 @@ impl DisplayRatio {
 
     /// Create a `DisplayRatio` representing the judgment line (value 0)
     #[must_use]
-    pub fn at_judgment_line() -> Self {
-        Self(FinF64::new(0.0).expect("0 should be finite"))
+    pub const fn at_judgment_line() -> Self {
+        Self(ZERO_FIN)
     }
 
     /// Create a `DisplayRatio` representing the position where note starts to appear (value 1)
     #[must_use]
-    pub fn at_appearance() -> Self {
-        Self(FinF64::new(1.0).expect("1 should be finite"))
+    pub const fn at_appearance() -> Self {
+        Self(ONE_FIN)
     }
 }
 
@@ -835,7 +832,23 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart_process::processor::{ChartResources, PlayableChart};
+    use crate::chart_process::processor::{
+        ChartResources, DEFAULT_BPM, ONE_POSITIVE, PlayableChart,
+    };
+    use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
+
+    /// Default test BPM value (180.0)
+    const TEST_BPM: PositiveF64 = PositiveF64::new_const(180.0);
+    /// Test scroll factor (1.5)
+    const TEST_SCROLL_FACTOR: FinF64 = FinF64::new_const(1.5);
+    /// Test Y event value (100.0)
+    const TEST_Y_EVENT: NonNegativeF64 = NonNegativeF64::new_const(100.0);
+    /// Test current Y value (10.0)
+    const TEST_CURRENT_Y: NonNegativeF64 = NonNegativeF64::new_const(10.0);
+    /// Test event Y value (11.0)
+    const TEST_EVENT_Y: NonNegativeF64 = NonNegativeF64::new_const(11.0);
+    /// Test visible window Y (2.0)
+    const TEST_VISIBLE_WINDOW_Y: NonNegativeF64 = NonNegativeF64::new_const(2.0);
 
     #[test]
     fn test_velocity_caching() {
@@ -843,8 +856,8 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             BTreeMap::new(),
-            PositiveF64::new(120.0).expect("120 should be positive"),
-            PositiveF64::new(1.0).expect("1 should be positive"),
+            DEFAULT_BPM,
+            ONE_POSITIVE,
         );
 
         let mut player = ChartPlayer::start(
@@ -856,7 +869,7 @@ mod tests {
             TimeStamp::now(),
         );
 
-        let speed = PositiveF64::new(1.0).expect("1 should be positive");
+        let speed = ONE_POSITIVE;
 
         // First call computes velocity
         let v1 = player.calculate_velocity(&speed);
@@ -871,14 +884,14 @@ mod tests {
     fn test_flow_event_application_after_start() {
         use std::collections::BTreeMap;
 
-        let y_event = NonNegativeF64::new(100.0).expect("100 should be non-negative");
+        let y_event = TEST_Y_EVENT;
 
         let mut flow_events_by_y = BTreeMap::new();
         flow_events_by_y.insert(
             y_event,
             vec![
-                FlowEvent::Bpm(PositiveF64::new(180.0).expect("180 should be positive")),
-                FlowEvent::Scroll(FinF64::new(1.5).expect("1.5 should be finite")),
+                FlowEvent::Bpm(TEST_BPM),
+                FlowEvent::Scroll(TEST_SCROLL_FACTOR),
             ],
         );
 
@@ -886,8 +899,8 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
-            PositiveF64::new(120.0).expect("120 should be positive"),
-            PositiveF64::new(1.0).expect("1 should be positive"),
+            DEFAULT_BPM,
+            ONE_POSITIVE,
         );
 
         let mut player = ChartPlayer::start(
@@ -904,9 +917,7 @@ mod tests {
         assert!((player.playback_state().current_scroll().as_f64() - 1.0).abs() < f64::EPSILON);
 
         // Apply BPM change
-        player.apply_flow_event(FlowEvent::Bpm(
-            PositiveF64::new(180.0).expect("180 should be positive"),
-        ));
+        player.apply_flow_event(FlowEvent::Bpm(TEST_BPM));
 
         assert!((player.playback_state().current_bpm().as_f64() - 180.0).abs() < f64::EPSILON);
         assert!(player.velocity_dirty);
@@ -914,10 +925,10 @@ mod tests {
 
     #[test]
     fn test_display_ratio_computation() {
-        let current_y = NonNegativeF64::new(10.0).expect("10 should be non-negative");
-        let event_y = NonNegativeF64::new(11.0).expect("11 should be non-negative");
-        let visible_window_y = NonNegativeF64::new(2.0).expect("2 should be non-negative");
-        let scroll_factor = FinF64::new(1.0).expect("1 should be finite");
+        let current_y = TEST_CURRENT_Y;
+        let event_y = TEST_EVENT_Y;
+        let visible_window_y = TEST_VISIBLE_WINDOW_Y;
+        let scroll_factor = ONE_FIN;
 
         let ratio = ChartPlayer::compute_display_ratio(
             &event_y,
@@ -935,14 +946,14 @@ mod tests {
         use std::collections::BTreeMap;
 
         // Setup: Create flow events at the same Y position
-        let y_event = NonNegativeF64::new(100.0).expect("100 should be non-negative");
+        let y_event = TEST_Y_EVENT;
 
         let mut flow_events_by_y = BTreeMap::new();
         flow_events_by_y.insert(
             y_event,
             vec![
-                FlowEvent::Bpm(PositiveF64::new(180.0).expect("180 should be positive")),
-                FlowEvent::Scroll(FinF64::new(1.5).expect("1.5 should be finite")),
+                FlowEvent::Bpm(TEST_BPM),
+                FlowEvent::Scroll(TEST_SCROLL_FACTOR),
             ],
         );
 
@@ -950,17 +961,14 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
-            PositiveF64::new(120.0).expect("120 should be positive"),
-            PositiveF64::new(1.0).expect("1 should be positive"),
+            DEFAULT_BPM,
+            ONE_POSITIVE,
         );
 
         let start_time = TimeStamp::now();
         let mut player = ChartPlayer::start(
             chart,
-            VisibleRangePerBpm::new(
-                &PositiveF64::new(120.0).expect("120 should be positive"),
-                TimeSpan::SECOND,
-            ),
+            VisibleRangePerBpm::new(&DEFAULT_BPM, TimeSpan::SECOND),
             TimeStamp::now(),
         );
 
@@ -975,7 +983,7 @@ mod tests {
         // Add a small epsilon to account for floating-point precision issues
         let advance_time =
             start_time + TimeSpan::from_duration(Duration::from_secs_f64(200.0 + 0.001));
-        let speed = PositiveF64::new(1.0).expect("1 should be positive");
+        let speed = ONE_POSITIVE;
 
         player.step_to(advance_time, speed);
 
