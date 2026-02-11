@@ -1,4 +1,4 @@
-use strict_num_extended::{FinF64, PositiveF64};
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use bms_rs::bms::prelude::*;
 
@@ -77,7 +77,7 @@ fn test_prelude_imports() {
     };
     let _stop_obj = StopObj {
         time: _obj_time,
-        duration: FinF64::try_from(1.0).unwrap(),
+        duration: NonNegativeF64::try_from(1.0).unwrap(),
     };
     let _bga_obj = BgaObj {
         time: _obj_time,

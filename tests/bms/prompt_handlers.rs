@@ -1,5 +1,5 @@
 use bms_rs::bms::prelude::*;
-use bms_rs::bmson::prelude::{FinF64, PositiveF64};
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use std::path::Path;
 
@@ -143,7 +143,7 @@ fn test_always_use_newer() {
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::new(1.0).unwrap())
+        Some(NonNegativeF64::new(1.0).unwrap())
     );
 
     assert_eq!(
@@ -232,7 +232,7 @@ fn test_always_warn_and_use_older() {
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::new(0.5).unwrap())
+        Some(NonNegativeF64::new(0.5).unwrap())
     );
 
     assert_eq!(
@@ -321,7 +321,7 @@ fn test_always_warn_and_use_newer() {
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::new(1.0).unwrap())
+        Some(NonNegativeF64::new(1.0).unwrap())
     );
 
     assert_eq!(

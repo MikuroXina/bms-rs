@@ -2,17 +2,16 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use strict_num_extended::FinF64;
+use strict_num_extended::NonNegativeF64;
 
 use crate::bms::{command::StringValue, prelude::*};
-use crate::chart_process::processor::ZERO_FIN;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// This aggregate manages definitions and events of scroll stop.
 pub struct StopObjects {
     /// Stop definitions, indexed by [`ObjId`]. `#STOP[01-ZZ]`
-    pub stop_defs: HashMap<ObjId, StringValue<FinF64>>,
+    pub stop_defs: HashMap<ObjId, StringValue<NonNegativeF64>>,
     /// Stop lengths by stop object id.
     pub stops: BTreeMap<ObjTime, StopObj>,
     /// Record of used STOP ids from `#STOPxx` messages, for validity checks.
@@ -36,7 +35,7 @@ impl StopObjects {
             .entry(stop.time)
             .and_modify(|existing| {
                 let sum = existing.duration.as_f64() + stop.duration.as_f64();
-                existing.duration = FinF64::new(sum).unwrap_or(ZERO_FIN);
+                existing.duration = NonNegativeF64::new(sum).unwrap_or(NonNegativeF64::ZERO);
             })
             .or_insert_with(|| stop);
     }

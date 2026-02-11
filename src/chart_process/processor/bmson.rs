@@ -415,7 +415,8 @@ impl AllEventsIndex {
         for stop in &bmson.stop_events {
             let y = pulses_to_y(stop.y.0);
             let event = ChartEvent::Stop {
-                duration: FinF64::new(stop.duration as f64).expect("duration should be finite"),
+                duration: NonNegativeF64::new(stop.duration as f64)
+                    .expect("duration should be non-negative"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);

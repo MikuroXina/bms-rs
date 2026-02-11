@@ -19,6 +19,7 @@ use crate::{
     },
     util::StrExtension,
 };
+use strict_num_extended::NonNegativeF64;
 
 /// It processes `#STOPxx` definitions and objects on `Stop` channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,7 +76,7 @@ impl StopProcessor {
         objects: &mut StopObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("STOP") {
-            let string_value = StringValue::new(args);
+            let string_value: StringValue<NonNegativeF64> = StringValue::new(args);
 
             let stop_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 

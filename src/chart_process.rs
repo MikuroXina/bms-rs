@@ -127,7 +127,7 @@ pub enum ChartEvent {
     /// Stop scroll event
     Stop {
         /// Stop duration (BMS: converted from chart-defined time units; BMSON: pulse count)
-        duration: FinF64,
+        duration: NonNegativeF64,
     },
     /// BGA (background animation) change event
     ///

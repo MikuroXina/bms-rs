@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use strict_num_extended::FinF64;
+use strict_num_extended::{FinF64, NonNegativeF64};
 use thiserror::Error;
 
 use crate::{
@@ -127,8 +127,8 @@ impl Bms {
         // Convert stop events
         for stop_event in value.stop_events {
             let time = convert_pulse_to_obj_time(stop_event.y, resolution);
-            let duration =
-                FinF64::new(stop_event.duration as f64).expect("stop duration should be finite");
+            let duration = NonNegativeF64::new(stop_event.duration as f64)
+                .expect("stop duration should be finite");
 
             // Add to scope_defines
             let stop_def_id = stop_def_obj_id_issuer.next().unwrap_or_else(|| {

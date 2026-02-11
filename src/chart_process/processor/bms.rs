@@ -37,8 +37,9 @@ pub struct BmsProcessor;
 /// - Therefore: 1 unit of 192nd-note = 1/48 beat
 /// - Formula: beats = `192nd_note_value` / 48
 #[must_use]
-fn convert_stop_duration_to_beats(duration_192nd: FinF64) -> FinF64 {
-    (duration_192nd / 48.0).expect("result should be finite")
+fn convert_stop_duration_to_beats(duration_192nd: NonNegativeF64) -> NonNegativeF64 {
+    NonNegativeF64::new(duration_192nd.as_f64() / 48.0)
+        .expect("result should be finite and non-negative")
 }
 
 impl BmsProcessor {
@@ -706,7 +707,7 @@ pub fn precompute_activate_times(
         .collect();
     points.extend(bpm_changes.iter().map(|(y, _)| *y));
 
-    let stop_list: Vec<(NonNegativeF64, FinF64)> = bms
+    let stop_list: Vec<(NonNegativeF64, NonNegativeF64)> = bms
         .stop
         .stops
         .values()

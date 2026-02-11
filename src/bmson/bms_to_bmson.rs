@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-use strict_num_extended::{FinF64, PositiveF64};
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 const DAMAGE_VALUE_FIN: FinF64 = FinF64::new_const(100.0);
 
@@ -123,9 +123,9 @@ impl Bms {
             .stops
             .values()
             .filter_map(|stop| {
-                FinF64::new(stop.duration.as_f64())
+                NonNegativeF64::new(stop.duration.as_f64())
                     .ok()
-                    .map(|duration| StopEvent {
+                    .map(|duration: NonNegativeF64| StopEvent {
                         y: converter.get_pulses_at(stop.time),
                         duration: duration.as_f64() as u64,
                     })

@@ -5,7 +5,7 @@
 use std::path::Path;
 use std::str::FromStr;
 
-use strict_num_extended::{FinF64, PositiveF64};
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::bms::{
     command::{
@@ -152,9 +152,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated STOP object id.
         id: ObjId,
         /// Existing definition.
-        older: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
+        older: &'a core::result::Result<NonNegativeF64, <NonNegativeF64 as FromStr>::Err>,
         /// Incoming definition.
-        newer: &'a core::result::Result<FinF64, <FinF64 as FromStr>::Err>,
+        newer: &'a core::result::Result<NonNegativeF64, <NonNegativeF64 as FromStr>::Err>,
     },
     /// BGA ARGB color definition is duplicated.
     BgaArgb {

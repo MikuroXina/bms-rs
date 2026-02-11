@@ -1,6 +1,6 @@
 //! Definitions of the note object.
 
-use strict_num_extended::{FinF64, PositiveF64};
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::bms::command::{
     JudgeLevel, ObjId,
@@ -115,7 +115,7 @@ pub struct StopObj {
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: FinF64,
+    pub duration: NonNegativeF64,
 }
 
 impl PartialEq for StopObj {
