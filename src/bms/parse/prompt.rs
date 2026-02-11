@@ -23,7 +23,7 @@ use crate::bms::{
 
 use crate::bms::model::obj::{
     BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
-    SectionLenChangeObj, SpeedObj, TextObj,
+    SectionLenChangeObj, SpeedObj, StopObj, TextObj,
 };
 
 use crate::bms::{
@@ -271,6 +271,15 @@ pub enum ChannelDuplication<'a> {
         older: &'a StpEvent,
         /// Incoming definition.
         newer: &'a StpEvent,
+    },
+    /// Stop event is duplicated.
+    StopEvent {
+        /// Duplicated stop time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a StopObj,
+        /// Incoming definition.
+        newer: &'a StopObj,
     },
     /// BGM volume change event is duplicated.
     BgmVolumeChangeEvent {

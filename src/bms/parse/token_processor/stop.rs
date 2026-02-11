@@ -58,6 +58,7 @@ impl TokenProcessor for StopProcessor {
                     *channel,
                     message.as_ref().into_wrapper(token),
                     &mut objects,
+                    prompter,
                 )
                 .err()
                 .map(|warn| warn.into_wrapper(token))),
@@ -142,6 +143,7 @@ impl StopProcessor {
         channel: Channel,
         message: SourceRangeMixin<&str>,
         objects: &mut StopObjects,
+        prompter: &impl Prompter,
     ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Stop {
@@ -160,7 +162,7 @@ impl StopProcessor {
                     continue;
                 };
 
-                objects.push_stop(StopObj { time, duration });
+                objects.push_stop(StopObj { time, duration }, prompter)?;
             }
         }
         Ok(warnings)

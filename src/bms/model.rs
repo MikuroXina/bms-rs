@@ -30,6 +30,7 @@ pub use crate::bms::command::StringValue;
 use std::fmt::Debug;
 
 use crate::bms::command::time::ObjTime;
+use crate::bms::prelude::*;
 
 use self::{
     bmp::BmpObjects, bpm::BpmObjects, control_flow::RandomizedObjects, judge::JudgeObjects,
@@ -328,7 +329,9 @@ impl Bms {
         self.stop.stop_defs.extend(other.stop.stop_defs.clone());
         self.stop.stp_events.extend(other.stop.stp_events.clone());
         for stop in other.stop.stops.values() {
-            self.stop.push_stop(stop.clone());
+            self.stop
+                .push_stop(stop.clone(), &AlwaysUseNewer)
+                .expect("AlwaysUseNewer should never error");
         }
 
         // text
