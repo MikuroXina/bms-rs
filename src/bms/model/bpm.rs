@@ -10,6 +10,8 @@ use crate::bms::{
     prelude::*,
 };
 
+use crate::chart_process::processor::DEFAULT_BPM;
+
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// This aggregate manages definition and events of BPM change on playing.
@@ -106,11 +108,11 @@ impl BpmObjects {
                 let existing = entry.get();
                 let older = BpmChangeObj {
                     time,
-                    bpm: PositiveF64::new(*existing as f64).expect("u8 to f64 is always positive"),
+                    bpm: PositiveF64::new(*existing as f64).unwrap_or(DEFAULT_BPM),
                 };
                 let newer = BpmChangeObj {
                     time,
-                    bpm: PositiveF64::new(bpm_change as f64).expect("u8 to f64 is always positive"),
+                    bpm: PositiveF64::new(bpm_change as f64).unwrap_or(DEFAULT_BPM),
                 };
                 prompt_handler
                     .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {

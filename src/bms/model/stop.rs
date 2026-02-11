@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use strict_num_extended::FinF64;
 
 use crate::bms::{command::StringValue, prelude::*};
+use crate::chart_process::processor::ZERO_FIN;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -35,8 +36,7 @@ impl StopObjects {
             .entry(stop.time)
             .and_modify(|existing| {
                 let sum = existing.duration.as_f64() + stop.duration.as_f64();
-                existing.duration =
-                    FinF64::new(sum).expect("sum of finite values should be finite");
+                existing.duration = FinF64::new(sum).unwrap_or(ZERO_FIN);
             })
             .or_insert_with(|| stop);
     }
