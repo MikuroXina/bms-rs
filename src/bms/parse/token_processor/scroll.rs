@@ -75,7 +75,7 @@ impl ScrollProcessor {
         objects: &mut ScrollObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SCROLL") {
-            let string_value = StringValue::new(args.to_string());
+            let string_value = StringValue::new(args);
             let scroll_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
             if let Some(older) = objects.scroll_defs.get_mut(&scroll_obj_id) {
                 prompter

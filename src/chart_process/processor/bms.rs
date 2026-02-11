@@ -861,7 +861,7 @@ mod tests {
     fn test_parse_invalid_bpm() {
         // Create a BMS object with an invalid BPM value
         let mut bms = Bms::default();
-        bms.bpm.bpm = Some(StringValue::new("invalid_bpm".to_string()));
+        bms.bpm.bpm = Some(StringValue::new("invalid_bpm"));
 
         // Try to parse, should return InvalidBpm error
         let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
@@ -881,7 +881,7 @@ mod tests {
     #[test]
     fn test_parse_empty_bpm() {
         let mut bms = Bms::default();
-        bms.bpm.bpm = Some(StringValue::new("".to_string()));
+        bms.bpm.bpm = Some(StringValue::new(""));
 
         let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
 
@@ -901,7 +901,7 @@ mod tests {
     #[test]
     fn test_parse_nan_bpm() {
         let mut bms = Bms::default();
-        bms.bpm.bpm = Some(StringValue::new("NaN".to_string()));
+        bms.bpm.bpm = Some(StringValue::new("NaN"));
 
         let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
 
@@ -942,7 +942,7 @@ mod tests {
     #[test]
     fn test_parse_valid_bpm() {
         let mut bms = Bms::default();
-        bms.bpm.bpm = Some(StringValue::new("150.5".to_string()));
+        bms.bpm.bpm = Some(StringValue::new("150.5"));
 
         let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
 
@@ -959,7 +959,7 @@ mod tests {
     #[test]
     fn test_parse_bpm_with_special_chars() {
         let mut bms = Bms::default();
-        bms.bpm.bpm = Some(StringValue::new("abc123!@#".to_string()));
+        bms.bpm.bpm = Some(StringValue::new("abc123!@#"));
 
         let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
 
@@ -980,7 +980,7 @@ mod tests {
     fn test_error_contains_raw_value() {
         let invalid_value = "not_a_number";
         let mut bms = Bms::default();
-        bms.bpm.bpm = Some(StringValue::new(invalid_value.to_string()));
+        bms.bpm.bpm = Some(StringValue::new(invalid_value));
 
         let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
 

@@ -32,7 +32,8 @@ where
 
     /// Creates a `StringValue` from a raw string.
     #[must_use]
-    pub fn new(raw: String) -> Self {
+    pub fn new(raw: impl Into<String>) -> Self {
+        let raw = raw.into();
         let value = T::from_str(&raw);
         Self { raw, value }
     }

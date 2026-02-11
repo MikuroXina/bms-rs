@@ -110,7 +110,7 @@ impl JudgeProcessor {
                 .insert(id, ExRankDef { id, judge_level });
         }
         if name.eq_ignore_ascii_case("TOTAL") {
-            let string_value = StringValue::new(args.to_string());
+            let string_value = StringValue::new(args);
             objects.total = Some(string_value);
         }
         Ok(())

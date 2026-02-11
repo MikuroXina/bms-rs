@@ -75,7 +75,7 @@ impl StopProcessor {
         objects: &mut StopObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("STOP") {
-            let string_value = StringValue::new(args.to_string());
+            let string_value = StringValue::new(args);
 
             let stop_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 

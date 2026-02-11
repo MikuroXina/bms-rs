@@ -76,7 +76,7 @@ impl SpeedProcessor {
         objects: &mut SpeedObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SPEED") {
-            let string_value: StringValue<PositiveF64> = StringValue::new(args.to_string());
+            let string_value: StringValue<PositiveF64> = StringValue::new(args);
             let speed_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = objects.speed_defs.get_mut(&speed_obj_id) {

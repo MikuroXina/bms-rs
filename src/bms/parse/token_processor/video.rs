@@ -82,7 +82,7 @@ impl VideoProcessor {
             video.video_file = Some(Path::new(args).into());
         }
         if name.eq_ignore_ascii_case("VIDEOF/S") {
-            let string_value = StringValue::new(args.to_string());
+            let string_value = StringValue::new(args);
             video.video_fs = Some(string_value);
         }
         if name.eq_ignore_ascii_case("VIDEOCOLORS") {
@@ -92,11 +92,11 @@ impl VideoProcessor {
             video.video_colors = Some(colors);
         }
         if name.eq_ignore_ascii_case("VIDEODLY") {
-            let string_value = StringValue::new(args.to_string());
+            let string_value = StringValue::new(args);
             video.video_dly = Some(string_value);
         }
         if let Some(id) = name.strip_prefix_ignore_case("SEEK") {
-            let string_value = StringValue::new(args.to_string());
+            let string_value = StringValue::new(args);
             let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = video.seek_defs.get_mut(&id) {
