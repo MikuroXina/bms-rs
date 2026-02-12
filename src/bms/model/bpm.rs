@@ -12,7 +12,7 @@ use crate::bms::{
 
 use crate::chart_process::processor::DEFAULT_BPM;
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// This aggregate manages definition and events of BPM change on playing.
 pub struct BpmObjects {

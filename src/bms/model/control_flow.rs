@@ -13,7 +13,7 @@ use crate::bms::prelude::*;
 use crate::bms::rng::Rng;
 
 /// Indicates whether the random block generates a value (`#RANDOM`) or uses a set value (`#SETRANDOM`).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowValue {
     /// Use a fixed value (emits `#SETRANDOM <value>`).
@@ -23,7 +23,7 @@ pub enum ControlFlowValue {
 }
 
 /// A branch in a randomized block.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RandomizedBranch {
     /// The condition value for this branch (e.g. `1` for `#IF 1` or `#CASE 1`).
@@ -63,7 +63,7 @@ impl RandomizedBranch {
 }
 
 /// A collection of randomized branches, representing a `#RANDOM` or `#SWITCH` block.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// Randomized objects container for storing data associated with `#RANDOM`, `#SWITCH`, `#ENDRANDOM`, and `#ENDSWITCH`.
 pub struct RandomizedObjects {

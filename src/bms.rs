@@ -278,7 +278,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
 }
 
 /// Output of parsing a BMS file.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[must_use]
 pub struct BmsOutput {

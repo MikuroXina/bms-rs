@@ -127,7 +127,7 @@ impl ToAriadne for ParseWarningWithRange {
 }
 
 /// Bms Parse Output
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[must_use]
 pub struct ParseOutput {

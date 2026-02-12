@@ -85,11 +85,8 @@ where
     }
 }
 
-// Implement Eq manually
-impl<T: FromStr + PartialEq> Eq for StringValue<T> where
-    ParseError<T>: Debug + Clone + PartialEq + Eq
-{
-}
+// Implement Eq manually - only when T implements Eq
+impl<T: FromStr + Eq> Eq for StringValue<T> where ParseError<T>: Debug + Clone + PartialEq + Eq {}
 
 impl<T> AsRef<Result<T, ParseError<T>>> for StringValue<T>
 where

@@ -42,7 +42,7 @@ use self::{
 use self::{option::OptionObjects, resources::Resources};
 
 /// A score data aggregate of BMS format.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms {
     /// Manager of BGA (Background Animation) and BGI (Background Image) definitions and events.
