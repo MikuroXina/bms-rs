@@ -103,8 +103,8 @@ impl VideoProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::SeekEvent {
                         id,
-                        older: older.value(),
-                        newer: string_value.value(),
+                        older,
+                        newer: &string_value,
                     })
                     .apply_def(older, string_value, id)?;
             } else {

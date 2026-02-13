@@ -83,8 +83,8 @@ impl SpeedProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::SpeedFactorChange {
                         id: speed_obj_id,
-                        older: older.value(),
-                        newer: string_value.value(),
+                        older,
+                        newer: &string_value,
                     })
                     .apply_def(older, string_value, speed_obj_id)?;
             } else {

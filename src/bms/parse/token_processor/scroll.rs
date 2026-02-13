@@ -81,8 +81,8 @@ impl ScrollProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::ScrollingFactorChange {
                         id: scroll_obj_id,
-                        older: older.value(),
-                        newer: string_value.value(),
+                        older,
+                        newer: &string_value,
                     })
                     .apply_def(older, string_value, scroll_obj_id)?;
             } else {

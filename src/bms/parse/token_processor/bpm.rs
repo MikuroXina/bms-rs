@@ -91,8 +91,8 @@ impl BpmProcessor {
                 prompter
                     .handle_def_duplication(DefDuplication::BpmChange {
                         id: bpm_obj_id,
-                        older: older.value(),
-                        newer: string_value.value(),
+                        older,
+                        newer: &string_value,
                     })
                     .apply_def(older, string_value, bpm_obj_id)?;
             } else {
