@@ -21,8 +21,8 @@ use macroquad::prelude::*;
 use rayon::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
-/// Default BPM value (120.0)
-const DEFAULT_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
+/// Default BPM value
+const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
 
 fn window_conf() -> Conf {
     Conf {
@@ -214,7 +214,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
             // First generate base BPM from BMS
             let base_bpm = StartBpmGenerator
                 .generate(&bms)
-                .unwrap_or(BaseBpm::new(DEFAULT_BPM_120));
+                .unwrap_or(BaseBpm::new(DEFAULT_BPM));
 
             // Use KeyLayoutBeat mapper (supports 7+1k)
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
@@ -231,7 +231,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
                 // First generate base BPM from BMSON
                 let base_bpm = StartBpmGenerator
                     .generate(&bmson)
-                    .unwrap_or(BaseBpm::new(DEFAULT_BPM_120));
+                    .unwrap_or(BaseBpm::new(DEFAULT_BPM));
 
                 let chart = BmsonProcessor::parse(&bmson);
                 (chart, base_bpm)
