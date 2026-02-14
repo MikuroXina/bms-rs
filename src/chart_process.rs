@@ -362,6 +362,12 @@ impl AsRef<PositiveF64> for BaseBpm {
     }
 }
 
+impl Default for BaseBpm {
+    fn default() -> Self {
+        Self(PositiveF64::new_const(120.0))
+    }
+}
+
 /// Timeline event and position wrapper type.
 ///
 /// Represents an event in chart playback and its position on the timeline.
