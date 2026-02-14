@@ -6,7 +6,7 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
 use crate::bms::command::channel::NoteKind;
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
 
@@ -167,12 +167,12 @@ impl ChartEventIdGenerator {
 #[derive(Debug, Clone)]
 pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
-    by_y: BTreeMap<NonNegativeF64, Range<usize>>,
+    by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
     /// Maps long note start position to event index.
-    visible_ln_by_start: BTreeMap<NonNegativeF64, usize>,
+    visible_ln_by_start: BTreeMap<YCoordinate, usize>,
     /// Maps long note end position to event index.
-    visible_ln_by_end: BTreeMap<NonNegativeF64, usize>,
+    visible_ln_by_end: BTreeMap<YCoordinate, usize>,
 }
 
 impl AllEventsIndex {
@@ -187,9 +187,9 @@ impl AllEventsIndex {
     /// # Returns
     /// A new `AllEventsIndex` with optimized lookup structures
     #[must_use]
-    pub fn new(map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>>) -> Self {
+    pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
         let mut events: Vec<PlayheadEvent> = Vec::new();
-        let mut by_y: BTreeMap<NonNegativeF64, Range<usize>> = BTreeMap::new();
+        let mut by_y: BTreeMap<YCoordinate, Range<usize>> = BTreeMap::new();
 
         for (y_coord, y_events) in map {
             let start = events.len();
@@ -217,8 +217,8 @@ impl AllEventsIndex {
         }
 
         // Build precomputed indices for long notes.
-        let mut visible_ln_by_start: BTreeMap<NonNegativeF64, usize> = BTreeMap::new();
-        let mut visible_ln_by_end: BTreeMap<NonNegativeF64, usize> = BTreeMap::new();
+        let mut visible_ln_by_start: BTreeMap<YCoordinate, usize> = BTreeMap::new();
+        let mut visible_ln_by_end: BTreeMap<YCoordinate, usize> = BTreeMap::new();
 
         for (idx, ev) in events.iter().enumerate() {
             if let ChartEvent::Note {
@@ -227,10 +227,13 @@ impl AllEventsIndex {
                 ..
             } = ev.event()
             {
-                let start_y = ev.position();
-                let end_y = (*start_y + *length).expect("end_y should be non-negative");
+                let start_y = *ev.position();
+                let end_y = YCoordinate::new(
+                    NonNegativeF64::new(start_y.as_f64() + length.as_f64())
+                        .expect("end_y should be non-negative"),
+                );
 
-                visible_ln_by_start.insert(*start_y, idx);
+                visible_ln_by_start.insert(start_y, idx);
                 visible_ln_by_end.insert(end_y, idx);
             }
         }
@@ -258,7 +261,7 @@ impl AllEventsIndex {
     /// # Returns
     /// A map from Y coordinates to ranges in the events vector
     #[must_use]
-    pub const fn as_by_y(&self) -> &BTreeMap<NonNegativeF64, Range<usize>> {
+    pub const fn as_by_y(&self) -> &BTreeMap<YCoordinate, Range<usize>> {
         &self.by_y
     }
 
@@ -295,16 +298,18 @@ impl AllEventsIndex {
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
-        R: RangeBounds<NonNegativeF64> + Clone,
+        R: RangeBounds<YCoordinate> + Clone,
     {
         let view_start = match range.start_bound() {
             Bound::Included(start) | Bound::Excluded(start) => *start,
-            Bound::Unbounded => NonNegativeF64::ZERO,
+            Bound::Unbounded => YCoordinate::ZERO,
         };
 
         let view_end = match range.end_bound() {
             Bound::Included(end) | Bound::Excluded(end) => *end,
-            Bound::Unbounded => NonNegativeF64::new(f64::MAX).expect("MAX should be non-negative"),
+            Bound::Unbounded => {
+                YCoordinate::new(NonNegativeF64::new(f64::MAX).expect("MAX should be non-negative"))
+            }
         };
 
         let start_inclusive = matches!(range.start_bound(), Bound::Included(_));
@@ -524,7 +529,7 @@ pub struct PlayableChart {
     /// Event index (by Y coordinate and time).
     pub(crate) events: AllEventsIndex,
     /// Flow event mapping (affects playback speed).
-    pub(crate) flow_events: BTreeMap<NonNegativeF64, Vec<FlowEvent>>,
+    pub(crate) flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
     /// Initial BPM.
     pub(crate) init_bpm: PositiveF64,
     /// Initial Speed (BMS-specific, BMSON defaults to 1.0).
@@ -546,7 +551,7 @@ impl PlayableChart {
 
     /// Get flow event mapping.
     #[must_use]
-    pub const fn flow_events(&self) -> &BTreeMap<NonNegativeF64, Vec<FlowEvent>> {
+    pub const fn flow_events(&self) -> &BTreeMap<YCoordinate, Vec<FlowEvent>> {
         &self.flow_events
     }
 
@@ -588,7 +593,7 @@ impl PlayableChart {
     pub(crate) const fn from_parts(
         resources: ChartResources,
         events: AllEventsIndex,
-        flow_events: BTreeMap<NonNegativeF64, Vec<FlowEvent>>,
+        flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
         init_bpm: PositiveF64,
         init_speed: PositiveF64,
     ) -> Self {
@@ -609,28 +614,36 @@ mod tests {
     use super::AllEventsIndex;
     use super::ChartEventId;
     use crate::bms::command::channel::{Key, NoteKind, PlayerSide};
-    use crate::chart_process::{ChartEvent, PlayheadEvent, TimeSpan};
+    use crate::chart_process::{ChartEvent, PlayheadEvent, TimeSpan, YCoordinate};
     use strict_num_extended::NonNegativeF64;
 
     // Test constants
 
+    /// Test length constant (3.0)
+    const TEST_LENGTH_3: NonNegativeF64 = NonNegativeF64::new_const(3.0);
+    /// Test length constant (5.0)
+    const TEST_LENGTH_5: NonNegativeF64 = NonNegativeF64::new_const(5.0);
+    /// Test length constant (10.0)
+    const TEST_LENGTH_10: NonNegativeF64 = NonNegativeF64::new_const(10.0);
+    /// Test length constant (20.0)
+    const TEST_LENGTH_20: NonNegativeF64 = NonNegativeF64::new_const(20.0);
     /// Test Y constant (3.0)
-    const TEST_Y_3: NonNegativeF64 = NonNegativeF64::new_const(3.0);
+    const TEST_Y_3: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(3.0));
     /// Test Y constant (5.0)
-    const TEST_Y_5: NonNegativeF64 = NonNegativeF64::new_const(5.0);
+    const TEST_Y_5: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(5.0));
     /// Test Y constant (6.0)
-    const TEST_Y_6: NonNegativeF64 = NonNegativeF64::new_const(6.0);
+    const TEST_Y_6: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(6.0));
     /// Test Y constant (7.0)
-    const TEST_Y_7: NonNegativeF64 = NonNegativeF64::new_const(7.0);
+    const TEST_Y_7: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(7.0));
     /// Test Y constant (10.0)
-    const TEST_Y_10: NonNegativeF64 = NonNegativeF64::new_const(10.0);
+    const TEST_Y_10: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(10.0));
     /// Test Y constant (15.0)
-    const TEST_Y_15: NonNegativeF64 = NonNegativeF64::new_const(15.0);
+    const TEST_Y_15: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(15.0));
     /// Test Y constant (20.0)
-    const TEST_Y_20: NonNegativeF64 = NonNegativeF64::new_const(20.0);
+    const TEST_Y_20: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(20.0));
 
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
-        let y_coord = NonNegativeF64::new(y).expect("y should be non-negative");
+        let y_coord = YCoordinate::new(NonNegativeF64::new(y).expect("y should be non-negative"));
         PlayheadEvent::new(
             ChartEventId::new(id),
             y_coord,
@@ -641,10 +654,10 @@ mod tests {
 
     #[test]
     fn events_in_y_range_uses_btreemap_order_and_preserves_group_order() {
-        let y0 = NonNegativeF64::ZERO;
-        let y1 = NonNegativeF64::ONE;
+        let y0 = YCoordinate::ZERO;
+        let y1 = YCoordinate::ONE;
 
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
             y0,
             vec![
@@ -667,12 +680,12 @@ mod tests {
 
     #[test]
     fn events_in_time_range_respects_bounds_and_orders_within_same_time() {
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::ZERO,
+            YCoordinate::ZERO,
             vec![mk_event(2, 0.0, 1), mk_event(1, 0.0, 1)],
         );
-        map.insert(NonNegativeF64::ONE, vec![mk_event(3, 1.0, 2)]);
+        map.insert(YCoordinate::ONE, vec![mk_event(3, 1.0, 2)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -688,9 +701,9 @@ mod tests {
     fn events_in_time_range_swaps_reversed_bounds() {
         use std::ops::Bound::{Included, Unbounded};
 
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
-        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 1)]);
-        map.insert(NonNegativeF64::ONE, vec![mk_event(2, 1.0, 2)]);
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::ZERO, vec![mk_event(1, 0.0, 1)]);
+        map.insert(YCoordinate::ONE, vec![mk_event(2, 1.0, 2)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -711,9 +724,9 @@ mod tests {
 
     #[test]
     fn events_in_time_range_offset_from_returns_empty_when_end_is_negative() {
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
-        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
-        map.insert(NonNegativeF64::ONE, vec![mk_event(2, 1.0, 1)]);
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::ZERO, vec![mk_event(1, 0.0, 0)]);
+        map.insert(YCoordinate::ONE, vec![mk_event(2, 1.0, 1)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -731,8 +744,8 @@ mod tests {
 
     #[test]
     fn events_in_time_range_offset_from_excludes_zero_when_end_is_excluded() {
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
-        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::ZERO, vec![mk_event(1, 0.0, 0)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -747,9 +760,9 @@ mod tests {
 
     #[test]
     fn events_in_time_range_offset_from_clamps_negative_start_to_zero() {
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
-        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
-        map.insert(NonNegativeF64::ONE, vec![mk_event(2, 1.0, 1)]);
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::ZERO, vec![mk_event(1, 0.0, 0)]);
+        map.insert(YCoordinate::ONE, vec![mk_event(2, 1.0, 1)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -766,8 +779,10 @@ mod tests {
 
     #[test]
     fn events_in_y_range_includes_long_notes_intersecting_view() {
+        use strict_num_extended::NonNegativeF64;
+
         // Test case 1: LN start and end within view
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
             TEST_Y_5,
             vec![PlayheadEvent::new(
@@ -778,7 +793,7 @@ mod tests {
                     key: Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(TEST_Y_3), // ends at 8.0
+                    length: Some(NonNegativeF64::new_const(3.0)), // ends at 8.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -791,7 +806,7 @@ mod tests {
         // LN should be included (start=5.0, end=8.0, both within range)
         assert!(
             idx.events_in_y_range((
-                std::ops::Bound::Included(NonNegativeF64::ZERO),
+                std::ops::Bound::Included(YCoordinate::ZERO),
                 std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
@@ -803,7 +818,7 @@ mod tests {
     #[test]
     fn events_in_y_range_includes_ln_starting_before_view() {
         // Test case 2: LN starts before view, ends within view
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
             TEST_Y_5,
             vec![PlayheadEvent::new(
@@ -814,7 +829,7 @@ mod tests {
                     key: Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(TEST_Y_3), // ends at 8.0
+                    length: Some(TEST_LENGTH_3), // ends at 8.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -838,7 +853,7 @@ mod tests {
     #[test]
     fn events_in_y_range_includes_ln_ending_after_view() {
         // Test case 3: LN starts within view, ends after view
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
             TEST_Y_5,
             vec![PlayheadEvent::new(
@@ -849,7 +864,7 @@ mod tests {
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(TEST_Y_10), // ends at 15.0
+                    length: Some(TEST_LENGTH_10), // ends at 15.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -861,7 +876,7 @@ mod tests {
         // LN should be included (intersects with view)
         assert!(
             idx.events_in_y_range((
-                std::ops::Bound::Included(NonNegativeF64::ZERO),
+                std::ops::Bound::Included(YCoordinate::ZERO),
                 std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
@@ -873,18 +888,18 @@ mod tests {
     #[test]
     fn events_in_y_range_includes_ln_fully_covering_view() {
         // Test case 4: LN starts before and ends after view (fully covers)
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::ZERO,
+            YCoordinate::ZERO,
             vec![PlayheadEvent::new(
                 ChartEventId::new(1),
-                NonNegativeF64::ZERO,
+                YCoordinate::ZERO,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(TEST_Y_20), // ends at 20.0
+                    length: Some(TEST_LENGTH_20), // ends at 20.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -908,18 +923,18 @@ mod tests {
     #[test]
     fn events_in_y_range_excludes_ln_before_view() {
         // Test case 5: LN completely before view
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
-            NonNegativeF64::ZERO,
+            YCoordinate::ZERO,
             vec![PlayheadEvent::new(
                 ChartEventId::new(1),
-                NonNegativeF64::ZERO,
+                YCoordinate::ZERO,
                 ChartEvent::Note {
                     side: PlayerSide::Player1,
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(TEST_Y_3), // ends at 3.0
+                    length: Some(TEST_LENGTH_3), // ends at 3.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -948,8 +963,8 @@ mod tests {
     #[test]
     fn events_in_y_range_excludes_ln_after_view() {
         // Test case 6: LN completely after view
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
-        map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::ZERO, vec![mk_event(1, 0.0, 0)]);
         map.insert(
             TEST_Y_20,
             vec![PlayheadEvent::new(
@@ -960,7 +975,7 @@ mod tests {
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(TEST_Y_5), // ends at 25.0
+                    length: Some(TEST_LENGTH_5), // ends at 25.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -972,7 +987,7 @@ mod tests {
         // Query range [0.0, 10.0]
         let got_ids: Vec<usize> = idx
             .events_in_y_range((
-                std::ops::Bound::Included(NonNegativeF64::ZERO),
+                std::ops::Bound::Included(YCoordinate::ZERO),
                 std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
@@ -988,7 +1003,7 @@ mod tests {
     #[test]
     fn events_in_y_range_prevents_duplicate_long_notes() {
         // Test that LN is not added twice when both start and end in range
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
             TEST_Y_5,
             vec![PlayheadEvent::new(
@@ -999,7 +1014,7 @@ mod tests {
                     key: crate::bms::prelude::Key::Key(1),
                     kind: NoteKind::Long,
                     wav_id: None,
-                    length: Some(TEST_Y_3), // ends at 8.0
+                    length: Some(TEST_LENGTH_3), // ends at 8.0
                     continue_play: None,
                 },
                 TimeSpan::ZERO,
@@ -1011,7 +1026,7 @@ mod tests {
         // Query range [0.0, 10.0] (both start and end within range)
         let got_ids: Vec<usize> = idx
             .events_in_y_range((
-                std::ops::Bound::Included(NonNegativeF64::ZERO),
+                std::ops::Bound::Included(YCoordinate::ZERO),
                 std::ops::Bound::Included(TEST_Y_10),
             ))
             .into_iter()
@@ -1027,7 +1042,7 @@ mod tests {
     fn events_in_y_range_respects_excluded_start_bound() {
         // Test that (start, end] correctly excludes start for normal notes
         // For long notes, if they intersect with view (even if start is excluded), they are included
-        let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
             TEST_Y_5,
             vec![mk_event(1, 5.0, 0)], // Normal note at 5.0

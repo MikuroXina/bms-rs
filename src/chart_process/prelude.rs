@@ -13,9 +13,10 @@ pub use super::processor::{
     AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, PlayableChart,
     WavId,
 };
+pub use super::{BaseBpm, YCoordinate};
 pub use gametime::TimeSpan;
 
-// Re-export NonNegativeF64 for use in place of YCoordinate
+// Re-export NonNegativeF64 for backward compatibility
 pub use strict_num_extended::NonNegativeF64;
 
 // Re-export event types

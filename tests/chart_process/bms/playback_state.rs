@@ -4,6 +4,7 @@ use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
+use bms_rs::chart_process::BaseBpm;
 use bms_rs::chart_process::prelude::*;
 
 use super::{MICROSECOND_EPSILON, assert_time_close, parse_bms_no_warnings};
@@ -17,8 +18,10 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
-    let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or(TEST_BPM_120);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or(BaseBpm::new(TEST_BPM_120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
@@ -62,8 +65,10 @@ fn test_bms_restart_resets_scroll_to_one() {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
-    let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or(TEST_BPM_120);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or(BaseBpm::new(TEST_BPM_120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
@@ -76,8 +81,10 @@ fn test_bms_restart_resets_scroll_to_one() {
     let config2 = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms2 = parse_bms_no_warnings(bms_source, config2);
 
-    let base_bpm2 = StartBpmGenerator.generate(&bms2).unwrap_or(TEST_BPM_120);
-    let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
+    let base_bpm2 = StartBpmGenerator
+        .generate(&bms2)
+        .unwrap_or(BaseBpm::new(TEST_BPM_120));
+    let visible_range_per_bpm2 = VisibleRangePerBpm::new(base_bpm2.value(), reaction_time);
     let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2).expect("failed to parse chart");
     let start_time2 = TimeStamp::now();
     let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
@@ -99,8 +106,10 @@ fn test_visible_events_duration_matches_reaction_time() {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
-    let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or(TEST_BPM_120);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or(BaseBpm::new(TEST_BPM_120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
@@ -111,8 +120,8 @@ fn test_visible_events_duration_matches_reaction_time() {
     assert_eq!(*initial_state.current_speed(), PositiveF64::ONE);
     assert_eq!(*initial_state.playback_ratio(), FinF64::ONE);
 
-    let test_base_bpm = TEST_BPM_120;
-    let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
+    let test_base_bpm = BaseBpm::new(TEST_BPM_120);
+    let visible_range = VisibleRangePerBpm::new(test_base_bpm.value(), reaction_time);
     let state = processor.playback_state();
     let visible_window_y = visible_range.window_y(
         state.current_bpm(),

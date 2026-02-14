@@ -10,7 +10,7 @@ use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::chart_process::processor::AllEventsIndex;
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
@@ -35,7 +35,7 @@ pub struct ChartPlayer {
     pub(crate) all_events: AllEventsIndex,
 
     // Flow event indexing
-    pub(crate) flow_events_by_y: BTreeMap<NonNegativeF64, Vec<FlowEvent>>,
+    pub(crate) flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
 
     // Playback state (always initialized after construction)
     playback_state: PlaybackState,
@@ -97,7 +97,7 @@ impl ChartPlayer {
                 init_speed,
                 FinF64::ONE,
                 FinF64::ONE,
-                NonNegativeF64::ZERO,
+                YCoordinate::ZERO,
             ),
         }
     }
@@ -132,7 +132,7 @@ impl ChartPlayer {
 
         // Calculate preload range: current y + visible y range
         let visible_y_length = self.visible_window_y(&speed);
-        let preload_end_y = (cur_y + visible_y_length).expect("preload_end_y should be finite");
+        let preload_end_y = cur_y + visible_y_length;
 
         use std::ops::Bound::{Excluded, Included};
 
@@ -260,7 +260,7 @@ impl ChartPlayer {
         let scroll_factor = &self.playback_state.current_scroll;
 
         let view_start = *current_y;
-        let view_end = (*current_y + visible_window_y).expect("view_end should be non-negative");
+        let view_end = *current_y + visible_window_y;
 
         let visible_events = self
             .all_events
@@ -282,9 +282,10 @@ impl ChartPlayer {
                     ..
                 } = event_with_pos.event()
                 {
-                    let end_y = (event_y.as_f64() + length.as_f64())
-                        .try_into()
-                        .expect("end_y should be non-negative");
+                    let end_y = YCoordinate::new(
+                        NonNegativeF64::new(event_y.as_f64() + length.as_f64())
+                            .expect("end_y should be non-negative"),
+                    );
                     Self::compute_display_ratio(&end_y, current_y, &visible_window_y, scroll_factor)
                 } else {
                     start_display_ratio.clone()
@@ -366,8 +367,8 @@ impl ChartPlayer {
     #[must_use]
     pub fn next_flow_event_after(
         &self,
-        y_from_exclusive: &NonNegativeF64,
-    ) -> Option<(NonNegativeF64, FlowEvent)> {
+        y_from_exclusive: &YCoordinate,
+    ) -> Option<(YCoordinate, FlowEvent)> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
@@ -377,7 +378,7 @@ impl ChartPlayer {
 
     /// Get the next flow event Y position after the given Y (exclusive).
     #[must_use]
-    fn next_flow_event_y_after(&self, y_from_exclusive: NonNegativeF64) -> Option<NonNegativeF64> {
+    fn next_flow_event_y_after(&self, y_from_exclusive: YCoordinate) -> Option<YCoordinate> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
@@ -386,7 +387,7 @@ impl ChartPlayer {
     }
 
     /// Apply all flow events at the given Y position.
-    fn apply_flow_events_at(&mut self, y: NonNegativeF64) {
+    fn apply_flow_events_at(&mut self, y: YCoordinate) {
         // Remove events from the map to take ownership, avoiding borrow conflicts
         if let Some(events) = self.flow_events_by_y.remove(&y) {
             for event in events {
@@ -437,16 +438,20 @@ impl ChartPlayer {
                 // Advance directly to the end
                 let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
                     / NANOS_PER_SECOND as f64;
-                cur_y = NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
-                    .expect("cur_y should be non-negative");
+                cur_y = YCoordinate::new(
+                    NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
+                        .expect("cur_y should be non-negative"),
+                );
                 break;
             }
 
             let Some(event_y) = next_event_y else {
                 let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
                     / NANOS_PER_SECOND as f64;
-                cur_y = NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
-                    .expect("cur_y should be non-negative");
+                cur_y = YCoordinate::new(
+                    NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
+                        .expect("cur_y should be non-negative"),
+                );
                 break;
             };
 
@@ -481,8 +486,10 @@ impl ChartPlayer {
             // Time not enough to reach event, advance and end
             let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
                 / NANOS_PER_SECOND as f64;
-            cur_y = NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
-                .expect("cur_y should be non-negative");
+            cur_y = YCoordinate::new(
+                NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
+                    .expect("cur_y should be non-negative"),
+            );
             break;
         }
 
@@ -493,7 +500,7 @@ impl ChartPlayer {
 
     /// Get visible window length in Y units.
     #[must_use]
-    pub fn visible_window_y(&self, speed: &PositiveF64) -> NonNegativeF64 {
+    pub fn visible_window_y(&self, speed: &PositiveF64) -> YCoordinate {
         self.visible_range_per_bpm.window_y(
             &self.playback_state.current_bpm,
             speed,
@@ -504,7 +511,7 @@ impl ChartPlayer {
     /// Get events in a Y range.
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
-        R: Clone + std::ops::RangeBounds<NonNegativeF64>,
+        R: Clone + std::ops::RangeBounds<YCoordinate>,
     {
         self.all_events.events_in_y_range(range)
     }
@@ -514,8 +521,10 @@ impl ChartPlayer {
         use std::ops::Bound::{Excluded, Included};
 
         let cur_y = self.playback_state.progressed_y;
-        let preload_end_y_coord = NonNegativeF64::new(preload_end_y.as_f64())
-            .expect("preload_end_y should be non-negative");
+        let preload_end_y_coord = YCoordinate::new(
+            NonNegativeF64::new(preload_end_y.as_f64())
+                .expect("preload_end_y should be non-negative"),
+        );
         let new_preloaded_events = self
             .all_events
             .events_in_y_range((Excluded(&cur_y), Included(&preload_end_y_coord)));
@@ -559,12 +568,12 @@ impl ChartPlayer {
     /// Compute display ratio for an event.
     #[must_use]
     pub fn compute_display_ratio(
-        event_y: &NonNegativeF64,
-        current_y: &NonNegativeF64,
-        visible_window_y: &NonNegativeF64,
+        event_y: &YCoordinate,
+        current_y: &YCoordinate,
+        visible_window_y: &YCoordinate,
         scroll_factor: &FinF64,
     ) -> DisplayRatio {
-        let window_value = *visible_window_y;
+        let window_value = *visible_window_y.value();
         if window_value.as_f64() > 0.0 {
             let ratio_value = FinF64::new(
                 (event_y.as_f64() - current_y.as_f64()) / window_value.as_f64()
@@ -595,7 +604,7 @@ pub struct PlaybackState {
     /// Current playback ratio
     pub playback_ratio: FinF64,
     /// Current Y position in chart
-    pub progressed_y: NonNegativeF64,
+    pub progressed_y: YCoordinate,
 }
 
 impl PlaybackState {
@@ -606,7 +615,7 @@ impl PlaybackState {
         current_speed: PositiveF64,
         current_scroll: FinF64,
         playback_ratio: FinF64,
-        progressed_y: NonNegativeF64,
+        progressed_y: YCoordinate,
     ) -> Self {
         Self {
             current_bpm,
@@ -643,7 +652,7 @@ impl PlaybackState {
 
     /// Get current Y position.
     #[must_use]
-    pub const fn progressed_y(&self) -> &NonNegativeF64 {
+    pub const fn progressed_y(&self) -> &YCoordinate {
         &self.progressed_y
     }
 }
@@ -709,12 +718,12 @@ impl VisibleRangePerBpm {
         current_bpm: &PositiveF64,
         current_speed: &PositiveF64,
         playback_ratio: &FinF64,
-    ) -> NonNegativeF64 {
+    ) -> YCoordinate {
         let speed_factor = FinF64::new(current_speed.as_f64() * playback_ratio.as_f64())
             .expect("speed_factor should be finite");
 
         if current_bpm.as_f64() == 0.0 {
-            return NonNegativeF64::ZERO;
+            return YCoordinate::ZERO;
         }
 
         // Goal: time = reaction_time * base_bpm / current_bpm
@@ -730,7 +739,9 @@ impl VisibleRangePerBpm {
                 / current_bpm.as_f64(),
         )
         .expect("adjusted should be non-negative");
-        NonNegativeF64::new(adjusted.as_f64()).expect("adjusted should be non-negative")
+        YCoordinate::new(
+            NonNegativeF64::new(adjusted.as_f64()).expect("adjusted should be non-negative"),
+        )
     }
 
     /// Calculate reaction time from visible range per BPM.
@@ -832,6 +843,7 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
+    use crate::chart_process::YCoordinate;
     use crate::chart_process::processor::{ChartResources, PlayableChart};
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
@@ -842,13 +854,13 @@ mod tests {
     /// Test scroll factor (1.5)
     const TEST_SCROLL_FACTOR: FinF64 = FinF64::new_const(1.5);
     /// Test Y event value (100.0)
-    const TEST_Y_EVENT: NonNegativeF64 = NonNegativeF64::new_const(100.0);
+    const TEST_Y_EVENT: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(100.0));
     /// Test current Y value (10.0)
-    const TEST_CURRENT_Y: NonNegativeF64 = NonNegativeF64::new_const(10.0);
+    const TEST_CURRENT_Y: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(10.0));
     /// Test event Y value (11.0)
-    const TEST_EVENT_Y: NonNegativeF64 = NonNegativeF64::new_const(11.0);
+    const TEST_EVENT_Y: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(11.0));
     /// Test visible window Y (2.0)
-    const TEST_VISIBLE_WINDOW_Y: NonNegativeF64 = NonNegativeF64::TWO;
+    const TEST_VISIBLE_WINDOW_Y: YCoordinate = YCoordinate::new(NonNegativeF64::TWO);
 
     #[test]
     fn test_velocity_caching() {

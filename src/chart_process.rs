@@ -212,6 +212,156 @@ pub enum ChartEvent {
     BarLine,
 }
 
+/// Y coordinate wrapper type.
+///
+/// Represents a non-negative position on the timeline (measure units).
+/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct YCoordinate(pub NonNegativeF64);
+
+impl YCoordinate {
+    /// Create a new YCoordinate from NonNegativeF64.
+    #[must_use]
+    pub const fn new(value: NonNegativeF64) -> Self {
+        Self(value)
+    }
+
+    /// Get the internal NonNegativeF64 value.
+    #[must_use]
+    pub const fn value(&self) -> &NonNegativeF64 {
+        &self.0
+    }
+
+    /// Convert to f64.
+    #[must_use]
+    pub const fn as_f64(&self) -> f64 {
+        self.0.as_f64()
+    }
+
+    /// Zero value.
+    pub const ZERO: Self = Self(NonNegativeF64::ZERO);
+    /// One value.
+    pub const ONE: Self = Self(NonNegativeF64::ONE);
+}
+
+impl From<NonNegativeF64> for YCoordinate {
+    fn from(value: NonNegativeF64) -> Self {
+        Self(value)
+    }
+}
+
+impl From<YCoordinate> for NonNegativeF64 {
+    fn from(value: YCoordinate) -> Self {
+        value.0
+    }
+}
+
+impl AsRef<NonNegativeF64> for YCoordinate {
+    fn as_ref(&self) -> &NonNegativeF64 {
+        &self.0
+    }
+}
+
+impl std::ops::Add for YCoordinate {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0.add(rhs.0).expect("addition should not overflow"))
+    }
+}
+
+impl std::ops::Add<NonNegativeF64> for YCoordinate {
+    type Output = Self;
+
+    fn add(self, rhs: NonNegativeF64) -> Self::Output {
+        Self(self.0.add(rhs).expect("addition should not overflow"))
+    }
+}
+
+impl std::ops::Sub for YCoordinate {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(
+            NonNegativeF64::new(self.0.as_f64() - rhs.0.as_f64())
+                .expect("subtraction should not underflow"),
+        )
+    }
+}
+
+impl std::ops::Sub<NonNegativeF64> for YCoordinate {
+    type Output = Self;
+
+    fn sub(self, rhs: NonNegativeF64) -> Self::Output {
+        Self(
+            NonNegativeF64::new(self.0.as_f64() - rhs.as_f64())
+                .expect("subtraction should not underflow"),
+        )
+    }
+}
+
+impl std::ops::Mul<FinF64> for YCoordinate {
+    type Output = Self;
+
+    fn mul(self, rhs: FinF64) -> Self::Output {
+        Self(NonNegativeF64::new(self.0.as_f64() * rhs.as_f64()).unwrap_or(self.0))
+    }
+}
+
+impl std::ops::Div<FinF64> for YCoordinate {
+    type Output = Self;
+
+    fn div(self, rhs: FinF64) -> Self::Output {
+        Self(NonNegativeF64::new(self.0.as_f64() / rhs.as_f64()).unwrap_or(self.0))
+    }
+}
+
+/// Base BPM wrapper type.
+///
+/// Represents a positive BPM value used to derive default visible window length.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BaseBpm(pub PositiveF64);
+
+impl BaseBpm {
+    /// Create a new BaseBpm from PositiveF64.
+    #[must_use]
+    pub const fn new(value: PositiveF64) -> Self {
+        Self(value)
+    }
+
+    /// Get the internal PositiveF64 value.
+    #[must_use]
+    pub const fn value(&self) -> &PositiveF64 {
+        &self.0
+    }
+
+    /// Convert to f64.
+    #[must_use]
+    pub const fn as_f64(&self) -> f64 {
+        self.0.as_f64()
+    }
+}
+
+impl From<PositiveF64> for BaseBpm {
+    fn from(value: PositiveF64) -> Self {
+        Self(value)
+    }
+}
+
+impl From<BaseBpm> for PositiveF64 {
+    fn from(value: BaseBpm) -> Self {
+        value.0
+    }
+}
+
+impl AsRef<PositiveF64> for BaseBpm {
+    fn as_ref(&self) -> &PositiveF64 {
+        &self.0
+    }
+}
+
 /// Timeline event and position wrapper type.
 ///
 /// Represents an event in chart playback and its position on the timeline.
@@ -220,7 +370,7 @@ pub struct PlayheadEvent {
     /// Event identifier
     pub id: ChartEventId,
     /// Event position on timeline (y coordinate)
-    pub position: NonNegativeF64,
+    pub position: YCoordinate,
     /// Chart event
     pub event: ChartEvent,
     /// Activate time since chart playback started
@@ -232,7 +382,7 @@ impl PlayheadEvent {
     #[must_use]
     pub const fn new(
         id: ChartEventId,
-        position: NonNegativeF64,
+        position: YCoordinate,
         event: ChartEvent,
         activate_time: TimeSpan,
     ) -> Self {
@@ -252,7 +402,7 @@ impl PlayheadEvent {
 
     /// Get event position
     #[must_use]
-    pub const fn position(&self) -> &NonNegativeF64 {
+    pub const fn position(&self) -> &YCoordinate {
         &self.position
     }
 

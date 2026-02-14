@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use bms_rs::chart_process::BaseBpm;
 use bms_rs::chart_process::prelude::*;
 use bms_rs::{bms::prelude::*, chart_process::PlayheadEvent};
 use clap::Parser;
@@ -54,7 +55,7 @@ async fn main() -> Result<(), String> {
 
     // 4. Calculate VisibleRangePerBpm
     let reaction_time = TimeSpan::from_duration(Duration::from_millis(config.reaction_time_ms));
-    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_range = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
 
     // 5. Preload audio in parallel using rayon
     println!("Loading audio files...");
@@ -187,7 +188,7 @@ struct Config {
 /// # Returns
 ///
 /// Returns parsed `PlayableChart` and base BPM value.
-fn load_chart(path: &Path) -> Result<(PlayableChart, PositiveF64), String> {
+fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
     // Read file content
     // First read as bytes
     let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file: {}", e))?;
@@ -211,7 +212,9 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, PositiveF64), String> {
             let bms = output.bms.map_err(|e| format!("Parse error: {:?}", e))?;
 
             // First generate base BPM from BMS
-            let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or(DEFAULT_BPM_120);
+            let base_bpm = StartBpmGenerator
+                .generate(&bms)
+                .unwrap_or(BaseBpm::new(DEFAULT_BPM_120));
 
             // Use KeyLayoutBeat mapper (supports 7+1k)
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
@@ -228,7 +231,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, PositiveF64), String> {
                 // First generate base BPM from BMSON
                 let base_bpm = StartBpmGenerator
                     .generate(&bmson)
-                    .unwrap_or(DEFAULT_BPM_120);
+                    .unwrap_or(BaseBpm::new(DEFAULT_BPM_120));
 
                 let chart = BmsonProcessor::parse(&bmson);
                 (chart, base_bpm)

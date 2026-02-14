@@ -14,7 +14,7 @@ use crate::bmson::prelude::*;
 use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan};
+use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 use crate::util::StrExtension;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
@@ -34,9 +34,11 @@ impl BmsonProcessor {
             PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
         let pulses_denom = FinF64::new((4 * bmson.info.resolution.get()) as f64)
             .expect("pulses_denom should be finite");
-        let pulses_to_y = |pulses: i64| -> NonNegativeF64 {
-            NonNegativeF64::new(pulses as f64 / pulses_denom.as_f64())
-                .expect("y should be non-negative")
+        let pulses_to_y = |pulses: i64| -> YCoordinate {
+            YCoordinate::new(
+                NonNegativeF64::new(pulses as f64 / pulses_denom.as_f64())
+                    .expect("y should be non-negative"),
+            )
         };
 
         // Preprocessing: assign IDs to all audio and image resources
@@ -90,7 +92,7 @@ impl BmsonProcessor {
         }
 
         // Pre-index flow events by y for fast next_flow_event_after
-        let mut flow_events_by_y: BTreeMap<NonNegativeF64, Vec<FlowEvent>> = BTreeMap::new();
+        let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0 as i64);
             flow_events_by_y.entry(y).or_default().push(FlowEvent::Bpm(
@@ -164,15 +166,16 @@ impl AllEventsIndex {
         } else {
             FinF64::new(1.0 / denom.as_f64()).expect("denom_inv should be finite")
         };
-        let pulses_to_y = |pulses: u64| -> NonNegativeF64 {
+        let pulses_to_y = |pulses: u64| -> YCoordinate {
             let pulses = FinF64::new(pulses as f64).expect("pulses should be finite");
-            (pulses * denom_inv)
+            let y: NonNegativeF64 = (pulses * denom_inv)
                 .expect("pulses * denom_inv should not overflow")
                 .try_into()
-                .expect("y should be non-negative")
+                .expect("y should be non-negative");
+            YCoordinate::new(y)
         };
-        let mut points: BTreeSet<NonNegativeF64> = BTreeSet::new();
-        points.insert(NonNegativeF64::ZERO);
+        let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
+        points.insert(YCoordinate::ZERO);
         for SoundChannel { notes, .. } in &bmson.sound_channels {
             for Note { y, .. } in notes {
                 points.insert(pulses_to_y(y.0));
@@ -211,38 +214,40 @@ impl AllEventsIndex {
                 points.insert(pulses_to_y(bar_line.y.0));
             }
         } else {
-            let max_y = points.iter().cloned().max().unwrap_or(NonNegativeF64::ZERO);
+            let max_y = points.iter().cloned().max().unwrap_or(YCoordinate::ZERO);
             let floor = max_y.as_f64() as i64;
             for i in 0..=floor {
-                points.insert(NonNegativeF64::new(i as f64).expect("i should be non-negative"));
+                points.insert(YCoordinate::new(
+                    NonNegativeF64::new(i as f64).expect("i should be non-negative"),
+                ));
             }
         }
         let init_bpm: PositiveF64 =
             PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
-        let mut bpm_map: BTreeMap<NonNegativeF64, PositiveF64> = BTreeMap::new();
-        bpm_map.insert(NonNegativeF64::ZERO, init_bpm);
+        let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
+        bpm_map.insert(YCoordinate::ZERO, init_bpm);
         for ev in &bmson.bpm_events {
             bpm_map.insert(
                 pulses_to_y(ev.y.0),
                 PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
             );
         }
-        let mut stop_list: Vec<(NonNegativeF64, u64)> = bmson
+        let mut stop_list: Vec<(YCoordinate, u64)> = bmson
             .stop_events
             .iter()
             .map(|st| (pulses_to_y(st.y.0), st.duration))
             .collect();
         stop_list.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut cum_map: BTreeMap<NonNegativeF64, u64> = BTreeMap::new();
+        let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
         let mut total_nanos: u64 = 0;
-        let mut prev = NonNegativeF64::ZERO;
+        let mut prev = YCoordinate::ZERO;
         cum_map.insert(prev, 0);
         let mut cur_bpm = bpm_map
             .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
             .next_back()
             .map(|(_, b)| *b)
             .unwrap_or(init_bpm);
-        let nanos_for_stop = |stop_y: &NonNegativeF64, stop_pulses: u64| {
+        let nanos_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| {
             let bpm_at_stop = bpm_map
                 .range((
                     std::ops::Bound::Unbounded,
@@ -283,20 +288,19 @@ impl AllEventsIndex {
             cum_map.insert(curr, total_nanos);
             prev = curr;
         }
-        let mut events_map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
+        let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let to_time_span =
             |nanos: u64| TimeSpan::from_duration(std::time::Duration::from_nanos(nanos));
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
         for SoundChannel { name, notes } in &bmson.sound_channels {
-            let mut last_restart_y = NonNegativeF64::ZERO;
+            let mut last_restart_y = YCoordinate::ZERO;
             for Note { y, x, l, c, .. } in notes {
                 let y_coord = pulses_to_y(y.0);
                 let wav_id = audio_name_to_id.get(name.as_ref()).copied();
                 if let Some((side, key)) = lane_from_x(bmson.info.mode_hint.as_ref(), *x) {
                     let length = (*l > 0).then(|| {
                         let end_y = pulses_to_y(y.0 + l);
-                        (end_y - y_coord)
-                            .try_into()
+                        NonNegativeF64::new((end_y - y_coord).as_f64())
                             .expect("length should be non-negative")
                     });
                     let kind = if *l > 0 {
@@ -399,11 +403,13 @@ impl AllEventsIndex {
                 .keys()
                 .max()
                 .copied()
-                .unwrap_or(NonNegativeF64::ZERO);
+                .unwrap_or(YCoordinate::ZERO);
             if max_y.as_f64() > 0.0 {
                 let mut current_y = 0.0f64;
                 while current_y <= max_y.as_f64() {
-                    let y_coord = NonNegativeF64::new(current_y).expect("y should be non-negative");
+                    let y_coord = YCoordinate::new(
+                        NonNegativeF64::new(current_y).expect("y should be non-negative"),
+                    );
                     let event = ChartEvent::BarLine;
                     let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);

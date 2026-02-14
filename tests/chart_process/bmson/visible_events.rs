@@ -39,7 +39,7 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
@@ -85,7 +85,7 @@ fn test_visible_events_duration_matches_reaction_time() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
     let processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
@@ -138,7 +138,7 @@ fn test_visible_events_duration_with_playback_ratio() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
@@ -205,7 +205,7 @@ fn test_visible_events_with_boundary_conditions() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
     let _processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);

@@ -40,7 +40,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let processor_start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, processor_start_time);
@@ -57,7 +57,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let base_bpm2 = StartBpmGenerator
         .generate(&bmson2)
         .expect("Failed to generate base BPM in test setup");
-    let visible_range_per_bpm2 = VisibleRangePerBpm::new(&base_bpm2, reaction_time);
+    let visible_range_per_bpm2 = VisibleRangePerBpm::new(base_bpm2.value(), reaction_time);
     let chart2 = BmsonProcessor::parse(&bmson2);
     let start_time2 = TimeStamp::now();
     let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
@@ -102,7 +102,7 @@ fn test_bmson_edge_cases_no_division_by_zero() {
             bmson.info
         );
     };
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
@@ -168,7 +168,7 @@ fn test_very_long_elapsed_time_no_errors() {
             bmson.info
         );
     };
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
