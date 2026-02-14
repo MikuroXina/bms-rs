@@ -10,7 +10,7 @@ use crate::bms::{
     prelude::*,
 };
 
-use crate::chart_process::processor::DEFAULT_BPM;
+const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

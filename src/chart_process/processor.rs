@@ -13,22 +13,6 @@ use strict_num_extended::PositiveF64;
 pub mod bms;
 pub mod bmson;
 
-// Common constants for strict-num types to reduce .expect() usage
-use strict_num_extended::FinF64;
-
-/// Zero value for `FinF64`
-pub const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
-/// One value for `FinF64`  
-pub const ONE_FIN: FinF64 = FinF64::new_const(1.0);
-/// One value for `PositiveF64`
-pub const ONE_POSITIVE: PositiveF64 = PositiveF64::new_const(1.0);
-/// One value for `NonNegativeF64`
-pub const ONE_NON_NEGATIVE: NonNegativeF64 = NonNegativeF64::new_const(1.0);
-/// Default BPM value (120.0)
-pub const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
-/// EPSILON value for `FinF64`
-pub const EPSILON_FIN: FinF64 = FinF64::new_const(f64::EPSILON);
-
 /// WAV audio file ID wrapper type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WavId(pub usize);
@@ -658,7 +642,7 @@ mod tests {
     #[test]
     fn events_in_y_range_uses_btreemap_order_and_preserves_group_order() {
         let y0 = NonNegativeF64::ZERO;
-        let y1 = crate::chart_process::processor::ONE_NON_NEGATIVE;
+        let y1 = NonNegativeF64::ONE;
 
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(
@@ -688,10 +672,7 @@ mod tests {
             NonNegativeF64::ZERO,
             vec![mk_event(2, 0.0, 1), mk_event(1, 0.0, 1)],
         );
-        map.insert(
-            crate::chart_process::processor::ONE_NON_NEGATIVE,
-            vec![mk_event(3, 1.0, 2)],
-        );
+        map.insert(NonNegativeF64::ONE, vec![mk_event(3, 1.0, 2)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -709,10 +690,7 @@ mod tests {
 
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 1)]);
-        map.insert(
-            crate::chart_process::processor::ONE_NON_NEGATIVE,
-            vec![mk_event(2, 1.0, 2)],
-        );
+        map.insert(NonNegativeF64::ONE, vec![mk_event(2, 1.0, 2)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -735,10 +713,7 @@ mod tests {
     fn events_in_time_range_offset_from_returns_empty_when_end_is_negative() {
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
-        map.insert(
-            crate::chart_process::processor::ONE_NON_NEGATIVE,
-            vec![mk_event(2, 1.0, 1)],
-        );
+        map.insert(NonNegativeF64::ONE, vec![mk_event(2, 1.0, 1)]);
 
         let idx = AllEventsIndex::new(map);
 
@@ -774,10 +749,7 @@ mod tests {
     fn events_in_time_range_offset_from_clamps_negative_start_to_zero() {
         let mut map: BTreeMap<NonNegativeF64, Vec<PlayheadEvent>> = BTreeMap::new();
         map.insert(NonNegativeF64::ZERO, vec![mk_event(1, 0.0, 0)]);
-        map.insert(
-            crate::chart_process::processor::ONE_NON_NEGATIVE,
-            vec![mk_event(2, 1.0, 1)],
-        );
+        map.insert(NonNegativeF64::ONE, vec![mk_event(2, 1.0, 1)]);
 
         let idx = AllEventsIndex::new(map);
 

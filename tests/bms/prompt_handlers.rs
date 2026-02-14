@@ -3,6 +3,13 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use std::path::Path;
 
+// Test constants for strict_num_extended types
+const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
+const TEST_BPM_160: PositiveF64 = PositiveF64::new_const(160.0);
+const TEST_SPEED_1_0: PositiveF64 = PositiveF64::ONE;
+const TEST_SPEED_1_5: PositiveF64 = PositiveF64::new_const(1.5);
+const TEST_STOP_0_5: NonNegativeF64 = NonNegativeF64::HALF;
+
 // BMS source with various conflicts
 const SOURCE_WITH_CONFLICTS: &str = r#"
     // BPM definition conflicts
@@ -60,7 +67,7 @@ fn test_always_use_older() {
             .bpm_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::new(120.0).unwrap())
+        Some(TEST_BPM_120)
     );
 
     assert_eq!(
@@ -68,7 +75,7 @@ fn test_always_use_older() {
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::new(1.0).unwrap())
+        Some(FinF64::ONE)
     );
 
     assert_eq!(
@@ -76,7 +83,7 @@ fn test_always_use_older() {
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::new(1.0).unwrap())
+        Some(PositiveF64::ONE)
     );
 
     // Check that older values are used for all other conflicts
@@ -110,7 +117,7 @@ fn test_always_use_older() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01) - check the BPM value
-    assert_eq!(bpm_change_0.bpm, PositiveF64::new(120.0).unwrap());
+    assert_eq!(bpm_change_0.bpm, TEST_BPM_120);
 }
 
 /// Test `AlwaysUseNewer` behavior with various conflict types
@@ -135,7 +142,7 @@ fn test_always_use_newer() {
             .bpm_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::new(120.0).unwrap())
+        Some(TEST_BPM_120)
     );
 
     assert_eq!(
@@ -143,7 +150,7 @@ fn test_always_use_newer() {
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(NonNegativeF64::new(1.0).unwrap())
+        Some(NonNegativeF64::ONE)
     );
 
     assert_eq!(
@@ -151,7 +158,7 @@ fn test_always_use_newer() {
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::new(2.0).unwrap())
+        Some(FinF64::TWO)
     );
 
     assert_eq!(
@@ -159,7 +166,7 @@ fn test_always_use_newer() {
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::new(1.5).unwrap())
+        Some(TEST_SPEED_1_5)
     );
 
     // Check that newer values are used for all other conflicts
@@ -193,7 +200,7 @@ fn test_always_use_newer() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
-    assert_eq!(bpm_change_0.bpm, PositiveF64::new(160.0).unwrap());
+    assert_eq!(bpm_change_0.bpm, TEST_BPM_160);
 }
 
 /// Test `AlwaysWarnAndUseOlder` behavior with various conflict types
@@ -224,7 +231,7 @@ fn test_always_warn_and_use_older() {
             .bpm_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::new(120.0).unwrap())
+        Some(TEST_BPM_120)
     );
 
     assert_eq!(
@@ -232,7 +239,7 @@ fn test_always_warn_and_use_older() {
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(NonNegativeF64::new(0.5).unwrap())
+        Some(TEST_STOP_0_5)
     );
 
     assert_eq!(
@@ -240,7 +247,7 @@ fn test_always_warn_and_use_older() {
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::new(1.0).unwrap())
+        Some(FinF64::ONE)
     );
 
     assert_eq!(
@@ -248,7 +255,7 @@ fn test_always_warn_and_use_older() {
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::new(1.0).unwrap())
+        Some(TEST_SPEED_1_0)
     );
 
     // Check that older values are used for all other conflicts
@@ -282,7 +289,7 @@ fn test_always_warn_and_use_older() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01)
-    assert_eq!(bpm_change_0.bpm, PositiveF64::new(120.0).unwrap());
+    assert_eq!(bpm_change_0.bpm, TEST_BPM_120);
 }
 
 /// Test `AlwaysWarnAndUseNewer` behavior with various conflict types
@@ -313,7 +320,7 @@ fn test_always_warn_and_use_newer() {
             .bpm_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::new(120.0).unwrap())
+        Some(TEST_BPM_120)
     );
 
     assert_eq!(
@@ -321,7 +328,7 @@ fn test_always_warn_and_use_newer() {
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(NonNegativeF64::new(1.0).unwrap())
+        Some(NonNegativeF64::ONE)
     );
 
     assert_eq!(
@@ -329,7 +336,7 @@ fn test_always_warn_and_use_newer() {
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::new(2.0).unwrap())
+        Some(FinF64::TWO)
     );
 
     assert_eq!(
@@ -337,7 +344,31 @@ fn test_always_warn_and_use_newer() {
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::new(1.5).unwrap())
+        Some(TEST_SPEED_1_5)
+    );
+
+    assert_eq!(
+        bms.stop
+            .stop_defs
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(NonNegativeF64::ONE)
+    );
+
+    assert_eq!(
+        bms.scroll
+            .scroll_defs
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::TWO)
+    );
+
+    assert_eq!(
+        bms.speed
+            .speed_defs
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(TEST_SPEED_1_5)
     );
 
     // Check that newer values are used for all other conflicts
@@ -371,5 +402,5 @@ fn test_always_warn_and_use_newer() {
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
-    assert_eq!(bpm_change_0.bpm, PositiveF64::new(160.0).unwrap());
+    assert_eq!(bpm_change_0.bpm, TEST_BPM_160);
 }

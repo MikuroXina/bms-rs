@@ -9,7 +9,7 @@ use std::time::Duration;
 use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
-use crate::chart_process::processor::{AllEventsIndex, EPSILON_FIN, ONE_FIN, ZERO_FIN};
+use crate::chart_process::processor::AllEventsIndex;
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
@@ -86,7 +86,7 @@ impl ChartPlayer {
             started_at: start_time,
             last_poll_at: start_time,
             visible_range_per_bpm,
-            visibility_range: (Bound::Included(ZERO_FIN), Bound::Included(ONE_FIN)),
+            visibility_range: (Bound::Included(FinF64::ZERO), Bound::Included(FinF64::ONE)),
             cached_velocity: None,
             velocity_dirty: true,
             preloaded_events: Vec::new(),
@@ -95,8 +95,8 @@ impl ChartPlayer {
             playback_state: PlaybackState::new(
                 init_bpm,
                 init_speed,
-                ONE_FIN,
-                ONE_FIN,
+                FinF64::ONE,
+                FinF64::ONE,
                 NonNegativeF64::ZERO,
             ),
         }
@@ -347,7 +347,7 @@ impl ChartPlayer {
         let playback_ratio = self.playback_state.playback_ratio;
 
         if current_bpm.as_f64() <= 0.0 {
-            EPSILON_FIN
+            FinF64::new(f64::EPSILON).expect("EPSILON should be finite")
         } else {
             let denom = 240.0f64;
             let base = current_bpm / denom;
@@ -670,9 +670,9 @@ impl VisibleRangePerBpm {
     pub fn new(base_bpm: &PositiveF64, reaction_time: TimeSpan) -> Self {
         if base_bpm.as_f64() == 0.0 {
             Self {
-                value: ZERO_FIN,
-                base_bpm: ZERO_FIN,
-                reaction_time_seconds: ZERO_FIN,
+                value: FinF64::ZERO,
+                base_bpm: FinF64::ZERO,
+                reaction_time_seconds: FinF64::ZERO,
             }
         } else {
             let reaction_time_seconds =
@@ -748,7 +748,7 @@ impl VisibleRangePerBpm {
 
 impl From<FinF64> for VisibleRangePerBpm {
     fn from(value: FinF64) -> Self {
-        let base_bpm = ONE_FIN;
+        let base_bpm = FinF64::ONE;
         let reaction_time_seconds = (value / 240.0).expect("reaction_time should be finite");
         Self {
             value,
@@ -799,13 +799,13 @@ impl DisplayRatio {
     /// Create a `DisplayRatio` representing the judgment line (value 0)
     #[must_use]
     pub const fn at_judgment_line() -> Self {
-        Self(ZERO_FIN)
+        Self(FinF64::ZERO)
     }
 
     /// Create a `DisplayRatio` representing the position where note starts to appear (value 1)
     #[must_use]
     pub const fn at_appearance() -> Self {
-        Self(ONE_FIN)
+        Self(FinF64::ONE)
     }
 }
 
@@ -832,12 +832,12 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart_process::processor::{
-        ChartResources, DEFAULT_BPM, ONE_POSITIVE, PlayableChart,
-    };
+    use crate::chart_process::processor::{ChartResources, PlayableChart};
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
-    /// Default test BPM value (180.0)
+    /// Default test BPM value (120.0) - used as initial BPM
+    const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
+    /// Default test BPM value (180.0) - used for BPM change events
     const TEST_BPM: PositiveF64 = PositiveF64::new_const(180.0);
     /// Test scroll factor (1.5)
     const TEST_SCROLL_FACTOR: FinF64 = FinF64::new_const(1.5);
@@ -848,7 +848,7 @@ mod tests {
     /// Test event Y value (11.0)
     const TEST_EVENT_Y: NonNegativeF64 = NonNegativeF64::new_const(11.0);
     /// Test visible window Y (2.0)
-    const TEST_VISIBLE_WINDOW_Y: NonNegativeF64 = NonNegativeF64::new_const(2.0);
+    const TEST_VISIBLE_WINDOW_Y: NonNegativeF64 = NonNegativeF64::TWO;
 
     #[test]
     fn test_velocity_caching() {
@@ -856,20 +856,17 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             BTreeMap::new(),
-            DEFAULT_BPM,
-            ONE_POSITIVE,
+            TEST_BPM_120,
+            PositiveF64::ONE,
         );
 
         let mut player = ChartPlayer::start(
             chart,
-            VisibleRangePerBpm::new(
-                &PositiveF64::new(120.0).expect("120 should be positive"),
-                TimeSpan::SECOND,
-            ),
+            VisibleRangePerBpm::new(&TEST_BPM_120, TimeSpan::SECOND),
             TimeStamp::now(),
         );
 
-        let speed = ONE_POSITIVE;
+        let speed = PositiveF64::ONE;
 
         // First call computes velocity
         let v1 = player.calculate_velocity(&speed);
@@ -899,16 +896,13 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
-            DEFAULT_BPM,
-            ONE_POSITIVE,
+            TEST_BPM_120,
+            PositiveF64::ONE,
         );
 
         let mut player = ChartPlayer::start(
             chart,
-            VisibleRangePerBpm::new(
-                &PositiveF64::new(120.0).expect("120 should be positive"),
-                TimeSpan::SECOND,
-            ),
+            VisibleRangePerBpm::new(&TEST_BPM_120, TimeSpan::SECOND),
             TimeStamp::now(),
         );
 
@@ -928,7 +922,7 @@ mod tests {
         let current_y = TEST_CURRENT_Y;
         let event_y = TEST_EVENT_Y;
         let visible_window_y = TEST_VISIBLE_WINDOW_Y;
-        let scroll_factor = ONE_FIN;
+        let scroll_factor = FinF64::ONE;
 
         let ratio = ChartPlayer::compute_display_ratio(
             &event_y,
@@ -961,14 +955,14 @@ mod tests {
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
-            DEFAULT_BPM,
-            ONE_POSITIVE,
+            TEST_BPM_120,
+            PositiveF64::ONE,
         );
 
         let start_time = TimeStamp::now();
         let mut player = ChartPlayer::start(
             chart,
-            VisibleRangePerBpm::new(&DEFAULT_BPM, TimeSpan::SECOND),
+            VisibleRangePerBpm::new(&TEST_BPM_120, TimeSpan::SECOND),
             TimeStamp::now(),
         );
 
@@ -983,7 +977,7 @@ mod tests {
         // Add a small epsilon to account for floating-point precision issues
         let advance_time =
             start_time + TimeSpan::from_duration(Duration::from_secs_f64(200.0 + 0.001));
-        let speed = ONE_POSITIVE;
+        let speed = PositiveF64::ONE;
 
         player.step_to(advance_time, speed);
 

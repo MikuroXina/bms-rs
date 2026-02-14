@@ -19,9 +19,8 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan};
 use strict_num_extended::NonNegativeF64;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-const ZERO_FIN: FinF64 = FinF64::new_const(0.0);
-const DEFAULT_BPM_FIN: PositiveF64 = PositiveF64::new_const(120.0);
-const DEFAULT_SPEED_POSITIVE: PositiveF64 = PositiveF64::new_const(1.0);
+const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
+const DEFAULT_SPEED: PositiveF64 = PositiveF64::ONE;
 
 /// BMS format parser.
 ///
@@ -120,7 +119,7 @@ impl BmsProcessor {
             .bpm
             .as_ref()
             .cloned()
-            .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM_FIN));
+            .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM));
 
         // Precompute resource maps
         let wav_files: HashMap<WavId, PathBuf> = bms
@@ -155,7 +154,7 @@ impl BmsProcessor {
             all_events,
             y_memo.flow_events().clone(),
             init_bpm_value,
-            DEFAULT_SPEED_POSITIVE,
+            DEFAULT_SPEED,
         ))
     }
 
@@ -223,7 +222,7 @@ impl YMemo {
     fn new(bms: &Bms) -> Self {
         let mut y_by_track: BTreeMap<Track, FinF64> = BTreeMap::new();
         let mut last_track = 0;
-        let mut y = ZERO_FIN;
+        let mut y = FinF64::ZERO;
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
             let passed_sections = (track.0 - last_track).saturating_sub(1);
             y = FinF64::new(y.as_f64() + passed_sections as f64).expect("y should be finite");
@@ -254,14 +253,14 @@ impl YMemo {
                 FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
                     .expect("fraction should be finite")
             } else {
-                ZERO_FIN
+                FinF64::ZERO
             };
             let factor = bms
                 .speed
                 .speed_factor_changes
                 .range(..=time)
                 .last()
-                .map_or_else(|| DEFAULT_SPEED_POSITIVE, |(_, obj)| obj.factor);
+                .map_or_else(|| DEFAULT_SPEED, |(_, obj)| obj.factor);
             NonNegativeF64::new((section_y.as_f64() + fraction.as_f64()) * factor.as_f64())
                 .expect("y should be non-negative")
         };
@@ -324,13 +323,13 @@ impl YMemo {
             FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
                 .expect("fraction should be finite")
         } else {
-            ZERO_FIN
+            FinF64::ZERO
         };
         let factor = self
             .speed_changes
             .range(..=time)
             .last()
-            .map_or_else(|| DEFAULT_SPEED_POSITIVE, |(_, obj)| obj.factor);
+            .map_or_else(|| DEFAULT_SPEED, |(_, obj)| obj.factor);
         NonNegativeF64::new((section_y.as_f64() + fraction.as_f64()) * factor.as_f64())
             .expect("y should be non-negative")
     }
@@ -349,7 +348,7 @@ impl YMemo {
             .speed_changes
             .range(..=ObjTime::start_of(track))
             .last()
-            .map_or_else(|| DEFAULT_SPEED_POSITIVE, |(_, obj)| obj.factor);
+            .map_or_else(|| DEFAULT_SPEED, |(_, obj)| obj.factor);
         NonNegativeF64::new(section_y.as_f64() * factor.as_f64()).expect("y should be non-negative")
     }
 
@@ -695,7 +694,7 @@ pub fn precompute_activate_times(
         .bpm
         .as_ref()
         .cloned()
-        .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM_FIN));
+        .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM));
     let bpm_changes: Vec<(NonNegativeF64, PositiveF64)> = bms
         .bpm
         .bpm_changes
@@ -933,15 +932,14 @@ mod tests {
             result
         );
         let chart = result.unwrap();
-        assert_eq!(
-            chart.init_bpm, DEFAULT_BPM_FIN,
-            "Should use default BPM of 120"
-        );
+        assert_eq!(chart.init_bpm, DEFAULT_BPM, "Should use default BPM of 120");
     }
 
     /// Test that parsing succeeds with valid BPM value
     #[test]
     fn test_parse_valid_bpm() {
+        const TEST_BPM_150_5: PositiveF64 = PositiveF64::new_const(150.5);
+
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new("150.5"));
 
@@ -953,7 +951,7 @@ mod tests {
             result
         );
         let chart = result.unwrap();
-        assert_eq!(chart.init_bpm, PositiveF64::new(150.5).unwrap());
+        assert_eq!(chart.init_bpm, TEST_BPM_150_5);
     }
 
     /// Test that parsing succeeds with BPM value containing special characters

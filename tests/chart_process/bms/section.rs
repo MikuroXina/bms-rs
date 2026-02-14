@@ -8,6 +8,8 @@ use bms_rs::chart_process::prelude::*;
 
 use super::parse_bms_no_warnings;
 
+const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
+
 #[test]
 fn test_bms_zero_length_section_parser_allows_no_warnings() {
     let bms_source = r#"
@@ -88,9 +90,7 @@ fn test_bms_zero_length_section_comprehensive() {
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let _config = default_config().prompter(AlwaysWarnAndUseNewer);
-    let base_bpm = StartBpmGenerator
-        .generate(&bms)
-        .unwrap_or_else(|| PositiveF64::try_from(120.0).unwrap());
+    let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or(TEST_BPM_120);
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
 
@@ -145,9 +145,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
-    let base_bpm = StartBpmGenerator
-        .generate(&bms)
-        .unwrap_or_else(|| PositiveF64::try_from(120.0).unwrap());
+    let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or(TEST_BPM_120);
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
@@ -190,14 +188,14 @@ fn test_bms_very_small_section_no_division_by_zero() {
     }
 
     let state = processor.playback_state();
-    let expected_bpm = PositiveF64::try_from(120.0).unwrap();
+    let expected_bpm = TEST_BPM_120;
     assert_eq!(
         *state.current_bpm(),
         expected_bpm,
         "BPM should be {} after processing",
         expected_bpm,
     );
-    let expected_speed = PositiveF64::try_from(1.0).unwrap();
+    let expected_speed = PositiveF64::ONE;
     assert_eq!(
         *state.current_speed(),
         expected_speed,
@@ -233,9 +231,7 @@ fn test_bms_consecutive_zero_length_sections() {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
-    let base_bpm = StartBpmGenerator
-        .generate(&bms)
-        .unwrap_or_else(|| PositiveF64::try_from(120.0).unwrap());
+    let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or(TEST_BPM_120);
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();

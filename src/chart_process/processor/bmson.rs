@@ -18,7 +18,7 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan};
 use crate::util::StrExtension;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
-const DEFAULT_SPEED_FACTOR: PositiveF64 = PositiveF64::new_const(1.0);
+const DEFAULT_SPEED_FACTOR: PositiveF64 = PositiveF64::ONE;
 
 /// BMSON format parser.
 ///
@@ -160,7 +160,7 @@ impl AllEventsIndex {
         let denom =
             FinF64::new((4 * bmson.info.resolution.get()) as f64).expect("denom should be finite");
         let denom_inv = if denom.as_f64() == 0.0 {
-            FinF64::new(0.0).expect("0 should be finite")
+            FinF64::ZERO
         } else {
             FinF64::new(1.0 / denom.as_f64()).expect("denom_inv should be finite")
         };

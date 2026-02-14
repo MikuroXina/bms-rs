@@ -20,6 +20,9 @@ use macroquad::prelude::*;
 use rayon::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
+/// Default BPM value (120.0)
+const DEFAULT_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
+
 fn window_conf() -> Conf {
     Conf {
         window_title: "BMS Player".to_owned(),
@@ -65,10 +68,7 @@ async fn main() -> Result<(), String> {
     let start_time = TimeStamp::now();
     let mut chart_player = ChartPlayer::start(chart, visible_range, start_time);
     // Set visibility range to [-0.5, 1.0) to show events past judgment line
-    chart_player.set_visibility_range(
-        FinF64::new(-0.5).expect("-0.5 should be finite")
-            ..FinF64::new(1.0).expect("1.0 should be finite"),
-    );
+    chart_player.set_visibility_range(FinF64::NEG_HALF..FinF64::ONE);
     println!("Player started");
 
     // 6.5. Initialize audio playback system
@@ -211,9 +211,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, PositiveF64), String> {
             let bms = output.bms.map_err(|e| format!("Parse error: {:?}", e))?;
 
             // First generate base BPM from BMS
-            let base_bpm = StartBpmGenerator
-                .generate(&bms)
-                .unwrap_or_else(|| PositiveF64::new(120.0).expect("120 should be positive"));
+            let base_bpm = StartBpmGenerator.generate(&bms).unwrap_or(DEFAULT_BPM_120);
 
             // Use KeyLayoutBeat mapper (supports 7+1k)
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
@@ -230,7 +228,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, PositiveF64), String> {
                 // First generate base BPM from BMSON
                 let base_bpm = StartBpmGenerator
                     .generate(&bmson)
-                    .unwrap_or_else(|| PositiveF64::new(120.0).expect("120 should be positive"));
+                    .unwrap_or(DEFAULT_BPM_120);
 
                 let chart = BmsonProcessor::parse(&bmson);
                 (chart, base_bpm)

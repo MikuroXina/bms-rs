@@ -48,10 +48,7 @@ impl PulseConverter {
                 .section_len
                 .section_len_changes
                 .get(&Track(current_track))
-                .map_or_else(
-                    || FinF64::new(1.0).expect("1 should be finite"),
-                    |section| section.length,
-                )
+                .map_or_else(|| FinF64::ONE, |section| section.length)
                 .into();
             current_pulses = current_pulses.saturating_add((section_len * 4.0) as u64 * resolution);
             current_track += 1;
@@ -96,6 +93,10 @@ impl PulseConverter {
 fn pulse_conversion() {
     use crate::bms::model::{obj::SectionLenChangeObj, section_len::SectionLenObjects};
 
+    // Test constants for strict_num_extended types
+    const LENGTH_0_75: FinF64 = FinF64::new_const(0.75);
+    const LENGTH_1_25: FinF64 = FinF64::new_const(1.25);
+
     // Source BMS:
     // ```
     // #00102:0.75
@@ -108,7 +109,7 @@ fn pulse_conversion() {
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(1),
-                    length: FinF64::new(0.75).expect("0.75 should be finite"),
+                    length: LENGTH_0_75,
                 },
                 &prompt_handler,
             )
@@ -117,7 +118,7 @@ fn pulse_conversion() {
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(2),
-                    length: FinF64::new(1.25).expect("1.25 should be finite"),
+                    length: LENGTH_1_25,
                 },
                 &prompt_handler,
             )

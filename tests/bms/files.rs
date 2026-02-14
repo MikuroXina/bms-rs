@@ -31,7 +31,7 @@ fn test_lal() {
             .total
             .as_ref()
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(359.6).unwrap())
+        Some(FinF64::new(359.6).expect("359.6 should be finite"))
     );
 
     eprintln!("{bms:?}");
@@ -64,7 +64,7 @@ fn test_nc() {
             .total
             .as_ref()
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(260.0).unwrap())
+        Some(FinF64::new(260.0).expect("260.0 should be finite"))
     );
     assert_eq!(
         bms.sprite.stage_file.as_ref().map(|p| p.to_string_lossy()),
@@ -103,7 +103,7 @@ fn test_j219() {
             .total
             .as_ref()
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(218.0).unwrap())
+        Some(FinF64::new(218.0).expect("218.0 should be finite"))
     );
     assert_eq!(
         bms.sprite.stage_file.as_ref().map(|p| p.to_string_lossy()),
@@ -172,28 +172,28 @@ fn test_bemuse_ext() {
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(1.0).unwrap())
+        Some(FinF64::ONE)
     );
     assert_eq!(
         bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("02", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(FinF64::try_from(0.5).unwrap())
+        Some(FinF64::HALF)
     );
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::try_from(1.0).unwrap())
+        Some(PositiveF64::ONE)
     );
     assert_eq!(
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("02", false).unwrap())
             .map(|v| *v.value().as_ref().unwrap()),
-        Some(PositiveF64::try_from(0.5).unwrap())
+        Some(PositiveF64::HALF)
     );
 
     eprintln!("{bms:?}");
