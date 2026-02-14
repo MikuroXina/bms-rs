@@ -627,8 +627,6 @@ mod tests {
     const TEST_LENGTH_10: NonNegativeF64 = NonNegativeF64::new_const(10.0);
     /// Test length constant (20.0)
     const TEST_LENGTH_20: NonNegativeF64 = NonNegativeF64::new_const(20.0);
-    /// Test Y constant (3.0)
-    const TEST_Y_3: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(3.0));
     /// Test Y constant (5.0)
     const TEST_Y_5: YCoordinate = YCoordinate::new(NonNegativeF64::new_const(5.0));
     /// Test Y constant (6.0)

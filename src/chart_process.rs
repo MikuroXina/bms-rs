@@ -221,13 +221,13 @@ pub enum ChartEvent {
 pub struct YCoordinate(pub NonNegativeF64);
 
 impl YCoordinate {
-    /// Create a new YCoordinate from NonNegativeF64.
+    /// Create a new `YCoordinate` from `NonNegativeF64`.
     #[must_use]
     pub const fn new(value: NonNegativeF64) -> Self {
         Self(value)
     }
 
-    /// Get the internal NonNegativeF64 value.
+    /// Get the internal `NonNegativeF64` value.
     #[must_use]
     pub const fn value(&self) -> &NonNegativeF64 {
         &self.0
@@ -325,13 +325,13 @@ impl std::ops::Div<FinF64> for YCoordinate {
 pub struct BaseBpm(pub PositiveF64);
 
 impl BaseBpm {
-    /// Create a new BaseBpm from PositiveF64.
+    /// Create a new `BaseBpm` from `PositiveF64`.
     #[must_use]
     pub const fn new(value: PositiveF64) -> Self {
         Self(value)
     }
 
-    /// Get the internal PositiveF64 value.
+    /// Get the internal `PositiveF64` value.
     #[must_use]
     pub const fn value(&self) -> &PositiveF64 {
         &self.0
