@@ -92,7 +92,7 @@ impl<const N: usize> Rng for RngMock<N> {
 /// A production-ready random number generator using the [`rand`] crate.
 ///
 /// This implementation provides true random number generation for production use.
-/// It wraps any type implementing [`rand::RngCore`] and generates numbers within
+/// It wraps any type implementing [`rand::Rng`] and generates numbers within
 /// the specified range using rejection sampling.
 ///
 /// # Examples
