@@ -286,10 +286,7 @@ impl std::ops::Sub for YCoordinate {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(
-            NonNegativeF64::new(self.0.as_f64() - rhs.0.as_f64())
-                .unwrap_or(NonNegativeF64::ZERO),
-        )
+        Self(NonNegativeF64::new(self.0.as_f64() - rhs.0.as_f64()).unwrap_or(NonNegativeF64::ZERO))
     }
 }
 
@@ -297,10 +294,7 @@ impl std::ops::Sub<NonNegativeF64> for YCoordinate {
     type Output = Self;
 
     fn sub(self, rhs: NonNegativeF64) -> Self::Output {
-        Self(
-            NonNegativeF64::new(self.0.as_f64() - rhs.as_f64())
-                .unwrap_or(NonNegativeF64::ZERO),
-        )
+        Self(NonNegativeF64::new(self.0.as_f64() - rhs.as_f64()).unwrap_or(NonNegativeF64::ZERO))
     }
 }
 

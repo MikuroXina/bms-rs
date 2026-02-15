@@ -247,8 +247,7 @@ impl YMemo {
             let section_y =
                 if let Some((&track_last, track_y)) = y_by_track.range(..=&time.track()).last() {
                     let passed_sections = (time.track().0 - track_last.0).saturating_sub(1);
-                    FinF64::new(passed_sections as f64 + track_y.as_f64())
-                        .unwrap_or(MAX_FIN_F64)
+                    FinF64::new(passed_sections as f64 + track_y.as_f64()).unwrap_or(MAX_FIN_F64)
                 } else {
                     FinF64::new(time.track().0 as f64).unwrap_or(MAX_FIN_F64)
                 };
