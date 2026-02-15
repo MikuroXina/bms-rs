@@ -29,7 +29,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 serde_path_to_error = { version = "0.1", optional = true }
 thiserror = "2"
-rand = { version = "0.9", optional = true }
+rand = { version = "0.10", optional = true }
 ariadne = { version = "0.6", optional = true }
 chumsky = { version = "0.12", optional = true, features = ["serde"] }
 gametime = { version = "0.7", features = ["global_reference"] }
@@ -251,8 +251,7 @@ or_fun_call = "warn"
 significant_drop_in_scrutinee = "warn"
 
 # Cargo (Applicability: MaybeIncorrect)
-multiple_crate_versions = "warn"
+multiple_crate_versions = "allow"
 negative_feature_names = "warn"
 redundant_feature_names = "warn"
 wildcard_dependencies = "deny"
-

@@ -90,11 +90,10 @@ pub fn default_config() -> ParseConfig<
     RandRng<rand::rngs::StdRng>,
     DefaultTokenRelaxer,
 > {
-    use rand::{SeedableRng as _, rngs::StdRng};
     ParseConfig {
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
-        rng: RandRng(StdRng::from_os_rng()),
+        rng: RandRng(rand::make_rng()),
         token_modifier: DefaultTokenRelaxer,
     }
 }
