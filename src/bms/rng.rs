@@ -118,7 +118,7 @@ impl<const N: usize> Rng for RngMock<N> {
 pub struct RandRng<R>(pub R);
 
 #[cfg(feature = "rand")]
-impl<R: rand::RngCore> Rng for RandRng<R> {
+impl<R: rand::Rng> Rng for RandRng<R> {
     fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
         use num::One;
 
