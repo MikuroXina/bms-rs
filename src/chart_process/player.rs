@@ -14,6 +14,15 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
+/// Maximum value for `FinF64` when overflow occurs
+///
+/// Used for velocity, Y coordinate, and other calculations to gracefully
+/// handle overflow instead of panicking.
+const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
+
+/// Maximum value for `NonNegativeF64` when overflow occurs
+const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
+
 /// Unified chart player.
 ///
 /// This player takes a parsed chart and manages all playback state and event processing.
@@ -139,9 +148,7 @@ impl ChartPlayer {
         // Collect events triggered at current moment
         let mut triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(&cur_y)));
 
-        self.update_preloaded_events(
-            &FinF64::new(preload_end_y.as_f64()).expect("preload_end_y should be finite"),
-        );
+        self.update_preloaded_events(&FinF64::new(preload_end_y.as_f64()).unwrap_or(MAX_FIN_F64));
 
         // Apply Speed changes
         for event in &triggered_events {
@@ -282,9 +289,12 @@ impl ChartPlayer {
                     ..
                 } = event_with_pos.event()
                 {
+                    // Calculate end_y with overflow protection
+                    let end_y_value = FinF64::new(event_y.as_f64() + length.as_f64())
+                        .map(strict_num_extended::FinF64::as_f64)
+                        .unwrap_or(f64::MAX);
                     let end_y = YCoordinate::new(
-                        NonNegativeF64::new(event_y.as_f64() + length.as_f64())
-                            .expect("end_y should be non-negative"),
+                        NonNegativeF64::new(end_y_value).unwrap_or(MAX_NON_NEGATIVE_F64),
                     );
                     Self::compute_display_ratio(&end_y, current_y, &visible_window_y, scroll_factor)
                 } else {
@@ -317,7 +327,10 @@ impl ChartPlayer {
             .unwrap_or(TimeSpan::ZERO);
         let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
         let playback_ratio = self.playback_state.playback_ratio;
-        let center_nanos = (elapsed_nanos as f64 * playback_ratio.as_f64()) as u64;
+        // Calculate center time with overflow protection
+        let center_nanos = FinF64::new(elapsed_nanos as f64 * playback_ratio.as_f64())
+            .map(|v| strict_num_extended::FinF64::as_f64(v) as u64)
+            .unwrap_or(u64::MAX);
         let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
         self.all_events
             .events_in_time_range_offset_from(center, range)
@@ -348,13 +361,12 @@ impl ChartPlayer {
         let playback_ratio = self.playback_state.playback_ratio;
 
         if current_bpm.as_f64() <= 0.0 {
-            FinF64::new(f64::EPSILON).expect("EPSILON should be finite")
+            FinF64::new(f64::EPSILON).unwrap_or(FinF64::ZERO)
         } else {
-            let denom = 240.0f64;
-            let base = current_bpm / denom;
-            let v1 = (base * speed).expect("multiplication should succeed");
-            let v = (v1 * playback_ratio).expect("multiplication should succeed");
-            FinF64::new(v.as_f64().max(f64::EPSILON)).expect("velocity should be finite")
+            let base = FinF64::new(current_bpm.as_f64() / 240.0).unwrap_or(FinF64::ZERO);
+            let v1 = (base * speed).unwrap_or(MAX_FIN_F64);
+            let v = (v1 * playback_ratio).unwrap_or(MAX_FIN_F64);
+            FinF64::new(v.as_f64().max(f64::EPSILON)).unwrap_or(MAX_FIN_F64)
         }
     }
 
@@ -435,22 +447,38 @@ impl ChartPlayer {
 
             if next_event_y.is_none() || cur_vel.as_f64() <= 0.0 || remaining_time <= TimeSpan::ZERO
             {
-                // Advance directly to the end
-                let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
-                    / NANOS_PER_SECOND as f64;
+                // Advance directly to the end with overflow protection
+                let nanos = remaining_time.as_nanos().max(0) as f64;
+                let time_secs = nanos / NANOS_PER_SECOND as f64;
+                // Use checked multiplication via FinF64 to detect overflow
+                let delta_y = if time_secs.is_finite() {
+                    FinF64::new(cur_vel.as_f64() * time_secs)
+                        .map(strict_num_extended::FinF64::as_f64)
+                        .unwrap_or(f64::MAX)
+                } else {
+                    f64::MAX
+                };
                 cur_y = YCoordinate::new(
                     NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
-                        .expect("cur_y should be non-negative"),
+                        .unwrap_or(MAX_NON_NEGATIVE_F64),
                 );
                 break;
             }
 
             let Some(event_y) = next_event_y else {
-                let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
-                    / NANOS_PER_SECOND as f64;
+                // Handle remaining time with overflow protection
+                let nanos = remaining_time.as_nanos().max(0) as f64;
+                let time_secs = nanos / NANOS_PER_SECOND as f64;
+                let delta_y = if time_secs.is_finite() {
+                    FinF64::new(cur_vel.as_f64() * time_secs)
+                        .map(strict_num_extended::FinF64::as_f64)
+                        .unwrap_or(f64::MAX)
+                } else {
+                    f64::MAX
+                };
                 cur_y = YCoordinate::new(
                     NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
-                        .expect("cur_y should be non-negative"),
+                        .unwrap_or(MAX_NON_NEGATIVE_F64),
                 );
                 break;
             };
@@ -467,8 +495,15 @@ impl ChartPlayer {
             // Time required to reach event
             let distance = event_y - cur_y_now;
             if cur_vel.as_f64() > 0.0 {
-                let time_to_event_nanos =
-                    ((distance.as_f64() / cur_vel.as_f64()) * NANOS_PER_SECOND as f64) as u64;
+                // Calculate time with overflow protection
+                let time_secs = distance.as_f64() / cur_vel.as_f64();
+                let time_to_event_nanos = if time_secs.is_finite() {
+                    FinF64::new(time_secs * NANOS_PER_SECOND as f64)
+                        .map(|v| v.as_f64() as u64)
+                        .unwrap_or(u64::MAX)
+                } else {
+                    u64::MAX
+                };
                 let time_to_event =
                     TimeSpan::from_duration(Duration::from_nanos(time_to_event_nanos));
 
@@ -483,12 +518,18 @@ impl ChartPlayer {
                 }
             }
 
-            // Time not enough to reach event, advance and end
-            let delta_y = cur_vel.as_f64() * remaining_time.as_nanos().max(0) as f64
-                / NANOS_PER_SECOND as f64;
+            // Time not enough to reach event, advance and end with overflow protection
+            let nanos = remaining_time.as_nanos().max(0) as f64;
+            let time_secs = nanos / NANOS_PER_SECOND as f64;
+            let delta_y = if time_secs.is_finite() {
+                FinF64::new(cur_vel.as_f64() * time_secs)
+                    .map(strict_num_extended::FinF64::as_f64)
+                    .unwrap_or(f64::MAX)
+            } else {
+                f64::MAX
+            };
             cur_y = YCoordinate::new(
-                NonNegativeF64::new(cur_y_now.as_f64() + delta_y)
-                    .expect("cur_y should be non-negative"),
+                NonNegativeF64::new(cur_y_now.as_f64() + delta_y).unwrap_or(MAX_NON_NEGATIVE_F64),
             );
             break;
         }
@@ -522,8 +563,7 @@ impl ChartPlayer {
 
         let cur_y = self.playback_state.progressed_y;
         let preload_end_y_coord = YCoordinate::new(
-            NonNegativeF64::new(preload_end_y.as_f64())
-                .expect("preload_end_y should be non-negative"),
+            NonNegativeF64::new(preload_end_y.as_f64()).unwrap_or(MAX_NON_NEGATIVE_F64),
         );
         let new_preloaded_events = self
             .all_events
@@ -579,7 +619,7 @@ impl ChartPlayer {
                 (event_y.as_f64() - current_y.as_f64()) / window_value.as_f64()
                     * scroll_factor.as_f64(),
             )
-            .expect("ratio should be finite");
+            .unwrap_or(FinF64::ZERO);
             DisplayRatio::from(ratio_value)
         } else {
             // Should not happen theoretically; indicates configuration issue if it does
@@ -677,7 +717,8 @@ impl VisibleRangePerBpm {
     /// See [`crate::chart_process`] for the formula.
     #[must_use]
     pub fn new(base_bpm: &PositiveF64, reaction_time: TimeSpan) -> Self {
-        if base_bpm.as_f64() == 0.0 {
+        // Check for effectively zero BPM to avoid division by extremely small numbers
+        if base_bpm.as_f64() <= f64::EPSILON {
             Self {
                 value: FinF64::ZERO,
                 base_bpm: FinF64::ZERO,
@@ -686,12 +727,14 @@ impl VisibleRangePerBpm {
         } else {
             let reaction_time_seconds =
                 FinF64::new(reaction_time.as_nanos().max(0) as f64 / NANOS_PER_SECOND as f64)
-                    .expect("reaction_time should be finite");
-            let value = FinF64::new(reaction_time_seconds.as_f64() * 240.0 / base_bpm.as_f64())
-                .expect("value should be finite");
+                    .unwrap_or(FinF64::ZERO);
+            // Calculate value step by step with overflow protection
+            // Formula: reaction_time_seconds * 240.0 / base_bpm
+            let step1 = FinF64::new(reaction_time_seconds.as_f64() * 240.0).unwrap_or(MAX_FIN_F64);
+            let value = FinF64::new(step1.as_f64() / base_bpm.as_f64()).unwrap_or(MAX_FIN_F64);
             Self {
                 value,
-                base_bpm: FinF64::new(base_bpm.as_f64()).expect("base_bpm should be finite"),
+                base_bpm: FinF64::new(base_bpm.as_f64()).unwrap_or(FinF64::ONE),
                 reaction_time_seconds,
             }
         }
@@ -710,7 +753,7 @@ impl VisibleRangePerBpm {
     }
 
     /// Calculate visible window length in y units based on current BPM, speed, and playback ratio.
-    /// See [`crate::chart_process`] for the formula.
+    /// See [`crate::chart_process`] for formula.
     /// This ensures events stay in visible window for exactly `reaction_time` duration.
     #[must_use]
     pub fn window_y(
@@ -719,12 +762,14 @@ impl VisibleRangePerBpm {
         current_speed: &PositiveF64,
         playback_ratio: &FinF64,
     ) -> YCoordinate {
-        let speed_factor = FinF64::new(current_speed.as_f64() * playback_ratio.as_f64())
-            .expect("speed_factor should be finite");
-
-        if current_bpm.as_f64() == 0.0 {
+        // Check for invalid BPM early
+        if current_bpm.as_f64() <= f64::EPSILON {
             return YCoordinate::ZERO;
         }
+
+        // Calculate speed factor with overflow protection
+        let speed_factor =
+            FinF64::new(current_speed.as_f64() * playback_ratio.as_f64()).unwrap_or(MAX_FIN_F64);
 
         // Goal: time = reaction_time * base_bpm / current_bpm
         // velocity = (current_bpm / 240) * speed_factor
@@ -732,16 +777,19 @@ impl VisibleRangePerBpm {
         //                  = (current_bpm / 240) * speed_factor * reaction_time * base_bpm / current_bpm
         //                  = (speed_factor / 240) * reaction_time * base_bpm
 
-        let velocity = FinF64::new(current_bpm.as_f64() / 240.0 * speed_factor.as_f64())
-            .expect("velocity should be finite");
-        let adjusted = FinF64::new(
-            velocity.as_f64() * self.reaction_time_seconds.as_f64() * self.base_bpm.as_f64()
-                / current_bpm.as_f64(),
-        )
-        .expect("adjusted should be non-negative");
-        YCoordinate::new(
-            NonNegativeF64::new(adjusted.as_f64()).expect("adjusted should be non-negative"),
-        )
+        // Calculate velocity step by step with overflow checks
+        let bpm_div_240 = FinF64::new(current_bpm.as_f64() / 240.0).unwrap_or(MAX_FIN_F64);
+        let velocity =
+            FinF64::new(bpm_div_240.as_f64() * speed_factor.as_f64()).unwrap_or(MAX_FIN_F64);
+
+        // Calculate adjusted value step by step to catch overflow early
+        // Formula: velocity * reaction_time_seconds * base_bpm / current_bpm
+        let step1 = FinF64::new(velocity.as_f64() * self.reaction_time_seconds.as_f64())
+            .unwrap_or(MAX_FIN_F64);
+        let step2 = FinF64::new(step1.as_f64() * self.base_bpm.as_f64()).unwrap_or(MAX_FIN_F64);
+        let adjusted = FinF64::new(step2.as_f64() / current_bpm.as_f64()).unwrap_or(MAX_FIN_F64);
+
+        YCoordinate::new(NonNegativeF64::new(adjusted.as_f64()).unwrap_or(MAX_NON_NEGATIVE_F64))
     }
 
     /// Calculate reaction time from visible range per BPM.
@@ -760,7 +808,7 @@ impl VisibleRangePerBpm {
 impl From<FinF64> for VisibleRangePerBpm {
     fn from(value: FinF64) -> Self {
         let base_bpm = FinF64::ONE;
-        let reaction_time_seconds = (value / 240.0).expect("reaction_time should be finite");
+        let reaction_time_seconds = (value / 240.0).unwrap_or(FinF64::ZERO);
         Self {
             value,
             base_bpm,
@@ -834,7 +882,7 @@ impl From<DisplayRatio> for FinF64 {
 
 impl From<f64> for DisplayRatio {
     fn from(value: f64) -> Self {
-        Self(FinF64::new(value).expect("value should be finite"))
+        Self(FinF64::new(value).unwrap_or(FinF64::ZERO))
     }
 }
 
@@ -843,8 +891,8 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart_process::YCoordinate;
     use crate::chart_process::processor::{ChartResources, PlayableChart};
+    use crate::chart_process::YCoordinate;
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
     /// Default test BPM value (120.0) - used as initial BPM

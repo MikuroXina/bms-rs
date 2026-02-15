@@ -19,6 +19,11 @@ use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoor
 use strict_num_extended::NonNegativeF64;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
+/// Maximum value for `FinF64` when overflow occurs
+const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
+/// Maximum value for `NonNegativeF64` when overflow occurs
+const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
+
 const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
 const DEFAULT_SPEED: PositiveF64 = PositiveF64::ONE;
 
@@ -37,8 +42,7 @@ pub struct BmsProcessor;
 /// - Formula: beats = `192nd_note_value` / 48
 #[must_use]
 fn convert_stop_duration_to_beats(duration_192nd: NonNegativeF64) -> NonNegativeF64 {
-    NonNegativeF64::new(duration_192nd.as_f64() / 48.0)
-        .expect("result should be finite and non-negative")
+    NonNegativeF64::new(duration_192nd.as_f64() / 48.0).unwrap_or(NonNegativeF64::ZERO)
 }
 
 impl BmsProcessor {
@@ -224,8 +228,8 @@ impl YMemo {
         let mut y = FinF64::ZERO;
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
             let passed_sections = (track.0 - last_track).saturating_sub(1);
-            y = FinF64::new(y.as_f64() + passed_sections as f64).expect("y should be finite");
-            y = (y + section_len_change.length).expect("y should be finite");
+            y = FinF64::new(y.as_f64() + passed_sections as f64).unwrap_or(MAX_FIN_F64);
+            y = (y + section_len_change.length).unwrap_or(MAX_FIN_F64);
             y_by_track.insert(track, y);
             last_track = 0;
         }
@@ -244,13 +248,13 @@ impl YMemo {
                 if let Some((&track_last, track_y)) = y_by_track.range(..=&time.track()).last() {
                     let passed_sections = (time.track().0 - track_last.0).saturating_sub(1);
                     FinF64::new(passed_sections as f64 + track_y.as_f64())
-                        .expect("section_y should be finite")
+                        .unwrap_or(MAX_FIN_F64)
                 } else {
-                    FinF64::new(time.track().0 as f64).expect("track.0 should be finite")
+                    FinF64::new(time.track().0 as f64).unwrap_or(MAX_FIN_F64)
                 };
             let fraction = if time.denominator().get() > 0 {
                 FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
-                    .expect("fraction should be finite")
+                    .unwrap_or(FinF64::ZERO)
             } else {
                 FinF64::ZERO
             };
@@ -262,7 +266,7 @@ impl YMemo {
                 .map_or_else(|| DEFAULT_SPEED, |(_, obj)| obj.factor);
             YCoordinate::new(
                 NonNegativeF64::new((section_y.as_f64() + fraction.as_f64()) * factor.as_f64())
-                    .expect("y should be non-negative"),
+                    .unwrap_or(MAX_NON_NEGATIVE_F64),
             )
         };
 
@@ -313,16 +317,15 @@ impl YMemo {
             let track = time.track();
             if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last() {
                 let passed_sections = (track.0 - last_track.0).saturating_sub(1);
-                FinF64::new(passed_sections as f64 + last_y.as_f64())
-                    .expect("section_y should be finite")
+                FinF64::new(passed_sections as f64 + last_y.as_f64()).unwrap_or(MAX_FIN_F64)
             } else {
                 // there is no sections modified its length until
-                FinF64::new(track.0 as f64).expect("track.0 should be finite")
+                FinF64::new(track.0 as f64).unwrap_or(MAX_FIN_F64)
             }
         };
         let fraction = if time.denominator().get() > 0 {
             FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
-                .expect("fraction should be finite")
+                .unwrap_or(FinF64::ZERO)
         } else {
             FinF64::ZERO
         };
@@ -333,7 +336,7 @@ impl YMemo {
             .map_or_else(|| DEFAULT_SPEED, |(_, obj)| obj.factor);
         YCoordinate::new(
             NonNegativeF64::new((section_y.as_f64() + fraction.as_f64()) * factor.as_f64())
-                .expect("y should be non-negative"),
+                .unwrap_or(MAX_NON_NEGATIVE_F64),
         )
     }
 
@@ -342,10 +345,9 @@ impl YMemo {
         let section_y = if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last()
         {
             let passed_sections = track.0 - last_track.0;
-            FinF64::new(passed_sections as f64 + last_y.as_f64())
-                .expect("section_y should be finite")
+            FinF64::new(passed_sections as f64 + last_y.as_f64()).unwrap_or(MAX_FIN_F64)
         } else {
-            FinF64::new(track.0 as f64).expect("track.0 should be finite")
+            FinF64::new(track.0 as f64).unwrap_or(MAX_FIN_F64)
         };
         let factor = self
             .speed_changes
@@ -354,7 +356,7 @@ impl YMemo {
             .map_or_else(|| DEFAULT_SPEED, |(_, obj)| obj.factor);
         YCoordinate::new(
             NonNegativeF64::new(section_y.as_f64() * factor.as_f64())
-                .expect("y should be non-negative"),
+                .unwrap_or(MAX_NON_NEGATIVE_F64),
         )
     }
 
@@ -833,8 +835,7 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
                 .next_obj_by_key(obj.channel_id, obj.offset)
                 .map(|next_obj| {
                     let next_y = y_memo.get_y(next_obj.offset);
-                    NonNegativeF64::new((next_y - y).as_f64())
-                        .expect("length should be non-negative")
+                    NonNegativeF64::new((next_y - y).as_f64()).unwrap_or(NonNegativeF64::ZERO)
                 })
         })
         .flatten();

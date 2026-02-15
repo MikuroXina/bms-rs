@@ -20,6 +20,11 @@ use crate::util::StrExtension;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 const DEFAULT_SPEED_FACTOR: PositiveF64 = PositiveF64::ONE;
 
+/// Maximum value for `FinF64` when overflow occurs
+const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
+/// Maximum value for `NonNegativeF64` when overflow occurs
+const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
+
 /// BMSON format parser.
 ///
 /// This struct serves as a namespace for BMSON parsing functions.
@@ -37,7 +42,7 @@ impl BmsonProcessor {
         let pulses_to_y = |pulses: i64| -> YCoordinate {
             YCoordinate::new(
                 NonNegativeF64::new(pulses as f64 / pulses_denom.as_f64())
-                    .expect("y should be non-negative"),
+                    .unwrap_or(MAX_NON_NEGATIVE_F64),
             )
         };
 
@@ -169,9 +174,9 @@ impl AllEventsIndex {
         let pulses_to_y = |pulses: u64| -> YCoordinate {
             let pulses = FinF64::new(pulses as f64).expect("pulses should be finite");
             let y: NonNegativeF64 = (pulses * denom_inv)
-                .expect("pulses * denom_inv should not overflow")
+                .unwrap_or(MAX_FIN_F64)
                 .try_into()
-                .expect("y should be non-negative");
+                .unwrap_or(MAX_NON_NEGATIVE_F64);
             YCoordinate::new(y)
         };
         let mut points: BTreeSet<YCoordinate> = BTreeSet::new();

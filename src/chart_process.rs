@@ -263,11 +263,14 @@ impl AsRef<NonNegativeF64> for YCoordinate {
     }
 }
 
+/// Maximum value for `NonNegativeF64` when overflow occurs
+const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
+
 impl std::ops::Add for YCoordinate {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0.add(rhs.0).expect("addition should not overflow"))
+        Self(self.0.add(rhs.0).unwrap_or(MAX_NON_NEGATIVE_F64))
     }
 }
 
@@ -275,7 +278,7 @@ impl std::ops::Add<NonNegativeF64> for YCoordinate {
     type Output = Self;
 
     fn add(self, rhs: NonNegativeF64) -> Self::Output {
-        Self(self.0.add(rhs).expect("addition should not overflow"))
+        Self(self.0.add(rhs).unwrap_or(MAX_NON_NEGATIVE_F64))
     }
 }
 
@@ -285,7 +288,7 @@ impl std::ops::Sub for YCoordinate {
     fn sub(self, rhs: Self) -> Self::Output {
         Self(
             NonNegativeF64::new(self.0.as_f64() - rhs.0.as_f64())
-                .expect("subtraction should not underflow"),
+                .unwrap_or(NonNegativeF64::ZERO),
         )
     }
 }
@@ -296,7 +299,7 @@ impl std::ops::Sub<NonNegativeF64> for YCoordinate {
     fn sub(self, rhs: NonNegativeF64) -> Self::Output {
         Self(
             NonNegativeF64::new(self.0.as_f64() - rhs.as_f64())
-                .expect("subtraction should not underflow"),
+                .unwrap_or(NonNegativeF64::ZERO),
         )
     }
 }
