@@ -2,9 +2,7 @@
 //!
 //! - `#xxx02:`: Section length ratio channel. `1.0` makes `xxx` section to be 4/4 beat.
 
-use std::str::FromStr;
-
-use fraction::GenericFraction;
+use strict_num_extended::FinF64;
 
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, filter_message};
 use crate::bms::ParseErrorWithRange;
@@ -53,12 +51,10 @@ impl SectionLenProcessor {
         if channel == Channel::SectionLen {
             let message = filter_message(message);
             let message = message.as_ref();
-            let length = Decimal::from(Decimal::from_fraction(
-                GenericFraction::from_str(message).map_err(|_| {
-                    ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
-                })?,
-            ));
-            if length < Decimal::from(0u64) {
+            let length = message.parse::<FinF64>().map_err(|_| {
+                ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
+            })?;
+            if length < FinF64::ZERO {
                 return Err(ParseWarning::SyntaxError(
                     "section length must be non-negative".to_string(),
                 ));

@@ -8,6 +8,11 @@ use std::borrow::Cow;
 
 use strict_num_extended::{FinF64, PositiveF64};
 
+/// Test constants for `strict_num_extended` types
+const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
+const TEST_JUDGE_RANK_100: FinF64 = FinF64::new_const(100.0);
+const TEST_TOTAL_100: FinF64 = FinF64::new_const(100.0);
+
 #[test]
 fn test_bmson_to_bms_conversion() {
     // Create a simple Bmson
@@ -22,9 +27,9 @@ fn test_bmson_to_bms_conversion() {
             mode_hint: Cow::Borrowed("beat-7k"),
             chart_name: Cow::Borrowed("NORMAL"),
             level: 5,
-            init_bpm: PositiveF64::new(120.0).unwrap(),
-            judge_rank: FinF64::new(100.0).unwrap(),
-            total: FinF64::new(100.0).unwrap(),
+            init_bpm: TEST_BPM_120,
+            judge_rank: TEST_JUDGE_RANK_100,
+            total: TEST_TOTAL_100,
             back_image: Some(Cow::Borrowed("back.png")),
             eyecatch_image: Some(Cow::Borrowed("eyecatch.png")),
             title_image: Some(Cow::Borrowed("title.png")),
@@ -96,9 +101,9 @@ fn test_bmson_to_bms_with_notes() {
             mode_hint: Cow::Borrowed("beat-7k"),
             chart_name: Cow::Borrowed(""),
             level: 5,
-            init_bpm: PositiveF64::new(120.0).unwrap(),
-            judge_rank: FinF64::new(100.0).unwrap(),
-            total: FinF64::new(100.0).unwrap(),
+            init_bpm: TEST_BPM_120,
+            judge_rank: TEST_JUDGE_RANK_100,
+            total: TEST_TOTAL_100,
             back_image: None,
             eyecatch_image: None,
             title_image: None,

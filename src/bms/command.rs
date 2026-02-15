@@ -9,7 +9,12 @@ use super::parse::ParseWarning;
 pub mod channel;
 pub mod graphics;
 pub mod mixin;
+/// String value wrapper that preserves original string representation.
+pub mod string_value;
 pub mod time;
+
+// Re-export StringValue for convenience
+pub use string_value::StringValue;
 
 /// Minor command types and utilities.
 ///

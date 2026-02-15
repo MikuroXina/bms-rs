@@ -65,10 +65,13 @@ impl RandomizedBranch {
 /// A collection of randomized branches, representing a `#RANDOM` or `#SWITCH` block.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// Randomized objects container for storing data associated with `#RANDOM`, `#SWITCH`, `#ENDRANDOM`, and `#ENDSWITCH`.
 pub struct RandomizedObjects {
-    /// The control flow value generator.
+    /// The line number of the `#RANDOM` or `#SWITCH` token.
+    pub line_number: usize,
+    /// The value or max value for this random block.
     pub generating: Option<ControlFlowValue>,
-    /// The branches, mapped by their condition value.
+    /// The branches for this random block.
     pub branches: BTreeMap<BigUint, RandomizedBranch>,
 }
 
@@ -98,6 +101,7 @@ impl RandomizedObjects {
                 .or_insert_with(|| branch.clone());
         }
         Self {
+            line_number: self.line_number,
             generating,
             branches,
         }
@@ -220,14 +224,14 @@ impl RandomizedObjects {
                 name: "IF".into(),
                 args: cond.to_string().into(),
             });
-            tokens.extend(branch.sub.unparse::<T>());
+            tokens.extend(branch.sub.as_ref().unparse::<T>());
         }
         for (cond, branch) in iter {
             tokens.push(Token::Header {
                 name: "ELSEIF".into(),
                 args: cond.to_string().into(),
             });
-            tokens.extend(branch.sub.unparse::<T>());
+            tokens.extend(branch.sub.as_ref().unparse::<T>());
         }
 
         tokens.push(Token::Header {
@@ -269,7 +273,7 @@ impl RandomizedObjects {
                 name: "CASE".into(),
                 args: cond.to_string().into(),
             });
-            tokens.extend(branch.sub.unparse::<T>());
+            tokens.extend(branch.sub.as_ref().unparse::<T>());
             tokens.push(Token::Header {
                 name: "SKIP".into(),
                 args: "".into(),

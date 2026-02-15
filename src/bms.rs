@@ -48,12 +48,6 @@ use self::{
     prelude::*,
 };
 
-/// Decimal type used throughout the BMS module.
-///
-/// This is a type alias for `GenericDecimal<BigUint, usize>` which provides
-/// arbitrary precision decimal arithmetic for BMS parsing.
-pub type Decimal = fraction::BigDecimal;
-
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]

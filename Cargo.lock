@@ -143,7 +143,6 @@ dependencies = [
  "chumsky",
  "clap",
  "encoding_rs",
- "fraction",
  "gametime",
  "itertools",
  "kira",
@@ -443,18 +442,6 @@ checksum = "2e57e16b3fe8ff4364c0661fdaac543fb38b29ea9bc9c2f45612d90adf931d2b"
 dependencies = [
  "hashbrown 0.15.5",
  "ttf-parser",
-]
-
-[[package]]
-name = "fraction"
-version = "0.15.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f158e3ff0a1b334408dc9fb811cd99b446986f4d8b741bb08f9df1604085ae7"
-dependencies = [
- "lazy_static",
- "num",
- "serde",
- "serde_derive",
 ]
 
 [[package]]

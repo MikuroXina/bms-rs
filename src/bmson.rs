@@ -168,10 +168,13 @@ const fn default_mode_hint_cow() -> Cow<'static, str> {
     Cow::Borrowed(default_mode_hint())
 }
 
+/// Default relative percentage constant, 100%.
+const DEFAULT_PERCENTAGE: FinF64 = FinF64::new_const(100.0);
+
 /// Default relative percentage, 100%.
 #[must_use]
-pub fn default_percentage() -> FinF64 {
-    FinF64::new(100.0).expect("100.0 should be a valid FinF64")
+pub const fn default_percentage() -> FinF64 {
+    DEFAULT_PERCENTAGE
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
