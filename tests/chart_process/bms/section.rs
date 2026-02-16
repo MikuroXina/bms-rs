@@ -195,15 +195,13 @@ fn test_bms_very_small_section_no_division_by_zero() {
     let state = processor.playback_state();
     let expected_bpm = TEST_BPM_120;
     assert_eq!(
-        *state.current_bpm(),
-        expected_bpm,
+        state.current_bpm, expected_bpm,
         "BPM should be {} after processing",
         expected_bpm,
     );
     let expected_speed = PositiveF64::ONE;
     assert_eq!(
-        *state.current_speed(),
-        expected_speed,
+        state.current_speed, expected_speed,
         "Speed should be {} after processing",
         expected_speed,
     );

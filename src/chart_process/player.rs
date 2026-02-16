@@ -140,7 +140,7 @@ impl ChartPlayer {
         let cur_y = self.playback_state.progressed_y;
 
         // Calculate preload range: current y + visible y range
-        let visible_y_length = self.visible_window_y(&speed);
+        let visible_y_length = self.visible_window_y(speed);
         let preload_end_y = cur_y + visible_y_length;
 
         use std::ops::Bound::{Excluded, Included};
@@ -148,7 +148,7 @@ impl ChartPlayer {
         // Collect events triggered at current moment
         let mut triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(&cur_y)));
 
-        self.update_preloaded_events(&FinF64::new(preload_end_y.as_f64()).unwrap_or(MAX_FIN_F64));
+        self.update_preloaded_events(FinF64::new(preload_end_y.as_f64()).unwrap_or(MAX_FIN_F64));
 
         // Apply Speed changes
         for event in &triggered_events {
@@ -202,8 +202,8 @@ impl ChartPlayer {
 
     /// Gets the current visibility range.
     #[must_use]
-    pub const fn visibility_range(&self) -> &(Bound<FinF64>, Bound<FinF64>) {
-        &self.visibility_range
+    pub const fn visibility_range(&self) -> (Bound<FinF64>, Bound<FinF64>) {
+        self.visibility_range
     }
 
     /// Set playback ratio.
@@ -263,7 +263,7 @@ impl ChartPlayer {
         &mut self,
     ) -> Vec<(PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
         let current_y = &self.playback_state.progressed_y;
-        let visible_window_y = self.visible_window_y(&self.playback_state.current_speed);
+        let visible_window_y = self.visible_window_y(self.playback_state.current_speed);
         let scroll_factor = &self.playback_state.current_scroll;
 
         let view_start = *current_y;
@@ -341,9 +341,9 @@ impl ChartPlayer {
     /// Calculate velocity with caching.
     ///
     /// See [`crate::chart_process`] for the formula.
-    pub fn calculate_velocity(&mut self, speed: &PositiveF64) -> FinF64 {
+    pub fn calculate_velocity(&mut self, speed: PositiveF64) -> FinF64 {
         if self.velocity_dirty || self.cached_velocity.is_none() {
-            let computed = self.compute_velocity(*speed);
+            let computed = self.compute_velocity(speed);
             self.cached_velocity = Some(computed);
             self.velocity_dirty = false;
             computed
@@ -351,7 +351,7 @@ impl ChartPlayer {
             cached
         } else {
             // This should not happen as we checked is_none above
-            self.compute_velocity(*speed)
+            self.compute_velocity(speed)
         }
     }
 
@@ -437,7 +437,7 @@ impl ChartPlayer {
         }
 
         let mut remaining_time = now - last;
-        let mut cur_vel = self.calculate_velocity(&speed);
+        let mut cur_vel = self.calculate_velocity(speed);
         let mut cur_y = self.playback_state.progressed_y;
 
         // Advance in segments until time slice is used up
@@ -487,7 +487,7 @@ impl ChartPlayer {
                 // Defense: avoid infinite loop if event position doesn't advance
                 // Apply all events at this Y position
                 self.apply_flow_events_at(event_y);
-                cur_vel = self.calculate_velocity(&speed);
+                cur_vel = self.calculate_velocity(speed);
                 cur_y = cur_y_now;
                 continue;
             }
@@ -513,7 +513,7 @@ impl ChartPlayer {
                     remaining_time -= time_to_event;
                     // Apply all events at this Y position
                     self.apply_flow_events_at(event_y);
-                    cur_vel = self.calculate_velocity(&speed);
+                    cur_vel = self.calculate_velocity(speed);
                     continue;
                 }
             }
@@ -541,11 +541,11 @@ impl ChartPlayer {
 
     /// Get visible window length in Y units.
     #[must_use]
-    pub fn visible_window_y(&self, speed: &PositiveF64) -> YCoordinate {
+    pub fn visible_window_y(&self, speed: PositiveF64) -> YCoordinate {
         self.visible_range_per_bpm.window_y(
-            &self.playback_state.current_bpm,
+            self.playback_state.current_bpm,
             speed,
-            &self.playback_state.playback_ratio,
+            self.playback_state.playback_ratio,
         )
     }
 
@@ -558,7 +558,7 @@ impl ChartPlayer {
     }
 
     /// Update preloaded events based on current Y position.
-    pub fn update_preloaded_events(&mut self, preload_end_y: &FinF64) {
+    pub fn update_preloaded_events(&mut self, preload_end_y: FinF64) {
         use std::ops::Bound::{Excluded, Included};
 
         let cur_y = self.playback_state.progressed_y;
@@ -580,27 +580,22 @@ impl ChartPlayer {
 
     /// Checks if a note's position overlaps with the visibility range.
     fn overlaps_visibility_range(&self, ratio_start: FinF64, ratio_end: FinF64) -> bool {
-        let note_min = if ratio_start < ratio_end {
-            ratio_start
+        let (note_min, note_max) = if ratio_start < ratio_end {
+            (ratio_start, ratio_end)
         } else {
-            ratio_end
-        };
-        let note_max = if ratio_start > ratio_end {
-            ratio_start
-        } else {
-            ratio_end
+            (ratio_end, ratio_start)
         };
 
-        let (vis_min, vis_max) = &self.visibility_range;
+        let (vis_min, vis_max) = self.visibility_range;
         let is_already_end = match vis_min {
             Bound::Unbounded => false,
-            Bound::Included(min) => note_max < *min,
-            Bound::Excluded(min) => note_max <= *min,
+            Bound::Included(min) => note_max < min,
+            Bound::Excluded(min) => note_max <= min,
         };
         let is_not_started_yet = match vis_max {
             Bound::Unbounded => false,
-            Bound::Included(max) => *max < note_min,
-            Bound::Excluded(max) => *max <= note_min,
+            Bound::Included(max) => max < note_min,
+            Bound::Excluded(max) => max <= note_min,
         };
         !(is_already_end || is_not_started_yet)
     }
@@ -668,26 +663,26 @@ impl PlaybackState {
 
     /// Get current BPM.
     #[must_use]
-    pub const fn current_bpm(&self) -> &PositiveF64 {
-        &self.current_bpm
+    pub const fn current_bpm(&self) -> PositiveF64 {
+        self.current_bpm
     }
 
     /// Get current speed factor.
     #[must_use]
-    pub const fn current_speed(&self) -> &PositiveF64 {
-        &self.current_speed
+    pub const fn current_speed(&self) -> PositiveF64 {
+        self.current_speed
     }
 
     /// Get current scroll factor.
     #[must_use]
-    pub const fn current_scroll(&self) -> &FinF64 {
-        &self.current_scroll
+    pub const fn current_scroll(&self) -> FinF64 {
+        self.current_scroll
     }
 
     /// Get playback ratio.
     #[must_use]
-    pub const fn playback_ratio(&self) -> &FinF64 {
-        &self.playback_ratio
+    pub const fn playback_ratio(&self) -> FinF64 {
+        self.playback_ratio
     }
 
     /// Get current Y position.
@@ -758,9 +753,9 @@ impl VisibleRangePerBpm {
     #[must_use]
     pub fn window_y(
         &self,
-        current_bpm: &PositiveF64,
-        current_speed: &PositiveF64,
-        playback_ratio: &FinF64,
+        current_bpm: PositiveF64,
+        current_speed: PositiveF64,
+        playback_ratio: FinF64,
     ) -> YCoordinate {
         // Check for invalid BPM early
         if current_bpm.as_f64() <= f64::EPSILON {
@@ -929,11 +924,11 @@ mod tests {
         let speed = PositiveF64::ONE;
 
         // First call computes velocity
-        let v1 = player.calculate_velocity(&speed);
+        let v1 = player.calculate_velocity(speed);
         assert!(v1.as_f64() > 0.0);
 
         // Second call should use cache
-        let v2 = player.calculate_velocity(&speed);
+        let v2 = player.calculate_velocity(speed);
         assert_eq!(v1, v2);
     }
 
@@ -967,13 +962,13 @@ mod tests {
         );
 
         // Initial state after start
-        assert!((player.playback_state().current_bpm().as_f64() - 120.0).abs() < f64::EPSILON);
-        assert!((player.playback_state().current_scroll().as_f64() - 1.0).abs() < f64::EPSILON);
+        assert!((player.playback_state().current_bpm.as_f64() - 120.0).abs() < f64::EPSILON);
+        assert!((player.playback_state().current_scroll.as_f64() - 1.0).abs() < f64::EPSILON);
 
         // Apply BPM change
         player.apply_flow_event(FlowEvent::Bpm(TEST_BPM));
 
-        assert!((player.playback_state().current_bpm().as_f64() - 180.0).abs() < f64::EPSILON);
+        assert!((player.playback_state().current_bpm.as_f64() - 180.0).abs() < f64::EPSILON);
         assert!(player.velocity_dirty);
     }
 
@@ -1027,8 +1022,8 @@ mod tests {
         );
 
         // Initial state
-        assert!((player.playback_state().current_bpm().as_f64() - 120.0).abs() < f64::EPSILON);
-        assert!((player.playback_state().current_scroll().as_f64() - 1.0).abs() < f64::EPSILON);
+        assert!((player.playback_state().current_bpm.as_f64() - 120.0).abs() < f64::EPSILON);
+        assert!((player.playback_state().current_scroll.as_f64() - 1.0).abs() < f64::EPSILON);
 
         // Advance past the event Y position
         // Calculate time needed: distance / velocity
@@ -1044,17 +1039,17 @@ mod tests {
         // Verify that both events were applied
         // BPM should be updated to 180
         assert!(
-            (player.playback_state().current_bpm().as_f64() - 180.0).abs() < f64::EPSILON,
+            (player.playback_state().current_bpm.as_f64() - 180.0).abs() < f64::EPSILON,
             "BPM change event should be applied"
         );
         // Scroll should be updated to 1.5
         assert!(
-            (player.playback_state().current_scroll().as_f64() - 1.5).abs() < f64::EPSILON,
+            (player.playback_state().current_scroll.as_f64() - 1.5).abs() < f64::EPSILON,
             "Scroll change event should be applied"
         );
         // Scroll should be updated to 1.5
         assert!(
-            (player.playback_state().current_scroll().as_f64() - 1.5).abs() < f64::EPSILON,
+            (player.playback_state().current_scroll.as_f64() - 1.5).abs() < f64::EPSILON,
             "Scroll change event should be applied"
         );
     }

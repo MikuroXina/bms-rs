@@ -76,7 +76,7 @@ fn test_bms_restart_resets_scroll_to_one() {
     let after_scroll_change = processor.started_at() + TimeSpan::MILLISECOND * 2700;
     let _ = processor.update(after_scroll_change);
     let state = processor.playback_state();
-    assert_ne!(*state.current_scroll(), FinF64::ONE);
+    assert_ne!(state.current_scroll, FinF64::ONE);
 
     let config2 = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms2 = parse_bms_no_warnings(bms_source, config2);
@@ -89,7 +89,7 @@ fn test_bms_restart_resets_scroll_to_one() {
     let start_time2 = TimeStamp::now();
     let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
     let reset_state = restarted_processor.playback_state();
-    assert_eq!(*reset_state.current_scroll(), FinF64::ONE);
+    assert_eq!(reset_state.current_scroll, FinF64::ONE);
 }
 
 #[test]
@@ -116,18 +116,15 @@ fn test_visible_events_duration_matches_reaction_time() {
     let _start_time = start_time;
 
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), TEST_BPM_120);
-    assert_eq!(*initial_state.current_speed(), PositiveF64::ONE);
-    assert_eq!(*initial_state.playback_ratio(), FinF64::ONE);
+    assert_eq!(initial_state.current_bpm, TEST_BPM_120);
+    assert_eq!(initial_state.current_speed, PositiveF64::ONE);
+    assert_eq!(initial_state.playback_ratio, FinF64::ONE);
 
     let test_base_bpm = BaseBpm::new(TEST_BPM_120);
     let visible_range = VisibleRangePerBpm::new(test_base_bpm.value(), reaction_time);
     let state = processor.playback_state();
-    let visible_window_y = visible_range.window_y(
-        state.current_bpm(),
-        state.current_speed(),
-        state.playback_ratio(),
-    );
+    let visible_window_y =
+        visible_range.window_y(state.current_bpm, state.current_speed, state.playback_ratio);
 
     const FIN_120: FinF64 = FinF64::new_const(120.0);
     const FIN_240: FinF64 = FinF64::new_const(240.0);

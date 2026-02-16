@@ -29,18 +29,18 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), TEST_BPM_120);
-    assert_eq!(*initial_state.current_speed(), PositiveF64::ONE);
-    assert_eq!(*initial_state.current_scroll(), FinF64::ONE);
+    assert_eq!(initial_state.current_bpm, TEST_BPM_120);
+    assert_eq!(initial_state.current_speed, PositiveF64::ONE);
+    assert_eq!(initial_state.current_scroll, FinF64::ONE);
 
     let after_first_change = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_change);
 
     let state = processor.playback_state();
     let visible_window_y = processor.visible_range_per_bpm().window_y(
-        state.current_bpm(),
-        state.current_speed(),
-        state.playback_ratio(),
+        state.current_bpm,
+        state.current_speed,
+        state.playback_ratio,
     );
     assert!(
         visible_window_y.as_f64() > 0.0,
@@ -140,7 +140,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     let initial_state = processor.playback_state();
     assert_eq!(
-        *initial_state.current_bpm(),
+        initial_state.current_bpm,
         PositiveF64::try_from(151.0).unwrap()
     );
 
@@ -150,7 +150,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
         panic!("Failed to parse PositiveF64 literal in test: {err:?}");
     });
     let state = processor.playback_state();
-    assert_eq!(*state.current_bpm(), bpm_75_5);
+    assert_eq!(state.current_bpm, bpm_75_5);
 
     let after_bpm_events = processor.visible_events();
     assert!(
@@ -203,7 +203,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_scroll(), FinF64::ONE);
+    assert_eq!(initial_state.current_scroll, FinF64::ONE);
 
     let initial_events = processor.visible_events();
     let initial_ratios: Vec<f64> = initial_events
@@ -218,7 +218,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let after_first_scroll = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_scroll);
     let state = processor.playback_state();
-    assert_eq!(*state.current_scroll(), FinF64::ONE);
+    assert_eq!(state.current_scroll, FinF64::ONE);
 
     let after_first_ratios: Vec<f64> = processor
         .visible_events()
@@ -239,7 +239,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let scroll_half = FinF64::HALF;
     let _ = processor.update(after_scroll_half);
     let half_scroll_state = processor.playback_state();
-    assert_eq!(*half_scroll_state.current_scroll(), scroll_half);
+    assert_eq!(half_scroll_state.current_scroll, scroll_half);
 
     let after_scroll_half_ratios: Vec<f64> = processor
         .visible_events()
@@ -313,9 +313,9 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), TEST_BPM_120);
-    assert_eq!(*initial_state.current_scroll(), FinF64::ONE);
-    assert_eq!(*initial_state.current_scroll(), FinF64::ONE);
+    assert_eq!(initial_state.current_bpm, TEST_BPM_120);
+    assert_eq!(initial_state.current_scroll, FinF64::ONE);
+    assert_eq!(initial_state.current_scroll, FinF64::ONE);
 
     let after_changes = start_time + TimeSpan::from_duration(Duration::from_millis(1000));
     let _ = processor.update(after_changes);
@@ -328,7 +328,7 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     let state = processor.playback_state();
     assert!(state.current_bpm().as_f64() > 0.0, "BPM should be valid");
     assert!(
-        *state.current_scroll() > FinF64::ZERO,
+        state.current_scroll > FinF64::ZERO,
         "Scroll should be valid"
     );
 }

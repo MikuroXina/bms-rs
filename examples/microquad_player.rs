@@ -108,10 +108,10 @@ async fn main() -> Result<(), String> {
             println!(
                 "[Playback] Time: {:.1}s | BPM: {:.1} | Y: {:.2} | Speed: {:.2} | Scroll: {:.2} | Missed: {}",
                 elapsed.as_secs_f64(),
-                state.current_bpm().as_f64(),
+                state.current_bpm.as_f64(),
                 state.progressed_y().as_f64(),
-                state.current_speed().as_f64(),
-                state.current_scroll().as_f64(),
+                state.current_speed.as_f64(),
+                state.current_scroll.as_f64(),
                 missed_sounds,
             );
             next_print_time += TimeSpan::SECOND;
@@ -516,7 +516,7 @@ fn render_info(player: &ChartPlayer) {
     let state = player.playback_state();
 
     // Display BPM
-    let bpm = state.current_bpm().as_f64();
+    let bpm = state.current_bpm.as_f64();
     macroquad::prelude::draw_text(
         &format!("BPM: {:.1}", bpm),
         10.0,

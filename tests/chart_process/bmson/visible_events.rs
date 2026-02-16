@@ -92,17 +92,14 @@ fn test_visible_events_duration_matches_reaction_time() {
     let _start_time = TimeStamp::start();
 
     let initial_state = processor.playback_state();
-    assert_eq!(*initial_state.current_bpm(), TEST_BPM_120);
-    assert_eq!(*initial_state.playback_ratio(), FinF64::ONE);
+    assert_eq!(initial_state.current_bpm, TEST_BPM_120);
+    assert_eq!(initial_state.playback_ratio, FinF64::ONE);
 
     let test_base_bpm = TEST_BPM_120;
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
     let state = processor.playback_state();
-    let visible_window_y = visible_range.window_y(
-        state.current_bpm(),
-        &PositiveF64::ONE,
-        state.playback_ratio(),
-    );
+    let visible_window_y =
+        visible_range.window_y(state.current_bpm, PositiveF64::ONE, state.playback_ratio);
 
     let velocity =
         (TEST_BPM_120 * PositiveF64::ONE / PositiveF64::try_from((240) as f64).unwrap()).unwrap();
@@ -149,18 +146,18 @@ fn test_visible_events_duration_with_playback_ratio() {
 
     let state = processor.playback_state();
     let visible_window_y_ratio_1 =
-        visible_range.window_y(state.current_bpm(), &PositiveF64::ONE, &FinF64::ONE);
+        visible_range.window_y(state.current_bpm, PositiveF64::ONE, FinF64::ONE);
 
     processor.set_playback_ratio(FinF64::HALF);
 
     let changed_state = processor.playback_state();
-    assert_eq!(*changed_state.playback_ratio(), FinF64::HALF);
+    assert_eq!(changed_state.playback_ratio, FinF64::HALF);
 
     let state_0_5 = processor.playback_state();
     let visible_window_y_ratio_0_5 = visible_range.window_y(
-        state_0_5.current_bpm(),
-        &PositiveF64::ONE,
-        state_0_5.playback_ratio(),
+        state_0_5.current_bpm,
+        PositiveF64::ONE,
+        state_0_5.playback_ratio,
     );
 
     let ratio = visible_window_y_ratio_0_5.as_f64() / visible_window_y_ratio_1.as_f64();
@@ -214,8 +211,7 @@ fn test_visible_events_with_boundary_conditions() {
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);
 
     let very_small_ratio = FinF64::ONE;
-    let visible_window_y =
-        visible_range.window_y(&TEST_BPM_120, &PositiveF64::ONE, &very_small_ratio);
+    let visible_window_y = visible_range.window_y(TEST_BPM_120, PositiveF64::ONE, very_small_ratio);
 
     assert!(
         visible_window_y.as_f64() >= 0.0,
@@ -224,7 +220,7 @@ fn test_visible_events_with_boundary_conditions() {
 
     let normal_ratio = FinF64::ONE;
     let visible_window_y_normal =
-        visible_range.window_y(&TEST_BPM_120, &PositiveF64::ONE, &normal_ratio);
+        visible_range.window_y(TEST_BPM_120, PositiveF64::ONE, normal_ratio);
 
     let expected_ratio = (very_small_ratio / normal_ratio).unwrap();
     let actual_ratio = visible_window_y.as_f64() / visible_window_y_normal.as_f64();

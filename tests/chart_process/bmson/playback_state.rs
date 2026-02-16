@@ -49,7 +49,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
     let _ = processor.update(after_scroll);
     let state = processor.playback_state();
-    assert_ne!(*state.current_scroll(), FinF64::ONE);
+    assert_ne!(state.current_scroll, FinF64::ONE);
 
     let output2 = parse_bmson(json);
     let bmson2 = output2.bmson.expect("Failed to parse BMSON in test setup");
@@ -62,7 +62,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let start_time2 = TimeStamp::now();
     let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
     let reset_state = restarted_processor.playback_state();
-    assert_eq!(*reset_state.current_scroll(), FinF64::ONE);
+    assert_eq!(reset_state.current_scroll, FinF64::ONE);
 }
 
 #[test]
@@ -183,8 +183,7 @@ fn test_very_long_elapsed_time_no_errors() {
     let state = processor.playback_state();
     let expected_bpm = PositiveF64::try_from(180.0).unwrap();
     assert_eq!(
-        *state.current_bpm(),
-        expected_bpm,
+        state.current_bpm, expected_bpm,
         "BPM should be {} after 30 days",
         expected_bpm,
     );
