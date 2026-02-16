@@ -2,21 +2,26 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 
+use strict_num_extended::PositiveF64;
+
 use crate::bms::{
+    command::StringValue,
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
+
+const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// This aggregate manages definition and events of BPM change on playing.
 pub struct BpmObjects {
     /// The initial BPM of the score.
-    pub bpm: Option<Decimal>,
+    pub bpm: Option<StringValue<PositiveF64>>,
     /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
-    pub bpm_defs: HashMap<ObjId, Decimal>,
+    pub bpm_defs: HashMap<ObjId, StringValue<PositiveF64>>,
     /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
-    pub base_bpm: Option<Decimal>,
+    pub base_bpm: Option<StringValue<PositiveF64>>,
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
@@ -103,11 +108,11 @@ impl BpmObjects {
                 let existing = entry.get();
                 let older = BpmChangeObj {
                     time,
-                    bpm: Decimal::from(*existing),
+                    bpm: PositiveF64::new(*existing as f64).unwrap_or(DEFAULT_BPM),
                 };
                 let newer = BpmChangeObj {
                     time,
-                    bpm: Decimal::from(bpm_change),
+                    bpm: PositiveF64::new(bpm_change as f64).unwrap_or(DEFAULT_BPM),
                 };
                 prompt_handler
                     .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {

@@ -82,6 +82,7 @@ struct BranchBuffer<'t> {
 }
 
 struct RandomScope<'t> {
+    line_number: usize,
     generating: Option<ControlFlowValue>,
     max_value: Option<BigUint>,
     branches: BTreeMap<BigUint, RandomizedBranch>,
@@ -102,12 +103,13 @@ impl<'t> Collector<'t> {
         }
     }
 
-    fn push_random(&mut self, generating: ControlFlowValue) {
+    fn push_random(&mut self, generating: ControlFlowValue, line_number: usize) {
         let max_value = match &generating {
             ControlFlowValue::GenMax(m) => Some(m.clone()),
             ControlFlowValue::Set(_) => None, // Explicit value, cannot infer range for ELSE
         };
         self.stack.push(RandomScope {
+            line_number,
             generating: Some(generating),
             max_value,
             branches: BTreeMap::new(),
@@ -251,7 +253,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 activated,
             });
 
-            collector_mut.push_random(ControlFlowValue::GenMax(max));
+            collector_mut.push_random(ControlFlowValue::GenMax(max), token.range().start);
 
             Ok(None)
         };
@@ -294,7 +296,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 generated: generated.clone(),
                 activated,
             });
-            collector_mut.push_random(ControlFlowValue::Set(generated));
+            collector_mut.push_random(ControlFlowValue::Set(generated), token.range().start);
             Ok(None)
         };
         let top = self.top_state(token)?;
@@ -509,6 +511,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
                 if let Some(scope) = collector.stack.pop() {
                     let obj = RandomizedObjects {
+                        line_number: scope.line_number,
                         generating: scope.generating,
                         branches: scope.branches,
                     };
@@ -563,7 +566,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                     .push(ProcessState::SwitchAfterActive { generated });
             }
 
-            collector_mut.push_random(ControlFlowValue::GenMax(max));
+            collector_mut.push_random(ControlFlowValue::GenMax(max), token.range().start);
 
             Ok(None)
         };
@@ -609,7 +612,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                         generated: generated.clone(),
                     });
             }
-            collector_mut.push_random(ControlFlowValue::Set(generated));
+            collector_mut.push_random(ControlFlowValue::Set(generated), token.range().start);
             Ok(None)
         };
         let top = self.top_state(token)?;
@@ -653,6 +656,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                     && let Some(scope) = collector.stack.pop()
                 {
                     let obj = RandomizedObjects {
+                        line_number: scope.line_number,
                         generating: scope.generating,
                         branches: scope.branches,
                     };
@@ -798,11 +802,13 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
                 if let Some(scope) = collector.stack.pop() {
                     let obj = RandomizedObjects {
+                        line_number: scope.line_number,
                         generating: scope.generating,
                         branches: scope.branches,
                     };
                     collector.add_nested_object(obj);
                 }
+
                 Ok(())
             }
             _ => Err(SourceRangeMixin::new(

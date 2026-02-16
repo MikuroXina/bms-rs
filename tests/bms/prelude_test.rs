@@ -1,5 +1,14 @@
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
+
 use bms_rs::bms::prelude::*;
-use num::{BigUint, One};
+
+/// Default test BPM value (120.0)
+const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
+
+/// Test constants for `strict_num_extended` types
+const TEST_LENGTH_4: FinF64 = FinF64::new_const(4.0);
+
+use num::BigUint;
 
 #[test]
 fn test_prelude_imports() {
@@ -66,15 +75,15 @@ fn test_prelude_imports() {
     };
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
-        bpm: Decimal::from(120),
+        bpm: TEST_BPM_120,
     };
     let _section_len_change_obj = SectionLenChangeObj {
         track: _track,
-        length: Decimal::from(4),
+        length: TEST_LENGTH_4,
     };
     let _stop_obj = StopObj {
         time: _obj_time,
-        duration: Decimal::one(),
+        duration: NonNegativeF64::ONE,
     };
     let _bga_obj = BgaObj {
         time: _obj_time,
@@ -83,11 +92,11 @@ fn test_prelude_imports() {
     };
     let _scrolling_factor_obj = ScrollingFactorObj {
         time: _obj_time,
-        factor: Decimal::one(),
+        factor: FinF64::ONE,
     };
     let _speed_obj = SpeedObj {
         time: _obj_time,
-        factor: Decimal::one(),
+        factor: PositiveF64::ONE,
     };
 
     // Test prompt types

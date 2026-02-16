@@ -4,10 +4,11 @@
 
 use std::path::Path;
 
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
+
 use crate::bms::{
-    Decimal,
     command::{
-        ObjId,
+        ObjId, StringValue,
         channel::Channel,
         time::{ObjTime, Track},
     },
@@ -21,7 +22,7 @@ use crate::bms::{
 
 use crate::bms::model::obj::{
     BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
-    SectionLenChangeObj, SpeedObj, TextObj,
+    SectionLenChangeObj, SpeedObj, StopObj, TextObj,
 };
 
 use crate::bms::{
@@ -60,9 +61,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated BPM object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: &'a StringValue<PositiveF64>,
         /// Incoming definition.
-        newer: Decimal,
+        newer: &'a StringValue<PositiveF64>,
     },
     /// OPTION definition is duplicated.
     ChangeOption {
@@ -78,18 +79,18 @@ pub enum DefDuplication<'a> {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: &'a StringValue<PositiveF64>,
         /// Incoming definition.
-        newer: Decimal,
+        newer: &'a StringValue<PositiveF64>,
     },
     /// SCROLL definition is duplicated.
     ScrollingFactorChange {
         /// Duplicated SCROLL object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: &'a StringValue<FinF64>,
         /// Incoming definition.
-        newer: Decimal,
+        newer: &'a StringValue<FinF64>,
     },
     /// TEXT is duplicated.
     Text {
@@ -150,9 +151,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated STOP object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: &'a StringValue<NonNegativeF64>,
         /// Incoming definition.
-        newer: Decimal,
+        newer: &'a StringValue<NonNegativeF64>,
     },
     /// BGA ARGB color definition is duplicated.
     BgaArgb {
@@ -186,9 +187,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated Seek event id.
         id: ObjId,
         /// Existing definition.
-        older: &'a Decimal,
+        older: &'a StringValue<FinF64>,
         /// Incoming definition.
-        newer: &'a Decimal,
+        newer: &'a StringValue<FinF64>,
     },
 }
 
@@ -269,6 +270,15 @@ pub enum ChannelDuplication<'a> {
         older: &'a StpEvent,
         /// Incoming definition.
         newer: &'a StpEvent,
+    },
+    /// Stop event is duplicated.
+    StopEvent {
+        /// Duplicated stop time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a StopObj,
+        /// Incoming definition.
+        newer: &'a StopObj,
     },
     /// BGM volume change event is duplicated.
     BgmVolumeChangeEvent {

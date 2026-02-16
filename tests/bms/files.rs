@@ -1,5 +1,6 @@
+use strict_num_extended::{FinF64, PositiveF64};
+
 use bms_rs::bms::prelude::*;
-use num::One;
 
 #[test]
 fn test_lal() {
@@ -18,11 +19,20 @@ fn test_lal() {
         Some("ikaruga_nex (obj:Mikuro Xina)")
     );
     assert_eq!(bms.music_info.genre.as_deref(), Some("Hi-Tech Rave"));
-    assert_eq!(bms.bpm.bpm, Some(Decimal::from(151)));
+    assert_eq!(
+        bms.bpm.bpm.as_ref().map(|v| *v.value().as_ref().unwrap()),
+        Some(PositiveF64::try_from(151.0).unwrap())
+    );
     assert_eq!(bms.metadata.play_level, Some(7));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.metadata.difficulty, Some(2));
-    assert_eq!(bms.judge.total, Some(Decimal::from(359.6)));
+    assert_eq!(
+        bms.judge
+            .total
+            .as_ref()
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(359.6).expect("359.6 should be finite"))
+    );
 
     eprintln!("{bms:?}");
 }
@@ -42,11 +52,20 @@ fn test_nc() {
     );
     assert_eq!(bms.music_info.genre.as_deref(), Some("MOTION"));
     assert_eq!(bms.music_info.subtitle.as_deref(), Some("[STX]"));
-    assert_eq!(bms.bpm.bpm, Some(Decimal::from(100)));
+    assert_eq!(
+        bms.bpm.bpm.as_ref().map(|v| *v.value().as_ref().unwrap()),
+        Some(PositiveF64::try_from(100.0).unwrap())
+    );
     assert_eq!(bms.metadata.play_level, Some(5));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.metadata.difficulty, Some(2));
-    assert_eq!(bms.judge.total, Some(Decimal::from(260)));
+    assert_eq!(
+        bms.judge
+            .total
+            .as_ref()
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(260.0).expect("260.0 should be finite"))
+    );
     assert_eq!(
         bms.sprite.stage_file.as_ref().map(|p| p.to_string_lossy()),
         Some("stagefile.png".into())
@@ -73,10 +92,19 @@ fn test_j219() {
         Some("cranky (obj: Mikuro Xina)")
     );
     assert_eq!(bms.music_info.genre.as_deref(), Some("EURO BEAT"));
-    assert_eq!(bms.bpm.bpm, Some(Decimal::from(147)));
+    assert_eq!(
+        bms.bpm.bpm.as_ref().map(|v| *v.value().as_ref().unwrap()),
+        Some(PositiveF64::try_from(147.0).unwrap())
+    );
     assert_eq!(bms.metadata.play_level, Some(6));
     assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
-    assert_eq!(bms.judge.total, Some(Decimal::from(218)));
+    assert_eq!(
+        bms.judge
+            .total
+            .as_ref()
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::new(218.0).expect("218.0 should be finite"))
+    );
     assert_eq!(
         bms.sprite.stage_file.as_ref().map(|p| p.to_string_lossy()),
         Some("J219title.bmp".into())
@@ -142,26 +170,30 @@ fn test_bemuse_ext() {
     assert_eq!(
         bms.scroll
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::one())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::ONE)
     );
     assert_eq!(
         bms.scroll
             .scroll_defs
-            .get(&ObjId::try_from("02", false).unwrap()),
-        Some(&Decimal::from(0.5))
+            .get(&ObjId::try_from("02", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(FinF64::HALF)
     );
     assert_eq!(
         bms.speed
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::one())
+            .get(&ObjId::try_from("01", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(PositiveF64::ONE)
     );
     assert_eq!(
         bms.speed
             .speed_defs
-            .get(&ObjId::try_from("02", false).unwrap()),
-        Some(&Decimal::from(0.5))
+            .get(&ObjId::try_from("02", false).unwrap())
+            .map(|v| *v.value().as_ref().unwrap()),
+        Some(PositiveF64::HALF)
     );
 
     eprintln!("{bms:?}");

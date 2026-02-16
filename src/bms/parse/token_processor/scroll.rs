@@ -3,9 +3,7 @@
 //! - `#SCROLL[01-ZZ] n` - Scrolling speed factor definition. It changes scrolling speed while keeps BPM.
 //! - `#xxxSC:` - Scrolling speed factor channel.
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
-
-use fraction::GenericFraction;
+use std::{cell::RefCell, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -14,7 +12,7 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::scroll::ScrollObjects,
+        model::{StringValue, scroll::ScrollObjects},
         parse::{ParseWarning, Result},
         prelude::*,
     },
@@ -77,21 +75,18 @@ impl ScrollProcessor {
         objects: &mut ScrollObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SCROLL") {
-            let factor =
-                Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
-                    ParseWarning::SyntaxError("expected decimal scroll factor".into())
-                })?);
+            let string_value = StringValue::new(args);
             let scroll_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
             if let Some(older) = objects.scroll_defs.get_mut(&scroll_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::ScrollingFactorChange {
                         id: scroll_obj_id,
-                        older: older.clone(),
-                        newer: factor.clone(),
+                        older,
+                        newer: &string_value,
                     })
-                    .apply_def(older, factor, scroll_obj_id)?;
+                    .apply_def(older, string_value, scroll_obj_id)?;
             } else {
-                objects.scroll_defs.insert(scroll_obj_id, factor);
+                objects.scroll_defs.insert(scroll_obj_id, string_value);
             }
         }
         Ok(())
@@ -110,11 +105,13 @@ impl ScrollProcessor {
             let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
-                let factor = objects
+                let string_value = objects
                     .scroll_defs
                     .get(&obj)
-                    .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
+                let Ok(&factor) = string_value.value().as_ref() else {
+                    continue;
+                };
                 objects
                     .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)?;
             }

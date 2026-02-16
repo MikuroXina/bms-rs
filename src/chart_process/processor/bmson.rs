@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,
 };
 
-use num::{One, ToPrimitive, Zero};
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
@@ -15,9 +15,15 @@ use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
-use crate::{bms::Decimal, util::StrExtension};
+use crate::util::StrExtension;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
+const DEFAULT_SPEED_FACTOR: PositiveF64 = PositiveF64::ONE;
+
+/// Maximum value for `FinF64` when overflow occurs
+const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
+/// Maximum value for `NonNegativeF64` when overflow occurs
+const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
 
 /// BMSON format parser.
 ///
@@ -29,10 +35,16 @@ impl BmsonProcessor {
     /// Parse BMSON file and return a `PlayableChart` containing all precomputed data.
     #[must_use]
     pub fn parse(bmson: &Bmson<'_>) -> PlayableChart {
-        let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
-        let pulses_denom = Decimal::from(4 * bmson.info.resolution.get());
-        let pulses_to_y =
-            |pulses: i64| YCoordinate::new(Decimal::from(pulses) / pulses_denom.clone());
+        let init_bpm: PositiveF64 =
+            PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
+        let pulses_denom = FinF64::new((4 * bmson.info.resolution.get()) as f64)
+            .expect("pulses_denom should be finite");
+        let pulses_to_y = |pulses: i64| -> YCoordinate {
+            YCoordinate::new(
+                NonNegativeF64::new(pulses as f64 / pulses_denom.as_f64())
+                    .unwrap_or(MAX_NON_NEGATIVE_F64),
+            )
+        };
 
         // Preprocessing: assign IDs to all audio and image resources
         let mut audio_name_to_id = HashMap::new();
@@ -88,17 +100,18 @@ impl BmsonProcessor {
         let mut flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0 as i64);
-            flow_events_by_y
-                .entry(y)
-                .or_default()
-                .push(FlowEvent::Bpm(ev.bpm.as_f64().into()));
+            flow_events_by_y.entry(y).or_default().push(FlowEvent::Bpm(
+                PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
+            ));
         }
         for ScrollEvent { y, rate } in &bmson.scroll_events {
             let y = pulses_to_y(y.0 as i64);
             flow_events_by_y
                 .entry(y)
                 .or_default()
-                .push(FlowEvent::Scroll(rate.as_f64().into()));
+                .push(FlowEvent::Scroll(
+                    FinF64::new(rate.as_f64()).expect("rate should be finite"),
+                ));
         }
 
         let all_events =
@@ -119,7 +132,7 @@ impl BmsonProcessor {
             all_events,
             flow_events_by_y,
             init_bpm,
-            Decimal::one(), // BMSON doesn't have Speed concept, default to 1.0
+            DEFAULT_SPEED_FACTOR, // BMSON doesn't have Speed concept, default to 1.0
         )
     }
 }
@@ -151,18 +164,23 @@ impl AllEventsIndex {
         bmp_name_to_id: &HashMap<String, BmpId>,
     ) -> Self {
         use std::collections::BTreeSet;
-        let denom = Decimal::from(4 * bmson.info.resolution.get());
-        let denom_inv = if denom == Decimal::zero() {
-            Decimal::zero()
+        let denom =
+            FinF64::new((4 * bmson.info.resolution.get()) as f64).expect("denom should be finite");
+        let denom_inv = if denom.as_f64() == 0.0 {
+            FinF64::ZERO
         } else {
-            Decimal::one() / denom
+            FinF64::new(1.0 / denom.as_f64()).expect("denom_inv should be finite")
         };
-        let pulses_to_y = |pulses: u64| {
-            let pulses = Decimal::from(pulses);
-            YCoordinate::new(&pulses * &denom_inv)
+        let pulses_to_y = |pulses: u64| -> YCoordinate {
+            let pulses = FinF64::new(pulses as f64).expect("pulses should be finite");
+            let y: NonNegativeF64 = (pulses * denom_inv)
+                .unwrap_or(MAX_FIN_F64)
+                .try_into()
+                .unwrap_or(MAX_NON_NEGATIVE_F64);
+            YCoordinate::new(y)
         };
         let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
-        points.insert(YCoordinate::zero());
+        points.insert(YCoordinate::ZERO);
         for SoundChannel { notes, .. } in &bmson.sound_channels {
             for Note { y, .. } in notes {
                 points.insert(pulses_to_y(y.0));
@@ -201,21 +219,23 @@ impl AllEventsIndex {
                 points.insert(pulses_to_y(bar_line.y.0));
             }
         } else {
-            let max_y = points
-                .iter()
-                .cloned()
-                .max()
-                .unwrap_or_else(YCoordinate::zero);
-            let floor = max_y.value().to_i64().unwrap_or(0);
+            let max_y = points.iter().cloned().max().unwrap_or(YCoordinate::ZERO);
+            let floor = max_y.as_f64() as i64;
             for i in 0..=floor {
-                points.insert(YCoordinate::new(Decimal::from(i)));
+                points.insert(YCoordinate::new(
+                    NonNegativeF64::new(i as f64).expect("i should be non-negative"),
+                ));
             }
         }
-        let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
-        let mut bpm_map: BTreeMap<YCoordinate, Decimal> = BTreeMap::new();
-        bpm_map.insert(YCoordinate::zero(), init_bpm.clone());
+        let init_bpm: PositiveF64 =
+            PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
+        let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
+        bpm_map.insert(YCoordinate::ZERO, init_bpm);
         for ev in &bmson.bpm_events {
-            bpm_map.insert(pulses_to_y(ev.y.0), ev.bpm.as_f64().into());
+            bpm_map.insert(
+                pulses_to_y(ev.y.0),
+                PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
+            );
         }
         let mut stop_list: Vec<(YCoordinate, u64)> = bmson
             .stop_events
@@ -225,13 +245,13 @@ impl AllEventsIndex {
         stop_list.sort_by(|a, b| a.0.cmp(&b.0));
         let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
         let mut total_nanos: u64 = 0;
-        let mut prev = YCoordinate::zero();
-        cum_map.insert(prev.clone(), 0);
+        let mut prev = YCoordinate::ZERO;
+        cum_map.insert(prev, 0);
         let mut cur_bpm = bpm_map
             .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
             .next_back()
-            .map(|(_, b)| b.clone())
-            .unwrap_or_else(|| init_bpm.clone());
+            .map(|(_, b)| *b)
+            .unwrap_or(init_bpm);
         let nanos_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| {
             let bpm_at_stop = bpm_map
                 .range((
@@ -239,14 +259,12 @@ impl AllEventsIndex {
                     std::ops::Bound::Included(stop_y),
                 ))
                 .next_back()
-                .map(|(_, b)| b.clone())
-                .unwrap_or_else(|| init_bpm.clone());
+                .map(|(_, b)| *b)
+                .unwrap_or(init_bpm);
             {
                 let stop_y_len = pulses_to_y(stop_pulses);
-                (stop_y_len.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-                    / bpm_at_stop)
-                    .to_u64()
-                    .unwrap_or(0)
+                (stop_y_len.as_f64() * 240.0 * NANOS_PER_SECOND as f64 / bpm_at_stop.as_f64())
+                    as u64
             }
         };
         let mut stop_idx = 0usize;
@@ -254,11 +272,9 @@ impl AllEventsIndex {
             if curr <= prev {
                 continue;
             }
-            let delta_y = Decimal::from(&curr - &prev);
-            let delta_nanos = (&delta_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND)
-                / cur_bpm)
-                .to_u64()
-                .unwrap_or(0);
+            let delta_y = curr - prev;
+            let delta_nanos =
+                (delta_y.as_f64() * 240.0 * NANOS_PER_SECOND as f64 / cur_bpm.as_f64()) as u64;
             total_nanos = total_nanos.saturating_add(delta_nanos);
             while let Some((sy, stop_pulses)) = stop_list.get(stop_idx) {
                 if sy > &curr {
@@ -272,9 +288,9 @@ impl AllEventsIndex {
             cur_bpm = bpm_map
                 .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
                 .next_back()
-                .map(|(_, b)| b.clone())
-                .unwrap_or_else(|| init_bpm.clone());
-            cum_map.insert(curr.clone(), total_nanos);
+                .map(|(_, b)| *b)
+                .unwrap_or(init_bpm);
+            cum_map.insert(curr, total_nanos);
             prev = curr;
         }
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
@@ -282,14 +298,15 @@ impl AllEventsIndex {
             |nanos: u64| TimeSpan::from_duration(std::time::Duration::from_nanos(nanos));
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
         for SoundChannel { name, notes } in &bmson.sound_channels {
-            let mut last_restart_y = YCoordinate::zero();
+            let mut last_restart_y = YCoordinate::ZERO;
             for Note { y, x, l, c, .. } in notes {
                 let y_coord = pulses_to_y(y.0);
                 let wav_id = audio_name_to_id.get(name.as_ref()).copied();
                 if let Some((side, key)) = lane_from_x(bmson.info.mode_hint.as_ref(), *x) {
                     let length = (*l > 0).then(|| {
                         let end_y = pulses_to_y(y.0 + l);
-                        &end_y - &y_coord
+                        NonNegativeF64::new((end_y - y_coord).as_f64())
+                            .expect("length should be non-negative")
                     });
                     let kind = if *l > 0 {
                         NoteKind::Long
@@ -310,15 +327,15 @@ impl AllEventsIndex {
                         continue_play,
                     };
                     let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
-                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                     if !*c {
-                        last_restart_y = y_coord.clone();
+                        last_restart_y = y_coord;
                     }
                     events_map.entry(y_coord).or_default().push(evp);
                 } else {
                     let event = ChartEvent::Bgm { wav_id };
                     let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
-                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                 }
             }
@@ -326,19 +343,19 @@ impl AllEventsIndex {
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0);
             let event = ChartEvent::BpmChange {
-                bpm: ev.bpm.as_f64().into(),
+                bpm: PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
         for ScrollEvent { y, rate } in &bmson.scroll_events {
             let y = pulses_to_y(y.0);
             let event = ChartEvent::ScrollChange {
-                factor: rate.as_f64().into(),
+                factor: FinF64::new(rate.as_f64()).expect("rate should be finite"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
         let mut id_to_bmp: HashMap<u32, Option<BmpId>> = HashMap::new();
@@ -353,7 +370,7 @@ impl AllEventsIndex {
                 bmp_id,
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
         for BgaEvent { y, id } in &bmson.bga.layer_events {
@@ -364,7 +381,7 @@ impl AllEventsIndex {
                 bmp_id,
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
         for BgaEvent { y, id } in &bmson.bga.poor_events {
@@ -375,7 +392,7 @@ impl AllEventsIndex {
                 bmp_id,
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
         if let Some(lines) = &bmson.lines {
@@ -383,35 +400,37 @@ impl AllEventsIndex {
                 let y = pulses_to_y(bar_line.y.0);
                 let event = ChartEvent::BarLine;
                 let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
-                let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
+                let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
                 events_map.entry(y).or_default().push(evp);
             }
         } else {
             let max_y = events_map
                 .keys()
-                .map(YCoordinate::value)
                 .max()
-                .cloned()
-                .unwrap_or_else(Decimal::zero);
-            if max_y > Decimal::zero() {
-                let mut current_y = Decimal::zero();
-                while current_y <= max_y {
-                    let y_coord = YCoordinate::from(current_y.clone());
+                .copied()
+                .unwrap_or(YCoordinate::ZERO);
+            if max_y.as_f64() > 0.0 {
+                let mut current_y = 0.0f64;
+                while current_y <= max_y.as_f64() {
+                    let y_coord = YCoordinate::new(
+                        NonNegativeF64::new(current_y).expect("y should be non-negative"),
+                    );
                     let event = ChartEvent::BarLine;
                     let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
-                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                     events_map.entry(y_coord).or_default().push(evp);
-                    current_y += Decimal::one();
+                    current_y += 1.0;
                 }
             }
         }
         for stop in &bmson.stop_events {
             let y = pulses_to_y(stop.y.0);
             let event = ChartEvent::Stop {
-                duration: (stop.duration as f64).into(),
+                duration: NonNegativeF64::new(stop.duration as f64)
+                    .expect("duration should be non-negative"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
-            let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
         for MineChannel { name, notes } in &bmson.mine_channels {
@@ -430,7 +449,7 @@ impl AllEventsIndex {
                     continue_play: None,
                 };
                 let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
-                let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -450,7 +469,7 @@ impl AllEventsIndex {
                     continue_play: None,
                 };
                 let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
-                let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }

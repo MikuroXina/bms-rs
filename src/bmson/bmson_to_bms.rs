@@ -5,10 +5,11 @@ use std::{
     path::PathBuf,
 };
 
+use strict_num_extended::{FinF64, NonNegativeF64};
 use thiserror::Error;
 
 use crate::{
-    bms::prelude::*,
+    bms::{command::StringValue, prelude::*},
     bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 
@@ -37,7 +38,7 @@ pub enum BmsonToBmsWarning {
 }
 
 /// Output of the conversion from `Bmson` to `Bms`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[must_use]
 pub struct BmsonToBmsOutput {
     /// The converted `Bms` object.
@@ -74,7 +75,8 @@ impl Bms {
             .map(|s| s.clone().into_owned());
         bms.music_info.genre = Some(value.info.genre.into_owned());
         bms.metadata.play_level = Some(value.info.level as u8);
-        bms.judge.total = Some(Decimal::from(value.info.total.as_f64()));
+        let total = value.info.total;
+        bms.judge.total = Some(StringValue::from_value(total));
         bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
         bms.sprite.stage_file = value
             .info
@@ -94,28 +96,30 @@ impl Bms {
         bms.judge.rank = Some(JudgeLevel::OtherInt(judge_rank_value));
 
         // Convert initial BPM
-        bms.bpm.bpm = Some(Decimal::from(value.info.init_bpm.as_f64()));
+        bms.bpm.bpm = Some(StringValue::from_value(value.info.init_bpm));
 
         // Convert resolution
         bms.section_len.section_len_changes.insert(
             Track(0),
             SectionLenChangeObj {
                 track: Track(0),
-                length: Decimal::from(resolution.get()),
+                length: FinF64::new(resolution.get() as f64).expect("resolution should be finite"),
             },
         );
 
         // Convert BPM events
         for bpm_event in value.bpm_events {
             let time = convert_pulse_to_obj_time(bpm_event.y, resolution);
-            let bpm = Decimal::from(bpm_event.bpm.as_f64());
+            let bpm = bpm_event.bpm;
 
             // Add to scope_defines
             let bpm_def_id = bpm_def_obj_id_issuer.next().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::BpmDefOutOfRange);
                 ObjId::null()
             });
-            bms.bpm.bpm_defs.insert(bpm_def_id, bpm.clone());
+            bms.bpm
+                .bpm_defs
+                .insert(bpm_def_id, StringValue::from_value(bpm));
 
             bms.bpm.bpm_changes.insert(time, BpmChangeObj { time, bpm });
         }
@@ -123,14 +127,17 @@ impl Bms {
         // Convert stop events
         for stop_event in value.stop_events {
             let time = convert_pulse_to_obj_time(stop_event.y, resolution);
-            let duration = Decimal::from(stop_event.duration);
+            let duration = NonNegativeF64::new(stop_event.duration as f64)
+                .expect("stop duration should be finite");
 
             // Add to scope_defines
             let stop_def_id = stop_def_obj_id_issuer.next().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::StopDefOutOfRange);
                 ObjId::null()
             });
-            bms.stop.stop_defs.insert(stop_def_id, duration.clone());
+            bms.stop
+                .stop_defs
+                .insert(stop_def_id, StringValue::from_value(duration));
 
             bms.stop.stops.insert(time, StopObj { time, duration });
         }
@@ -138,14 +145,16 @@ impl Bms {
         // Convert scroll events
         for scroll_event in value.scroll_events {
             let time = convert_pulse_to_obj_time(scroll_event.y, resolution);
-            let factor = Decimal::from(scroll_event.rate.as_f64());
+            let factor = scroll_event.rate;
 
             // Add to scope_defines
             let scroll_def_id = scroll_def_obj_id_issuer.next().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::ScrollDefOutOfRange);
                 ObjId::null()
             });
-            bms.scroll.scroll_defs.insert(scroll_def_id, factor.clone());
+            bms.scroll
+                .scroll_defs
+                .insert(scroll_def_id, StringValue::from_value(factor));
 
             bms.scroll
                 .scrolling_factor_changes

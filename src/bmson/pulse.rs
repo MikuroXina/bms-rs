@@ -4,10 +4,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::bms::{
-    Decimal,
-    command::time::{ObjTime, Track},
-};
+use crate::bms::command::time::{ObjTime, Track};
+use crate::bmson::prelude::FinF64;
 
 /// Note position for the chart [`super::Bmson`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -50,9 +48,8 @@ impl PulseConverter {
                 .section_len
                 .section_len_changes
                 .get(&Track(current_track))
-                .map_or_else(|| Decimal::from(1u64), |section| section.length.clone())
-                .try_into()
-                .unwrap_or(1.0);
+                .map_or_else(|| FinF64::ONE, |section| section.length)
+                .into();
             current_pulses = current_pulses.saturating_add((section_len * 4.0) as u64 * resolution);
             current_track += 1;
             pulses_at_track_start.insert(Track(current_track), current_pulses);
@@ -96,6 +93,10 @@ impl PulseConverter {
 fn pulse_conversion() {
     use crate::bms::model::{obj::SectionLenChangeObj, section_len::SectionLenObjects};
 
+    // Test constants for strict_num_extended types
+    const LENGTH_0_75: FinF64 = FinF64::new_const(0.75);
+    const LENGTH_1_25: FinF64 = FinF64::new_const(1.25);
+
     // Source BMS:
     // ```
     // #00102:0.75
@@ -108,7 +109,7 @@ fn pulse_conversion() {
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(1),
-                    length: Decimal::from(0.75),
+                    length: LENGTH_0_75,
                 },
                 &prompt_handler,
             )
@@ -117,7 +118,7 @@ fn pulse_conversion() {
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(2),
-                    length: Decimal::from(1.25),
+                    length: LENGTH_1_25,
                 },
                 &prompt_handler,
             )

@@ -1,12 +1,15 @@
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
 
-use bms_rs::bms::Decimal;
 use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
+use strict_num_extended::PositiveF64;
+
+use bms_rs::chart_process::BaseBpm;
 use bms_rs::chart_process::prelude::*;
 
 use super::parse_bms_no_warnings;
+
+const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
 
 #[test]
 fn test_bms_zero_length_section_parser_allows_no_warnings() {
@@ -90,9 +93,9 @@ fn test_bms_zero_length_section_comprehensive() {
     let _config = default_config().prompter(AlwaysWarnAndUseNewer);
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        .unwrap_or(BaseBpm::new(TEST_BPM_120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
 
     assert!(
         !chart.events().as_events().is_empty(),
@@ -105,13 +108,13 @@ fn test_bms_zero_length_section_comprehensive() {
 
     let state = processor.playback_state();
     assert!(
-        state.current_bpm().to_f64().is_some_and(f64::is_finite),
+        state.current_bpm().as_f64().is_finite(),
         "BPM should be finite"
     );
 
     let events = processor.visible_events();
     for (_ev, ratio_range) in events {
-        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        let ratio_start = ratio_range.start().value().as_f64();
         assert!(
             ratio_start.is_finite(),
             "display_ratio should be finite with zero-length section"
@@ -147,9 +150,9 @@ fn test_bms_very_small_section_no_division_by_zero() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        .unwrap_or(BaseBpm::new(TEST_BPM_120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
@@ -170,8 +173,8 @@ fn test_bms_very_small_section_no_division_by_zero() {
     );
 
     for (_ev, ratio_range) in events1.iter().chain(events2.iter()).chain(events3.iter()) {
-        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
-        let ratio_end = ratio_range.end().value().to_f64().unwrap_or(0.0);
+        let ratio_start = ratio_range.start().value().as_f64();
+        let ratio_end = ratio_range.end().value().as_f64();
 
         assert!(
             (0.0..=1.0).contains(&ratio_start),
@@ -190,17 +193,15 @@ fn test_bms_very_small_section_no_division_by_zero() {
     }
 
     let state = processor.playback_state();
-    let expected_bpm = Decimal::from(120);
+    let expected_bpm = TEST_BPM_120;
     assert_eq!(
-        *state.current_bpm(),
-        expected_bpm,
+        state.current_bpm, expected_bpm,
         "BPM should be {} after processing",
         expected_bpm,
     );
-    let expected_speed = Decimal::one();
+    let expected_speed = PositiveF64::ONE;
     assert_eq!(
-        *state.current_speed(),
-        expected_speed,
+        state.current_speed, expected_speed,
         "Speed should be {} after processing",
         expected_speed,
     );
@@ -235,9 +236,9 @@ fn test_bms_consecutive_zero_length_sections() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        .unwrap_or(BaseBpm::new(TEST_BPM_120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
+    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
 
@@ -245,7 +246,7 @@ fn test_bms_consecutive_zero_length_sections() {
 
     let events = processor.visible_events();
     for (_ev, ratio_range) in events {
-        let ratio_start = ratio_range.start().value().to_f64().unwrap_or(0.0);
+        let ratio_start = ratio_range.start().value().as_f64();
         assert!(
             ratio_start.is_finite(),
             "Should handle consecutive zero-length sections without errors"

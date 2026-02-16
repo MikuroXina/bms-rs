@@ -3,9 +3,7 @@
 //! - `#SPEED[01-ZZ] n` - Spacing factor definition. It changes spacing among notes while keeps scrolling speed.
 //! - `#xxxSP:` - Spacing factor channel.
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
-
-use fraction::GenericFraction;
+use std::{cell::RefCell, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -14,12 +12,13 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::speed::SpeedObjects,
+        model::{StringValue, speed::SpeedObjects},
         parse::{ParseWarning, Result},
         prelude::*,
     },
     util::StrExtension,
 };
+use strict_num_extended::PositiveF64;
 
 /// It processes `#SPEEDxx` definitions and objects on `Speed` channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,21 +76,19 @@ impl SpeedProcessor {
         objects: &mut SpeedObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SPEED") {
-            let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
-            })?);
+            let string_value: StringValue<PositiveF64> = StringValue::new(args);
             let speed_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = objects.speed_defs.get_mut(&speed_obj_id) {
                 prompter
                     .handle_def_duplication(DefDuplication::SpeedFactorChange {
                         id: speed_obj_id,
-                        older: older.clone(),
-                        newer: factor.clone(),
+                        older,
+                        newer: &string_value,
                     })
-                    .apply_def(older, factor, speed_obj_id)?;
+                    .apply_def(older, string_value, speed_obj_id)?;
             } else {
-                objects.speed_defs.insert(speed_obj_id, factor);
+                objects.speed_defs.insert(speed_obj_id, string_value);
             }
         }
         Ok(())
@@ -110,12 +107,21 @@ impl SpeedProcessor {
             let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
-                let factor = objects
+                let string_value = objects
                     .speed_defs
                     .get(&obj)
-                    .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
+                // Get factor, skip this object if parsing failed
+                let Ok(factor) = string_value.value() else {
+                    continue;
+                };
+                objects.push_speed_factor_change(
+                    SpeedObj {
+                        time,
+                        factor: *factor,
+                    },
+                    prompter,
+                )?;
             }
         }
         Ok(warnings)
