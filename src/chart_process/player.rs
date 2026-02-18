@@ -12,8 +12,6 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 use crate::chart_process::processor::AllEventsIndex;
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
 
-const NANOS_PER_SECOND: u64 = 1_000_000_000;
-
 /// Maximum value for `FinF64` when overflow occurs
 ///
 /// Used for velocity, Y coordinate, and other calculations to gracefully
@@ -325,13 +323,13 @@ impl ChartPlayer {
         let elapsed = last
             .checked_elapsed_since(started)
             .unwrap_or(TimeSpan::ZERO);
-        let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
+        let elapsed_secs = elapsed.as_secs_f64().max(0.0);
         let playback_ratio = self.playback_state.playback_ratio;
         // Calculate center time with overflow protection
-        let center_nanos = FinF64::new(elapsed_nanos as f64 * playback_ratio.as_f64())
-            .map(|v| strict_num_extended::FinF64::as_f64(v) as u64)
-            .unwrap_or(u64::MAX);
-        let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
+        let center_secs = FinF64::new(elapsed_secs * playback_ratio.as_f64())
+            .map(strict_num_extended::FinF64::as_f64)
+            .unwrap_or(f64::MAX);
+        let center = TimeSpan::from_duration(Duration::from_secs_f64(center_secs));
         self.all_events
             .events_in_time_range_offset_from(center, range)
     }
@@ -448,8 +446,7 @@ impl ChartPlayer {
             if next_event_y.is_none() || cur_vel.as_f64() <= 0.0 || remaining_time <= TimeSpan::ZERO
             {
                 // Advance directly to the end with overflow protection
-                let nanos = remaining_time.as_nanos().max(0) as f64;
-                let time_secs = nanos / NANOS_PER_SECOND as f64;
+                let time_secs = remaining_time.as_secs_f64().max(0.0);
                 // Use checked multiplication via FinF64 to detect overflow
                 let delta_y = if time_secs.is_finite() {
                     FinF64::new(cur_vel.as_f64() * time_secs)
@@ -467,8 +464,7 @@ impl ChartPlayer {
 
             let Some(event_y) = next_event_y else {
                 // Handle remaining time with overflow protection
-                let nanos = remaining_time.as_nanos().max(0) as f64;
-                let time_secs = nanos / NANOS_PER_SECOND as f64;
+                let time_secs = remaining_time.as_secs_f64().max(0.0);
                 let delta_y = if time_secs.is_finite() {
                     FinF64::new(cur_vel.as_f64() * time_secs)
                         .map(strict_num_extended::FinF64::as_f64)
@@ -497,15 +493,11 @@ impl ChartPlayer {
             if cur_vel.as_f64() > 0.0 {
                 // Calculate time with overflow protection
                 let time_secs = distance.as_f64() / cur_vel.as_f64();
-                let time_to_event_nanos = if time_secs.is_finite() {
-                    FinF64::new(time_secs * NANOS_PER_SECOND as f64)
-                        .map(|v| v.as_f64() as u64)
-                        .unwrap_or(u64::MAX)
+                let time_to_event = if time_secs.is_finite() {
+                    TimeSpan::from_duration(Duration::from_secs_f64(time_secs))
                 } else {
-                    u64::MAX
+                    TimeSpan::MAX
                 };
-                let time_to_event =
-                    TimeSpan::from_duration(Duration::from_nanos(time_to_event_nanos));
 
                 if time_to_event <= remaining_time {
                     // First advance to event point
@@ -519,8 +511,7 @@ impl ChartPlayer {
             }
 
             // Time not enough to reach event, advance and end with overflow protection
-            let nanos = remaining_time.as_nanos().max(0) as f64;
-            let time_secs = nanos / NANOS_PER_SECOND as f64;
+            let time_secs = remaining_time.as_secs_f64().max(0.0);
             let delta_y = if time_secs.is_finite() {
                 FinF64::new(cur_vel.as_f64() * time_secs)
                     .map(strict_num_extended::FinF64::as_f64)
@@ -721,8 +712,7 @@ impl VisibleRangePerBpm {
             }
         } else {
             let reaction_time_seconds =
-                FinF64::new(reaction_time.as_nanos().max(0) as f64 / NANOS_PER_SECOND as f64)
-                    .unwrap_or(FinF64::ZERO);
+                FinF64::new(reaction_time.as_secs_f64().max(0.0)).unwrap_or(FinF64::ZERO);
             // Calculate value step by step with overflow protection
             // Formula: reaction_time_seconds * 240.0 / base_bpm
             let step1 = FinF64::new(reaction_time_seconds.as_f64() * 240.0).unwrap_or(MAX_FIN_F64);
@@ -794,8 +784,7 @@ impl VisibleRangePerBpm {
         if self.reaction_time_seconds.as_f64() == 0.0 {
             TimeSpan::ZERO
         } else {
-            let nanos = (self.reaction_time_seconds.as_f64() * NANOS_PER_SECOND as f64) as u64;
-            TimeSpan::from_duration(Duration::from_nanos(nanos))
+            TimeSpan::from_duration(Duration::from_secs_f64(self.reaction_time_seconds.as_f64()))
         }
     }
 }
@@ -886,8 +875,8 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart_process::YCoordinate;
     use crate::chart_process::processor::{ChartResources, PlayableChart};
+    use crate::chart_process::YCoordinate;
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
     /// Default test BPM value (120.0) - used as initial BPM

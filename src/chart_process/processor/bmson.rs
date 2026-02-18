@@ -17,7 +17,6 @@ use crate::chart_process::processor::{
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 use crate::util::StrExtension;
 
-const NANOS_PER_SECOND: u64 = 1_000_000_000;
 const DEFAULT_SPEED_FACTOR: PositiveF64 = PositiveF64::ONE;
 
 /// Maximum value for `FinF64` when overflow occurs
@@ -243,16 +242,16 @@ impl AllEventsIndex {
             .map(|st| (pulses_to_y(st.y.0), st.duration))
             .collect();
         stop_list.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
-        let mut total_nanos: u64 = 0;
+        let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
+        let mut total_secs: f64 = 0.0;
         let mut prev = YCoordinate::ZERO;
-        cum_map.insert(prev, 0);
+        cum_map.insert(prev, 0.0);
         let mut cur_bpm = bpm_map
             .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
             .next_back()
             .map(|(_, b)| *b)
             .unwrap_or(init_bpm);
-        let nanos_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| {
+        let secs_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| {
             let bpm_at_stop = bpm_map
                 .range((
                     std::ops::Bound::Unbounded,
@@ -263,8 +262,7 @@ impl AllEventsIndex {
                 .unwrap_or(init_bpm);
             {
                 let stop_y_len = pulses_to_y(stop_pulses);
-                (stop_y_len.as_f64() * 240.0 * NANOS_PER_SECOND as f64 / bpm_at_stop.as_f64())
-                    as u64
+                stop_y_len.as_f64() * 240.0 / bpm_at_stop.as_f64()
             }
         };
         let mut stop_idx = 0usize;
@@ -273,15 +271,14 @@ impl AllEventsIndex {
                 continue;
             }
             let delta_y = curr - prev;
-            let delta_nanos =
-                (delta_y.as_f64() * 240.0 * NANOS_PER_SECOND as f64 / cur_bpm.as_f64()) as u64;
-            total_nanos = total_nanos.saturating_add(delta_nanos);
+            let delta_secs = delta_y.as_f64() * 240.0 / cur_bpm.as_f64();
+            total_secs = (total_secs + delta_secs).min(f64::MAX);
             while let Some((sy, stop_pulses)) = stop_list.get(stop_idx) {
                 if sy > &curr {
                     break;
                 }
                 if sy > &prev {
-                    total_nanos = total_nanos.saturating_add(nanos_for_stop(sy, *stop_pulses));
+                    total_secs = (total_secs + secs_for_stop(sy, *stop_pulses)).min(f64::MAX);
                 }
                 stop_idx += 1;
             }
@@ -290,12 +287,12 @@ impl AllEventsIndex {
                 .next_back()
                 .map(|(_, b)| *b)
                 .unwrap_or(init_bpm);
-            cum_map.insert(curr, total_nanos);
+            cum_map.insert(curr, total_secs);
             prev = curr;
         }
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let to_time_span =
-            |nanos: u64| TimeSpan::from_duration(std::time::Duration::from_nanos(nanos));
+            |secs: f64| TimeSpan::from_duration(std::time::Duration::from_secs_f64(secs));
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
         for SoundChannel { name, notes } in &bmson.sound_channels {
             let mut last_restart_y = YCoordinate::ZERO;
@@ -314,9 +311,9 @@ impl AllEventsIndex {
                         NoteKind::Visible
                     };
                     let continue_play = c.then(|| {
-                        let to = cum_map.get(&y_coord).copied().unwrap_or(0);
-                        let from = cum_map.get(&last_restart_y).copied().unwrap_or(0);
-                        to_time_span(to.saturating_sub(from))
+                        let to = cum_map.get(&y_coord).copied().unwrap_or(0.0);
+                        let from = cum_map.get(&last_restart_y).copied().unwrap_or(0.0);
+                        to_time_span((to - from).max(0.0))
                     });
                     let event = ChartEvent::Note {
                         side,
@@ -326,7 +323,7 @@ impl AllEventsIndex {
                         length,
                         continue_play,
                     };
-                    let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
+                    let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0.0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                     if !*c {
                         last_restart_y = y_coord;
@@ -334,7 +331,7 @@ impl AllEventsIndex {
                     events_map.entry(y_coord).or_default().push(evp);
                 } else {
                     let event = ChartEvent::Bgm { wav_id };
-                    let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
+                    let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0.0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                 }
@@ -345,7 +342,7 @@ impl AllEventsIndex {
             let event = ChartEvent::BpmChange {
                 bpm: PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
             };
-            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
+            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
@@ -354,7 +351,7 @@ impl AllEventsIndex {
             let event = ChartEvent::ScrollChange {
                 factor: FinF64::new(rate.as_f64()).expect("rate should be finite"),
             };
-            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
+            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
@@ -369,7 +366,7 @@ impl AllEventsIndex {
                 layer: BgaLayer::Base,
                 bmp_id,
             };
-            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
+            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
@@ -380,7 +377,7 @@ impl AllEventsIndex {
                 layer: BgaLayer::Overlay,
                 bmp_id,
             };
-            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
+            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
@@ -391,7 +388,7 @@ impl AllEventsIndex {
                 layer: BgaLayer::Poor,
                 bmp_id,
             };
-            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
+            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
@@ -399,7 +396,7 @@ impl AllEventsIndex {
             for bar_line in lines {
                 let y = pulses_to_y(bar_line.y.0);
                 let event = ChartEvent::BarLine;
-                let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
+                let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0.0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
                 events_map.entry(y).or_default().push(evp);
             }
@@ -416,7 +413,7 @@ impl AllEventsIndex {
                         NonNegativeF64::new(current_y).expect("y should be non-negative"),
                     );
                     let event = ChartEvent::BarLine;
-                    let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
+                    let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0.0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                     current_y += 1.0;
@@ -429,7 +426,7 @@ impl AllEventsIndex {
                 duration: NonNegativeF64::new(stop.duration as f64)
                     .expect("duration should be non-negative"),
             };
-            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
+            let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y, event, at);
             events_map.entry(y).or_default().push(evp);
         }
@@ -448,7 +445,7 @@ impl AllEventsIndex {
                     length: None,
                     continue_play: None,
                 };
-                let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
+                let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0.0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
@@ -468,7 +465,7 @@ impl AllEventsIndex {
                     length: None,
                     continue_play: None,
                 };
-                let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0));
+                let at = to_time_span(cum_map.get(&y_coord).copied().unwrap_or(0.0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y_coord, event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }

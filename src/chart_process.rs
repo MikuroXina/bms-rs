@@ -11,7 +11,6 @@
 //!
 //! ### Core Constants
 //!
-//! - `NANOS_PER_SECOND = 1_000_000_000`: Nanoseconds per second for time calculations
 //! - `BASE_VELOCITY_FACTOR = 1/240`: Base velocity factor (Y/sec per BPM)
 //!
 //! ### Visible Range Configuration
@@ -42,8 +41,8 @@
 //!
 //! **Time integration (`step_to` algorithm):**
 //! ```text
-//! delta_y = velocity * elapsed_time_nanos / NANOS_PER_SECOND
-//! time_to_event = distance_y / velocity * NANOS_PER_SECOND
+//! delta_y = velocity * elapsed_time_secs
+//! time_to_event = distance_y / velocity
 //! ```
 //!
 //! ### Display Coordinates

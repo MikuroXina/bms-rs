@@ -17,7 +17,6 @@ use crate::chart_process::processor::{
 };
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 use strict_num_extended::NonNegativeF64;
-const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// Maximum value for `FinF64` when overflow occurs
 const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
@@ -735,10 +734,10 @@ pub fn precompute_activate_times(
     bpm_map.insert(YCoordinate::ZERO, init_bpm_value);
     bpm_map.extend(bpm_changes.iter().cloned());
 
-    let mut cum_map: BTreeMap<YCoordinate, u64> = BTreeMap::new();
-    let mut total_nanos: u64 = 0;
+    let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
+    let mut total_secs: f64 = 0.0;
     let mut prev = YCoordinate::ZERO;
-    cum_map.insert(prev, 0);
+    cum_map.insert(prev, 0.0);
     let mut cur_bpm = init_bpm_value;
     let mut stop_idx = 0usize;
 
@@ -752,9 +751,8 @@ pub fn precompute_activate_times(
         }
 
         let delta_y = curr - prev;
-        let delta_nanos =
-            (delta_y.as_f64() * 240.0 * NANOS_PER_SECOND as f64 / cur_bpm.as_f64()) as u64;
-        total_nanos = total_nanos.saturating_add(delta_nanos);
+        let delta_secs = delta_y.as_f64() * 240.0 / cur_bpm.as_f64();
+        total_secs = (total_secs + delta_secs).min(f64::MAX);
 
         while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
             if sy >= &curr {
@@ -766,14 +764,13 @@ pub fn precompute_activate_times(
                     .next_back()
                     .map(|(_, b)| *b)
                     .unwrap_or(init_bpm_value);
-                let dur_nanos = (dur_y.as_f64() * 240.0 * NANOS_PER_SECOND as f64
-                    / bpm_at_stop.as_f64()) as u64;
-                total_nanos = total_nanos.saturating_add(dur_nanos);
+                let dur_secs = dur_y.as_f64() * 240.0 / bpm_at_stop.as_f64();
+                total_secs = (total_secs + dur_secs).min(f64::MAX);
             }
             stop_idx += 1;
         }
 
-        cum_map.insert(curr, total_nanos);
+        cum_map.insert(curr, total_secs);
         prev = curr;
     }
 
@@ -781,8 +778,8 @@ pub fn precompute_activate_times(
         .as_by_y()
         .iter()
         .map(|(y_coord, indices)| {
-            let at_nanos = cum_map.get(y_coord).copied().unwrap_or(0);
-            let at = TimeSpan::from_duration(std::time::Duration::from_nanos(at_nanos));
+            let at_secs = cum_map.get(y_coord).copied().unwrap_or(0.0);
+            let at = TimeSpan::from_duration(std::time::Duration::from_secs_f64(at_secs));
             let new_events: Vec<_> = all_events
                 .as_events()
                 .get(indices.clone())
