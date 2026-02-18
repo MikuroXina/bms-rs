@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 
-use num::Integer;
+use num_integer::Integer;
 
 use crate::bms::prelude::*;
 
