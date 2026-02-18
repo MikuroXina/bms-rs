@@ -875,8 +875,8 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart_process::processor::{ChartResources, PlayableChart};
     use crate::chart_process::YCoordinate;
+    use crate::chart_process::processor::{ChartResources, PlayableChart};
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
     /// Default test BPM value (120.0) - used as initial BPM
