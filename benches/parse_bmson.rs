@@ -87,7 +87,7 @@ fn bench_bmson_to_chart(c: &mut Criterion) {
 static PARSED_CHARTS: LazyLock<ParsedBmsonCharts> = LazyLock::new(load_bmson_charts);
 
 fn main() {
-    let mut criterion = Criterion::default();
+    let mut criterion = Criterion::default().without_plots();
     bench_parse_bmson(&mut criterion);
     bench_bmson_to_chart(&mut criterion);
 }

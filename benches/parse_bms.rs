@@ -94,7 +94,7 @@ fn bench_bms_to_chart(c: &mut Criterion) {
 static PARSED_CHARTS: LazyLock<ParsedBmsCharts> = LazyLock::new(load_bms_charts);
 
 fn main() {
-    let mut criterion = Criterion::default();
+    let mut criterion = Criterion::default().without_plots();
     bench_parse_bms(&mut criterion);
     bench_bms_to_chart(&mut criterion);
 }
