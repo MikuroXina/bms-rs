@@ -43,6 +43,7 @@ encoding_rs = "0.8"
 clap = { version = "4", features = ["derive"] }
 kira = { version = "0.12", features = ["cpal"] }
 rayon = "1.10"
+criterion = "0.8"
 
 [[example]]
 name = "diagnostics_example"
@@ -55,6 +56,22 @@ required-features = ["diagnostics"]
 [[example]]
 name = "microquad_player"
 required-features = ["diagnostics"]
+
+[[bench]]
+name = "parse_bms"
+harness = false
+
+[[bench]]
+name = "parse_bmson"
+harness = false
+
+[[bench]]
+name = "bms_to_chart"
+harness = false
+
+[[bench]]
+name = "bmson_to_chart"
+harness = false
 
 [lints.rust]
 missing_docs = "warn"
