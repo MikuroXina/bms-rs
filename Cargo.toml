@@ -43,7 +43,7 @@ encoding_rs = "0.8"
 clap = { version = "4", features = ["derive"] }
 kira = { version = "0.12", features = ["cpal"] }
 rayon = "1.10"
-criterion = "0.8"
+criterion = { version = "0.8", default-features = false, features = ["rayon", "cargo_bench_support"] }
 
 [[example]]
 name = "diagnostics_example"
