@@ -137,11 +137,11 @@ jobs:
                   current_est="$group_current_dir/$case_name/new/estimates.json"
                   [ ! -f "$current_est" ] && continue
 
-                  baseline_median=$(jq -r 'if .median.point_estimate then .median.point_estimate else null end' "$baseline_est")
-                  current_median=$(jq -r 'if .median.point_estimate then .median.point_estimate else null end' "$current_est")
+                  baseline_median=$(jq -r 'if .median.point_estimate then .median.point_estimate / 1e9 else null end' "$baseline_est")
+                  current_median=$(jq -r 'if .median.point_estimate then .median.point_estimate / 1e9 else null end' "$current_est")
 
-                  baseline_stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate else null end' "$baseline_est")
-                  current_stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate else null end' "$current_est")
+                  baseline_stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate / 1e9 else null end' "$baseline_est")
+                  current_stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate / 1e9 else null end' "$current_est")
 
                   if [ "$baseline_median" != "null" ] && [ "$current_median" != "null" ] && [ -n "$baseline_median" ]; then
                     median_change=$(awk "BEGIN {printf \"%.2f\", ($current_median - $baseline_median) / $baseline_median * 100}")
@@ -181,8 +181,8 @@ jobs:
                   [ -f "$current_est" ] || continue
 
                   case_name=$(basename "$(dirname "$(dirname "$current_est")")")
-                  median=$(jq -r 'if .median.point_estimate then .median.point_estimate else null end' "$current_est")
-                  stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate else null end' "$current_est")
+                  median=$(jq -r 'if .median.point_estimate then .median.point_estimate / 1e9 else null end' "$current_est")
+                  stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate / 1e9 else null end' "$current_est")
 
                   if [ "$median" != "null" ] && [ -n "$median" ]; then
                     printf "| %s | %.6f | %.6f |\n" "$case_name" "$median" "${stddev:-N/A}"
