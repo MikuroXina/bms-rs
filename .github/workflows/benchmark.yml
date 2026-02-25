@@ -47,7 +47,8 @@ jobs:
         id: run_baseline
         continue-on-error: true
         run: |
-          git checkout origin/main
+          git fetch origin ${{ github.base_ref || 'main' }}
+          git checkout FETCH_HEAD
           cargo bench --bench ${{ matrix.bench }} --profile release -- --save-baseline main
           mv target/criterion baseline-${{ matrix.bench }}
 
