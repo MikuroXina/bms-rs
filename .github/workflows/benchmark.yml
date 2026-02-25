@@ -133,7 +133,7 @@ jobs:
                 for baseline_est in "$group_baseline_dir"/*/new/estimates.json; do
                   [ -f "$baseline_est" ] || continue
 
-                  case_name=$(basename "$(dirname "$baseline_est")")
+                  case_name=$(basename "$(dirname "$(dirname "$baseline_est")")")
                   current_est="$group_current_dir/$case_name/new/estimates.json"
                   [ ! -f "$current_est" ] && continue
 
@@ -175,7 +175,7 @@ jobs:
                 for current_est in "$group_dir"/*/new/estimates.json; do
                   [ -f "$current_est" ] || continue
 
-                  case_name=$(basename "$(dirname "$current_est")")
+                  case_name=$(basename "$(dirname "$(dirname "$current_est")")")
                   mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$current_est")
                   stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate * 1000 else null end' "$current_est")
 
