@@ -82,7 +82,6 @@ jobs:
   compare:
     name: Compare Results
     needs: benchmark
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -91,19 +90,58 @@ jobs:
         with:
           path: artifacts
 
-      - name: Generate comparison summary
+      - name: Install critcmp
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: critcmp
+
+      - name: Generate comparison report
         run: |
-          echo "## Benchmark Comparison Summary"
-          echo ""
-          echo "### Artifacts Available"
-          for bench in parse_bms parse_bmson; do
-            if [ -d "artifacts/baseline-$bench" ]; then
-              echo "- baseline-$bench: Main branch baseline ✓"
+          {
+            echo "# Benchmark Results"
+            echo ""
+            
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "## Comparison: Main Branch vs Current"
+              echo ""
+              
+              for bench in parse_bms parse_bmson; do
+                baseline_dir="artifacts/baseline-$bench"
+                current_dir="artifacts/results-$bench"
+                
+                if [ -d "$baseline_dir" ] && [ -d "$current_dir" ]; then
+                  echo "### $bench"
+                  echo ""
+                  echo '```'
+                  critcmp "$baseline_dir" "$current_dir"
+                  echo '```'
+                  echo ""
+                elif [ -d "$current_dir" ]; then
+                  echo "### $bench (current only)"
+                  echo ""
+                  echo "Baseline not available for this benchmark."
+                  echo ""
+                  echo '```'
+                  critcmp "$current_dir"
+                  echo '```'
+                  echo ""
+                fi
+              done
             else
-              echo "- baseline-$bench: Not available (main branch has no benchmark)"
+              echo "## Current Branch Results"
+              echo ""
+              
+              for bench in parse_bms parse_bmson; do
+                current_dir="artifacts/results-$bench"
+                
+                if [ -d "$current_dir" ]; then
+                  echo "### $bench"
+                  echo ""
+                  echo '```'
+                  critcmp "$current_dir"
+                  echo '```'
+                  echo ""
+                fi
+              done
             fi
-            echo "- results-$bench: Current branch results"
-          done
-          echo ""
-          echo "### View Results"
-          echo "Download artifacts to view detailed Criterion reports:"
+          } >> $GITHUB_STEP_SUMMARY
