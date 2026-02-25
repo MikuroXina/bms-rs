@@ -118,7 +118,7 @@ jobs:
               current_dir="artifacts/results-$bench_name"
               [ ! -d "$current_dir" ] && continue
 
-              # 遍历每个benchmark group
+              # Iterate through each benchmark group
               for group_baseline_dir in "$baseline_dir"/*; do
                 [ ! -d "$group_baseline_dir" ] && continue
                 group_name=$(basename "$group_baseline_dir")
@@ -167,7 +167,7 @@ jobs:
             for current_dir in artifacts/results-*; do
               [ ! -d "$current_dir" ] && continue
 
-              # 遍历每个benchmark group
+              # Iterate through each benchmark group
               for group_dir in "$current_dir"/*; do
                 [ ! -d "$group_dir" ] && continue
                 group_name=$(basename "$group_dir")
