@@ -46,13 +46,10 @@ jobs:
           cargo bench --bench ${{ matrix.bench }} --profile release -- --save-baseline main
           mv target/criterion baseline-main
 
-      - name: Checkout current commit
-        if: github.event_name == 'pull_request'
-        run: git checkout ${{ github.sha }}
-
       - name: Run benchmark (PR mode)
         if: github.event_name == 'pull_request'
         run: |
+          git checkout ${{ github.sha }}
           cargo bench --bench ${{ matrix.bench }} --profile release -- --baseline main
           mv target/criterion current
 
@@ -91,39 +88,16 @@ jobs:
 
       - name: Generate comparison summary
         run: |
-          echo "# Benchmark Comparison Report" > summary.md
-          echo "" >> summary.md
-          echo "**PR:** ${{ github.event.pull_request.number }}" >> summary.md
-          echo "**Commit:** \`${{ github.sha }}\`" >> summary.md
-          echo "" >> summary.md
-          echo "## parse_bms Results" >> summary.md
-          echo "" >> summary.md
-          if [ -d "artifacts/results-parse_bms/parse_bms/change/index.html" ]; then
-            echo "✓ Comparison report available in artifacts" >> summary.md
-          else
-            echo "⚠ No comparison data found" >> summary.md
-          fi
-          echo "" >> summary.md
-          echo "## parse_bmson Results" >> summary.md
-          echo "" >> summary.md
-          if [ -d "artifacts/results-parse_bmson/parse_bmson/change/index.html" ]; then
-            echo "✓ Comparison report available in artifacts" >> summary.md
-          else
-            echo "⚠ No comparison data found" >> summary.md
-          fi
-          echo "" >> summary.md
-          echo "## How to View" >> summary.md
-          echo "" >> summary.md
-          echo "Download the artifacts to view detailed Criterion reports:" >> summary.md
-          echo "- \`baseline-parse_bms\` - Main branch baseline" >> summary.md
-          echo "- \`results-parse_bms\` - Current branch with comparison" >> summary.md
-          echo "- \`baseline-parse_bmson\` - Main branch baseline" >> summary.md
-          echo "- \`results-parse_bmson\` - Current branch with comparison" >> summary.md
-          cat summary.md
-
-      - name: Upload comparison summary
-        uses: actions/upload-artifact@v4
-        with:
-          name: comparison-summary
-          path: summary.md
-          retention-days: 30
+          echo "## Benchmark Comparison Summary"
+          echo ""
+          echo "### Artifacts Available"
+          echo "- baseline-parse_bms: Main branch baseline"
+          echo "- results-parse_bms: Current branch (includes comparison)"
+          echo "- baseline-parse_bmson: Main branch baseline"
+          echo "- results-parse_bmson: Current branch (includes comparison)"
+          echo ""
+          echo "### View Results"
+          echo "Download artifacts to view detailed Criterion reports with:"
+          echo "- Performance change percentages"
+          echo "- Statistical significance tests"
+          echo "- Distribution comparison charts"
