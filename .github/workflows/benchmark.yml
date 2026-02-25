@@ -110,7 +110,6 @@ jobs:
             echo "## Comparison: Main Branch vs Current"
             echo ""
 
-            # 动态发现所有基准测试名称
             for baseline_dir in artifacts/baseline-*; do
               [ ! -d "$baseline_dir" ] && continue
 
@@ -118,27 +117,35 @@ jobs:
               current_dir="artifacts/results-$bench_name"
               [ ! -d "$current_dir" ] && continue
 
-              echo "### $bench_name"
-              echo ""
-              echo "| Benchmark | Baseline (ms) | Current (ms) | Change |"
-              echo "|-----------|---------------|-------------|--------|"
+              # 遍历每个benchmark group
+              for group_baseline_dir in "$baseline_dir"/*; do
+                [ ! -d "$group_baseline_dir" ] && continue
+                group_name=$(basename "$group_baseline_dir")
+                group_current_dir="$current_dir/$group_name"
+                [ ! -d "$group_current_dir" ] && continue
 
-              for baseline_est in "$baseline_dir"/*/new/estimates.json; do
-                [ -f "$baseline_est" ] || continue
+                echo "### $group_name"
+                echo ""
+                echo "| Case | Baseline (ms) | Current (ms) | Change |"
+                echo "|------|---------------|-------------|--------|"
 
-                rel_path="${baseline_est#"$baseline_dir/"}"
-                current_est="$current_dir/$rel_path"
-                [ ! -f "$current_est" ] && continue
+                for baseline_est in "$group_baseline_dir"/*/new/estimates.json; do
+                  [ -f "$baseline_est" ] || continue
 
-                baseline_mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$baseline_est")
-                current_mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$current_est")
+                  case_name=$(basename "$(dirname "$baseline_est")")
+                  current_est="$group_current_dir/$case_name/new/estimates.json"
+                  [ ! -f "$current_est" ] && continue
 
-                if [ "$baseline_mean" != "null" ] && [ "$current_mean" != "null" ] && [ -n "$baseline_mean" ]; then
-                  change=$(awk "BEGIN {printf \"%.2f\", ($current_mean - $baseline_mean) / $baseline_mean * 100}")
-                  printf "| %s | %.3f | %.3f | %s%% |\n" "$rel_path" "$baseline_mean" "$current_mean" "$change"
-                fi
+                  baseline_mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$baseline_est")
+                  current_mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$current_est")
+
+                  if [ "$baseline_mean" != "null" ] && [ "$current_mean" != "null" ] && [ -n "$baseline_mean" ]; then
+                    change=$(awk "BEGIN {printf \"%.2f\", ($current_mean - $baseline_mean) / $baseline_mean * 100}")
+                    printf "| %s | %.3f | %.3f | %s%% |\n" "$case_name" "$baseline_mean" "$current_mean" "$change"
+                  fi
+                done
+                echo ""
               done
-              echo ""
             done
           } >> $GITHUB_STEP_SUMMARY
 
@@ -154,24 +161,28 @@ jobs:
             for current_dir in artifacts/results-*; do
               [ ! -d "$current_dir" ] && continue
 
-              bench_name="${current_dir#artifacts/results-}"
+              # 遍历每个benchmark group
+              for group_dir in "$current_dir"/*; do
+                [ ! -d "$group_dir" ] && continue
+                group_name=$(basename "$group_dir")
 
-              echo "### $bench_name"
-              echo ""
-              echo "| Benchmark | Mean (ms) | Std Dev (ms) |"
-              echo "|-----------|-----------|--------------|"
+                echo "### $group_name"
+                echo ""
+                echo "| Case | Mean (ms) | Std Dev (ms) |"
+                echo "|------|-----------|--------------|"
 
-              for current_est in "$current_dir"/*/new/estimates.json; do
-                [ -f "$current_est" ] || continue
+                for current_est in "$group_dir"/*/new/estimates.json; do
+                  [ -f "$current_est" ] || continue
 
-                rel_path="${current_est#"$current_dir/"}"
-                mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$current_est")
-                stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate * 1000 else null end' "$current_est")
+                  case_name=$(basename "$(dirname "$current_est")")
+                  mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$current_est")
+                  stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate * 1000 else null end' "$current_est")
 
-                if [ "$mean" != "null" ] && [ -n "$mean" ]; then
-                  printf "| %s | %.3f | %.3f |\n" "$rel_path" "$mean" "${stddev:-N/A}"
-                fi
+                  if [ "$mean" != "null" ] && [ -n "$mean" ]; then
+                    printf "| %s | %.3f | %.3f |\n" "$case_name" "$mean" "${stddev:-N/A}"
+                  fi
+                done
+                echo ""
               done
-              echo ""
             done
           } >> $GITHUB_STEP_SUMMARY
