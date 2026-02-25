@@ -41,26 +41,25 @@ jobs:
 
       - name: Run baseline (main branch)
         if: github.event_name == 'pull_request'
+        id: run_baseline
+        continue-on-error: true
         run: |
           git checkout origin/main
           cargo bench --bench ${{ matrix.bench }} --profile release -- --save-baseline main
           mv target/criterion baseline-main
 
-      - name: Run benchmark (PR mode)
-        if: github.event_name == 'pull_request'
+      - name: Run benchmark
         run: |
-          git checkout ${{ github.sha }}
-          cargo bench --bench ${{ matrix.bench }} --profile release -- --baseline main
+          if [ "${{ steps.run_baseline.outcome }}" == "success" ]; then
+            git checkout ${{ github.sha }}
+            cargo bench --bench ${{ matrix.bench }} --profile release -- --baseline main
+          else
+            cargo bench --bench ${{ matrix.bench }} --profile release
+          fi
           mv target/criterion current
 
-      - name: Run benchmark (non-PR mode)
-        if: github.event_name != 'pull_request'
-        run: |
-          cargo bench --bench ${{ matrix.bench }} --profile release
-          mv target/criterion current
-
-      - name: Upload baseline (PR only)
-        if: github.event_name == 'pull_request'
+      - name: Upload baseline
+        if: steps.run_baseline.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: baseline-${{ matrix.bench }}
@@ -91,13 +90,14 @@ jobs:
           echo "## Benchmark Comparison Summary"
           echo ""
           echo "### Artifacts Available"
-          echo "- baseline-parse_bms: Main branch baseline"
-          echo "- results-parse_bms: Current branch (includes comparison)"
-          echo "- baseline-parse_bmson: Main branch baseline"
-          echo "- results-parse_bmson: Current branch (includes comparison)"
+          for bench in parse_bms parse_bmson; do
+            if [ -d "artifacts/baseline-$bench" ]; then
+              echo "- baseline-$bench: Main branch baseline ✓"
+            else
+              echo "- baseline-$bench: Not available (main branch has no benchmark)"
+            fi
+            echo "- results-$bench: Current branch results"
+          done
           echo ""
           echo "### View Results"
-          echo "Download artifacts to view detailed Criterion reports with:"
-          echo "- Performance change percentages"
-          echo "- Statistical significance tests"
-          echo "- Distribution comparison charts"
+          echo "Download artifacts to view detailed Criterion reports:"
