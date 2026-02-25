@@ -76,10 +76,9 @@ jobs:
           path: results-${{ matrix.bench }}/
           retention-days: 30
 
-  compare_pr:
-    name: Compare PR Results
+  compare:
+    name: Benchmark Results
     needs: benchmark
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -88,29 +87,36 @@ jobs:
         with:
           path: artifacts
 
-      - name: Generate comparison report
+      - name: Check for baseline data
+        id: check_baseline
         run: |
-          # Generate summary
+          has_baseline=false
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            for baseline_dir in artifacts/baseline-*; do
+              if [ -d "$baseline_dir" ]; then
+                has_baseline=true
+                break
+              fi
+            done
+          fi
+          echo "has_baseline=$has_baseline" >> $GITHUB_OUTPUT
+
+      - name: Generate comparison report
+        if: steps.check_baseline.outputs.has_baseline == 'true'
+        run: |
           {
             echo "# Benchmark Results"
             echo ""
             echo "## Comparison: Main Branch vs Current"
             echo ""
 
-            has_comparison=false
-
             # 动态发现所有基准测试名称
             for baseline_dir in artifacts/baseline-*; do
-              # 负面分支提前返回：目录不存在
               [ ! -d "$baseline_dir" ] && continue
 
               bench_name="${baseline_dir#artifacts/baseline-}"
               current_dir="artifacts/results-$bench_name"
-
-              # 负面分支提前返回：对应的 current 目录不存在
               [ ! -d "$current_dir" ] && continue
-
-              has_comparison=true
 
               echo "### $bench_name"
               echo ""
@@ -122,13 +128,11 @@ jobs:
 
                 rel_path="${baseline_est#"$baseline_dir/"}"
                 current_est="$current_dir/$rel_path"
-
                 [ ! -f "$current_est" ] && continue
 
                 baseline_mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$baseline_est")
                 current_mean=$(jq -r 'if .mean.point_estimate then .mean.point_estimate * 1000 else null end' "$current_est")
 
-                # 计算变化百分比
                 if [ "$baseline_mean" != "null" ] && [ "$current_mean" != "null" ] && [ -n "$baseline_mean" ]; then
                   change=$(awk "BEGIN {printf \"%.2f\", ($current_mean - $baseline_mean) / $baseline_mean * 100}")
                   printf "| %s | %.3f | %.3f | %s%% |\n" "$rel_path" "$baseline_mean" "$current_mean" "$change"
@@ -136,43 +140,21 @@ jobs:
               done
               echo ""
             done
-
-            if [ "$has_comparison" = false ]; then
-              echo "No baseline data available for comparison."
-            fi
           } >> $GITHUB_STEP_SUMMARY
 
-  compare_default:
-    name: Show Benchmark Results
-    needs: benchmark
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
       - name: Generate results report
+        if: steps.check_baseline.outputs.has_baseline != 'true'
         run: |
-          # Generate summary
           {
             echo "# Benchmark Results"
             echo ""
             echo "## Current Branch Results"
             echo ""
 
-            has_results=false
-
-            # 动态发现所有基准测试名称
             for current_dir in artifacts/results-*; do
-              # 负面分支提前返回：目录不存在
               [ ! -d "$current_dir" ] && continue
 
               bench_name="${current_dir#artifacts/results-}"
-
-              has_results=true
 
               echo "### $bench_name"
               echo ""
@@ -192,8 +174,4 @@ jobs:
               done
               echo ""
             done
-
-            if [ "$has_results" = false ]; then
-              echo "No benchmark results available."
-            fi
           } >> $GITHUB_STEP_SUMMARY
