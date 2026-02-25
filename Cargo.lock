@@ -167,7 +167,7 @@ dependencies = [
 
 [[package]]
 name = "bms-rs"
-version = "0.10.1"
+version = "1.0.0"
 dependencies = [
  "ariadne",
  "chumsky",
