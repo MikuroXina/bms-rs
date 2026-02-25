@@ -43,7 +43,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           git checkout origin/main
-          cargo bench --bench ${{ matrix.bench }} --release -- --save-baseline main
+          cargo bench --bench ${{ matrix.bench }} --profile release -- --save-baseline main
           mv target/criterion baseline-main
 
       - name: Checkout current commit
@@ -53,13 +53,13 @@ jobs:
       - name: Run benchmark (PR mode)
         if: github.event_name == 'pull_request'
         run: |
-          cargo bench --bench ${{ matrix.bench }} --release -- --baseline main
+          cargo bench --bench ${{ matrix.bench }} --profile release -- --baseline main
           mv target/criterion current
 
       - name: Run benchmark (non-PR mode)
         if: github.event_name != 'pull_request'
         run: |
-          cargo bench --bench ${{ matrix.bench }} --release
+          cargo bench --bench ${{ matrix.bench }} --profile release
           mv target/criterion current
 
       - name: Upload baseline (PR only)
