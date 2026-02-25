@@ -50,8 +50,8 @@ jobs:
 
       - name: Run benchmark
         run: |
+          git checkout ${{ github.sha }}
           if [ "${{ steps.run_baseline.outcome }}" == "success" ]; then
-            git checkout ${{ github.sha }}
             cargo bench --bench ${{ matrix.bench }} --profile release -- --baseline main
           else
             cargo bench --bench ${{ matrix.bench }} --profile release
