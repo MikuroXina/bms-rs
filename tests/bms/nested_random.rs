@@ -1,5 +1,4 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
 fn nested_random() {
@@ -43,7 +42,7 @@ fn nested_random() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(1u64)]),
+        RngMock([1u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -74,7 +73,7 @@ fn nested_random() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
+        RngMock([1u64, 2u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -109,7 +108,7 @@ fn nested_random() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(2u64)]),
+        RngMock([2u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),

@@ -1,5 +1,4 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
 fn test_nested_random_structure() {
@@ -42,10 +41,7 @@ fn test_nested_random_structure() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -56,10 +52,7 @@ fn test_nested_random_structure() {
         .expect("expected exactly 1 randomized block");
 
     // Check generating
-    assert_eq!(
-        random_obj.generating,
-        Some(ControlFlowValue::GenMax(BigUint::from(2u64)))
-    );
+    assert_eq!(random_obj.generating, Some(ControlFlowValue::GenMax(2u64)));
 
     // Check branches
     assert_eq!(random_obj.branches.len(), 2);
@@ -67,9 +60,9 @@ fn test_nested_random_structure() {
     // Branch 1
     let branch1 = random_obj
         .branches
-        .get(&BigUint::from(1u64))
+        .get(&1u64)
         .expect("expected random branch 1");
-    assert_eq!(branch1.condition, BigUint::from(1u64));
+    assert_eq!(branch1.condition, 1u64);
     // Check content of branch 1 (should have note 112 and a nested random)
     assert_eq!(
         branch1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -90,14 +83,14 @@ fn test_nested_random_structure() {
         .expect("expected nested randomized block");
     assert_eq!(
         nested_random.generating,
-        Some(ControlFlowValue::GenMax(BigUint::from(2u64)))
+        Some(ControlFlowValue::GenMax(2u64))
     );
     assert_eq!(nested_random.branches.len(), 2);
 
     // Nested Branch 1
     let nested_branch1 = nested_random
         .branches
-        .get(&BigUint::from(1u64))
+        .get(&1u64)
         .expect("expected nested random branch 1");
     assert_eq!(
         nested_branch1
@@ -117,7 +110,7 @@ fn test_nested_random_structure() {
     // Nested Branch 2
     let nested_branch2 = nested_random
         .branches
-        .get(&BigUint::from(2u64))
+        .get(&2u64)
         .expect("expected nested random branch 2");
     assert_eq!(
         nested_branch2
@@ -136,7 +129,7 @@ fn test_nested_random_structure() {
     // Branch 2 of outer random
     let branch2 = random_obj
         .branches
-        .get(&BigUint::from(2u64))
+        .get(&2u64)
         .expect("expected random branch 2");
     assert_eq!(
         branch2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -263,10 +256,7 @@ fn test_nested_switch_structure() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -276,16 +266,13 @@ fn test_nested_switch_structure() {
         .first()
         .expect("expected exactly 1 randomized block");
 
-    assert_eq!(
-        switch_obj.generating,
-        Some(ControlFlowValue::GenMax(BigUint::from(2u64)))
-    );
+    assert_eq!(switch_obj.generating, Some(ControlFlowValue::GenMax(2u64)));
     assert_eq!(switch_obj.branches.len(), 2);
 
     // Case 1
     let case1 = switch_obj
         .branches
-        .get(&BigUint::from(1u64))
+        .get(&1u64)
         .expect("expected switch case 1");
     assert_eq!(case1.sub.randomized.len(), 1);
     assert_eq!(
@@ -306,14 +293,14 @@ fn test_nested_switch_structure() {
         .expect("expected nested switch");
     assert_eq!(
         nested_switch.generating,
-        Some(ControlFlowValue::GenMax(BigUint::from(2u64)))
+        Some(ControlFlowValue::GenMax(2u64))
     );
     assert_eq!(nested_switch.branches.len(), 2);
 
     // Nested Case 1
     let nested_case1 = nested_switch
         .branches
-        .get(&BigUint::from(1u64))
+        .get(&1u64)
         .expect("expected nested case 1");
     assert_eq!(
         nested_case1
@@ -333,7 +320,7 @@ fn test_nested_switch_structure() {
     // Nested Case 2
     let nested_case2 = nested_switch
         .branches
-        .get(&BigUint::from(2u64))
+        .get(&2u64)
         .expect("expected nested case 2");
     assert_eq!(
         nested_case2
@@ -352,7 +339,7 @@ fn test_nested_switch_structure() {
     // Case 2
     let case2 = switch_obj
         .branches
-        .get(&BigUint::from(2u64))
+        .get(&2u64)
         .expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -480,10 +467,7 @@ fn test_export_as_random_tokens() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -557,10 +541,7 @@ fn test_export_as_switch_tokens() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -634,10 +615,7 @@ fn test_switch_fallthrough_one_skip() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -648,10 +626,7 @@ fn test_switch_fallthrough_one_skip() {
         .expect("expected exactly 1 randomized block");
     assert_eq!(sw.branches.len(), 2);
 
-    let case1 = sw
-        .branches
-        .get(&BigUint::from(1u64))
-        .expect("expected switch case 1");
+    let case1 = sw.branches.get(&1u64).expect("expected switch case 1");
     assert_eq!(
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
@@ -662,10 +637,7 @@ fn test_switch_fallthrough_one_skip() {
         }]
     );
 
-    let case2 = sw
-        .branches
-        .get(&BigUint::from(2u64))
-        .expect("expected switch case 2");
+    let case2 = sw.branches.get(&2u64).expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
@@ -741,10 +713,7 @@ fn test_switch_default_then_case_override() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(2u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([2u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -755,10 +724,7 @@ fn test_switch_default_then_case_override() {
         .expect("expected exactly 1 randomized block");
     assert_eq!(sw.branches.len(), 2);
 
-    let case1 = sw
-        .branches
-        .get(&BigUint::from(1u64))
-        .expect("expected switch case 1");
+    let case1 = sw.branches.get(&1u64).expect("expected switch case 1");
     assert_eq!(
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
@@ -769,10 +735,7 @@ fn test_switch_default_then_case_override() {
         }]
     );
 
-    let case2 = sw
-        .branches
-        .get(&BigUint::from(2u64))
-        .expect("expected switch case 2");
+    let case2 = sw.branches.get(&2u64).expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
@@ -857,10 +820,7 @@ fn test_export_both_and_compare() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 
@@ -960,10 +920,7 @@ fn test_export_both_and_compare_different_contents() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    } = Bms::from_token_stream(&tokens, default_config_with_rng(RngMock([1u64])));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
 

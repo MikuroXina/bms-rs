@@ -8,8 +8,6 @@ const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
 /// Test constants for `strict_num_extended` types
 const TEST_LENGTH_4: FinF64 = FinF64::new_const(4.0);
 
-use num::BigUint;
-
 #[test]
 fn test_prelude_imports() {
     // Test that we can use types from prelude
@@ -107,7 +105,7 @@ fn test_prelude_imports() {
     let _always_warn_and_use_newer = AlwaysWarnAndUseNewer;
 
     // Test rng types
-    let _rng_mock = RngMock::<1>([BigUint::from(1u32)]);
+    let _rng_mock = RngMock::<1>([1u64]);
 
     // Test that we can use the prelude types
     assert_eq!(_player_mode, PlayerMode::Single);

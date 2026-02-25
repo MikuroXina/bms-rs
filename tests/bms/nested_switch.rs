@@ -1,5 +1,4 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -26,7 +25,7 @@ fn switch() {
         lex_warnings,
     } = TokenStream::parse_lex(SRC);
     assert_eq!(lex_warnings, vec![]);
-    let rng = RngMock([BigUint::from(1u64)]);
+    let rng = RngMock([1u64]);
     let ParseOutput {
         bms: _,
         parse_warnings,
@@ -65,7 +64,7 @@ fn nested_switch_simpler() {
         lex_warnings,
     } = TokenStream::parse_lex(SRC);
     assert_eq!(lex_warnings, vec![]);
-    let rng = RngMock([BigUint::from(1u64)]);
+    let rng = RngMock([1u64]);
     let ParseOutput {
         bms: _,
         parse_warnings,
@@ -118,7 +117,7 @@ fn nested_switch() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(1u64)]),
+        RngMock([1u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -149,7 +148,7 @@ fn nested_switch() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
+        RngMock([1u64, 2u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -184,7 +183,7 @@ fn nested_switch() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(2u64)]),
+        RngMock([2u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -248,7 +247,7 @@ fn nested_random_in_switch() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(1u64)]),
+        RngMock([1u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -279,7 +278,7 @@ fn nested_random_in_switch() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
+        RngMock([1u64, 2u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -314,7 +313,7 @@ fn nested_random_in_switch() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(2u64)]),
+        RngMock([2u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -378,7 +377,7 @@ fn nested_switch_in_random() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(1u64)]),
+        RngMock([1u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -409,7 +408,7 @@ fn nested_switch_in_random() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
+        RngMock([1u64, 2u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -444,7 +443,7 @@ fn nested_switch_in_random() {
 
     super::test_bms_assert_objs(
         SRC,
-        RngMock([BigUint::from(2u64)]),
+        RngMock([2u64]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -508,12 +507,12 @@ fn test_switch_insane() {
     }];
 
     for rng in [
-        Box::new(RngMock([BigUint::from(1u64)])) as Box<dyn Rng>,
-        Box::new(RngMock([BigUint::from(1u64), BigUint::from(2u64)])),
-        Box::new(RngMock([BigUint::from(2u64)])),
-        Box::new(RngMock([BigUint::from(3u64), BigUint::from(1u64)])),
-        Box::new(RngMock([BigUint::from(3u64), BigUint::from(2u64)])),
-        Box::new(RngMock([BigUint::from(4u64)])),
+        Box::new(RngMock([1u64])) as Box<dyn Rng>,
+        Box::new(RngMock([1u64, 2u64])),
+        Box::new(RngMock([2u64])),
+        Box::new(RngMock([3u64, 1u64])),
+        Box::new(RngMock([3u64, 2u64])),
+        Box::new(RngMock([4u64])),
     ] {
         super::test_bms_assert_objs(SRC, rng, expected.clone());
     }

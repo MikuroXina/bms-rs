@@ -6,9 +6,7 @@
 //! - `#MATERIALSBMP path` - Specifies the shared image path. Obsolete.
 //! - `#MATERIALS path` - Unknown. Obsolete.
 
-use std::{path::Path, str::FromStr};
-
-use num::BigUint;
+use std::path::Path;
 
 use super::{ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
@@ -53,9 +51,10 @@ impl ResourcesProcessor {
             resources.midi_file = Some(Path::new(args).into());
         }
         if name.eq_ignore_ascii_case("CDDA") {
-            let big_uint = BigUint::from_str(args)
+            let value: u64 = args
+                .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            resources.cdda.push(big_uint);
+            resources.cdda.push(value);
         }
         if name.eq_ignore_ascii_case("MATERIALSWAV") {
             resources.materials_wav.push(Path::new(args).into());

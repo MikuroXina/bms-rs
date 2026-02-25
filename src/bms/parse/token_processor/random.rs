@@ -28,8 +28,6 @@ use std::{
     rc::Rc,
 };
 
-use num::BigUint;
-
 use crate::bms::{
     command::mixin::SourceRangeMixin,
     lex::token::{Token, TokenWithRange},
@@ -53,7 +51,7 @@ enum ProcessState {
     #[default]
     Root,
     Random {
-        generated: BigUint,
+        generated: u64,
         activated: bool,
     },
     IfBlock {
@@ -64,19 +62,19 @@ enum ProcessState {
         activated: bool,
     },
     SwitchBeforeActive {
-        generated: BigUint,
+        generated: u64,
     },
     SwitchActive {
-        generated: BigUint,
+        generated: u64,
     },
     SwitchAfterActive {
-        generated: BigUint,
+        generated: u64,
     },
     SwitchSkipping,
 }
 
 struct BranchBuffer<'t> {
-    conditions: Vec<BigUint>,
+    conditions: Vec<u64>,
     tokens: Vec<TokenWithRange<'t>>,
     nested_objects: Vec<RandomizedObjects>,
 }
@@ -84,9 +82,9 @@ struct BranchBuffer<'t> {
 struct RandomScope<'t> {
     line_number: usize,
     generating: Option<ControlFlowValue>,
-    max_value: Option<BigUint>,
-    branches: BTreeMap<BigUint, RandomizedBranch>,
-    covered_values: BTreeSet<BigUint>,
+    max_value: Option<u64>,
+    branches: BTreeMap<u64, RandomizedBranch>,
+    covered_values: BTreeSet<u64>,
     current_branch: Option<BranchBuffer<'t>>,
 }
 
@@ -105,7 +103,7 @@ impl<'t> Collector<'t> {
 
     fn push_random(&mut self, generating: ControlFlowValue, line_number: usize) {
         let max_value = match &generating {
-            ControlFlowValue::GenMax(m) => Some(m.clone()),
+            ControlFlowValue::GenMax(m) => Some(*m),
             ControlFlowValue::Set(_) => None, // Explicit value, cannot infer range for ELSE
         };
         self.stack.push(RandomScope {
@@ -122,9 +120,9 @@ impl<'t> Collector<'t> {
         self.stack.last_mut()
     }
 
-    fn start_branch(&mut self, condition: BigUint) {
+    fn start_branch(&mut self, condition: u64) {
         if let Some(scope) = self.current_scope_mut() {
-            scope.covered_values.insert(condition.clone());
+            scope.covered_values.insert(condition);
             scope.current_branch = Some(BranchBuffer {
                 conditions: vec![condition],
                 tokens: Vec::new(),
@@ -209,11 +207,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             && let Some(buffer) = scope.current_branch.take()
         {
             let bms = self.process_branch_buffer(&buffer, prompter)?;
-            for cond in buffer.conditions.iter() {
-                scope.branches.insert(
-                    cond.clone(),
-                    RandomizedBranch::new(cond.clone(), bms.clone()),
-                );
+            for &cond in buffer.conditions.iter() {
+                scope
+                    .branches
+                    .insert(cond, RandomizedBranch::new(cond, bms.clone()));
             }
         }
         Ok(())
@@ -227,7 +224,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>| {
-            let max: BigUint = match args.parse().map_err(|_| {
+            let max: u64 = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
                     token.range().clone(),
@@ -236,9 +233,9 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
             };
-            let range = BigUint::from(1u64)..=max.clone();
-            let generated = self.rng.borrow_mut().generate(range.clone());
+            let range = 1u64..=max;
             let activated = self.is_activated();
+            let generated = self.rng.borrow_mut().generate(range.clone());
             if activated && !range.contains(&generated) {
                 return Err(SourceRangeMixin::new(
                     ParseError::RandomGeneratedValueOutOfRange {
@@ -282,7 +279,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>| {
-            let generated: BigUint = match args.parse().map_err(|_| {
+            let generated: u64 = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
                     token.range().clone(),
@@ -293,7 +290,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             };
             let activated = self.is_activated();
             self.state_stack.borrow_mut().push(ProcessState::Random {
-                generated: generated.clone(),
+                generated,
                 activated,
             });
             collector_mut.push_random(ControlFlowValue::Set(generated), token.range().start);
@@ -322,7 +319,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
-        let push_new_one = |collector_mut: &mut Collector<'t>, generated: BigUint| {
+        let push_new_one = |collector_mut: &mut Collector<'t>, generated: u64| {
             let cond = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
@@ -449,13 +446,13 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                     && let Some(max) = &scope.max_value
                 {
                     let mut conditions = Vec::new();
-                    let mut current = BigUint::from(1u64);
+                    let mut current = 1u64;
                     while current <= *max {
                         if !scope.covered_values.contains(&current) {
-                            conditions.push(current.clone());
-                            scope.covered_values.insert(current.clone());
+                            conditions.push(current);
+                            scope.covered_values.insert(current);
                         }
-                        current += 1u64;
+                        current = current.saturating_add(1u64);
                     }
 
                     scope.current_branch = Some(BranchBuffer {
@@ -535,7 +532,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>| {
-            let max: BigUint = match args.parse().map_err(|_| {
+            let max: u64 = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
                     token.range().clone(),
@@ -544,9 +541,9 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
             };
-            let range = BigUint::from(1u64)..=max.clone();
-            let generated = self.rng.borrow_mut().generate(range.clone());
+            let range = 1u64..=max;
             let activated = self.is_activated();
+            let generated = self.rng.borrow_mut().generate(range.clone());
             if activated {
                 if !range.contains(&generated) {
                     return Err(SourceRangeMixin::new(
@@ -589,7 +586,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>| {
-            let generated: BigUint = match args.parse().map_err(|_| {
+            let generated: u64 = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
                     token.range().clone(),
@@ -602,15 +599,11 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             if activated {
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchBeforeActive {
-                        generated: generated.clone(),
-                    });
+                    .push(ProcessState::SwitchBeforeActive { generated });
             } else {
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchAfterActive {
-                        generated: generated.clone(),
-                    });
+                    .push(ProcessState::SwitchAfterActive { generated });
             }
             collector_mut.push_random(ControlFlowValue::Set(generated), token.range().start);
             Ok(None)
@@ -767,13 +760,13 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 && let Some(max) = &scope.max_value
             {
                 let mut conditions = Vec::new();
-                let mut current = BigUint::from(1u64);
+                let mut current = 1u64;
                 while current <= *max {
                     if !scope.covered_values.contains(&current) {
-                        conditions.push(current.clone());
-                        scope.covered_values.insert(current.clone());
+                        conditions.push(current);
+                        scope.covered_values.insert(current);
                     }
-                    current += 1u64;
+                    current = current.saturating_add(1u64);
                 }
 
                 scope.current_branch = Some(BranchBuffer {

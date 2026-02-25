@@ -6,8 +6,6 @@
 
 use std::collections::BTreeMap;
 
-use num::BigUint;
-
 use crate::bms::model::Bms;
 use crate::bms::prelude::*;
 use crate::bms::rng::Rng;
@@ -17,9 +15,9 @@ use crate::bms::rng::Rng;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowValue {
     /// Use a fixed value (emits `#SETRANDOM <value>`).
-    Set(BigUint),
+    Set(u64),
     /// Generate a random value with the given maximum (emits `#RANDOM <max>`).
-    GenMax(BigUint),
+    GenMax(u64),
 }
 
 /// A branch in a randomized block.
@@ -27,7 +25,7 @@ pub enum ControlFlowValue {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RandomizedBranch {
     /// The condition value for this branch (e.g. `1` for `#IF 1` or `#CASE 1`).
-    pub condition: BigUint,
+    pub condition: u64,
     /// The content of this branch, parsed as a BMS object.
     pub sub: Box<Bms>,
 }
@@ -35,7 +33,7 @@ pub struct RandomizedBranch {
 impl RandomizedBranch {
     /// Create a new randomized branch.
     #[must_use]
-    pub fn new(condition: BigUint, sub: Bms) -> Self {
+    pub fn new(condition: u64, sub: Bms) -> Self {
         Self {
             condition,
             sub: Box::new(sub),
@@ -44,7 +42,7 @@ impl RandomizedBranch {
 
     /// Get the condition value.
     #[must_use]
-    pub const fn condition(&self) -> &BigUint {
+    pub const fn condition(&self) -> &u64 {
         &self.condition
     }
 
@@ -72,7 +70,7 @@ pub struct RandomizedObjects {
     /// The value or max value for this random block.
     pub generating: Option<ControlFlowValue>,
     /// The branches for this random block.
-    pub branches: BTreeMap<BigUint, RandomizedBranch>,
+    pub branches: BTreeMap<u64, RandomizedBranch>,
 }
 
 impl RandomizedObjects {
@@ -93,7 +91,7 @@ impl RandomizedObjects {
         let mut branches = self.branches.clone();
         for (cond, branch) in &other.branches {
             branches
-                .entry(cond.clone())
+                .entry(*cond)
                 .and_modify(|e| {
                     let merged_bms = e.sub.union(*branch.sub.clone());
                     *e.sub = merged_bms;
@@ -114,7 +112,7 @@ impl RandomizedObjects {
         }
         for (cond, branch) in &other.branches {
             self.branches
-                .entry(cond.clone())
+                .entry(*cond)
                 .and_modify(|e| {
                     e.sub.union_inplace(&branch.sub);
                 })
@@ -133,7 +131,7 @@ impl RandomizedObjects {
     /// Sets the generator configuration for this randomized block.
     ///
     /// Overwrites any previously set generator.
-    pub fn set_generating(&mut self, generating: ControlFlowValue) {
+    pub const fn set_generating(&mut self, generating: ControlFlowValue) {
         self.generating = Some(generating);
     }
 
@@ -141,24 +139,24 @@ impl RandomizedObjects {
     ///
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
     #[must_use]
-    pub fn branch(&self, condition: BigUint) -> Option<&RandomizedBranch> {
+    pub fn branch(&self, condition: u64) -> Option<&RandomizedBranch> {
         self.branches.get(&condition)
     }
 
     /// Returns a mutable reference to the branch with the given condition value.
     ///
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
-    pub fn branch_mut(&mut self, condition: BigUint) -> Option<&mut RandomizedBranch> {
+    pub fn branch_mut(&mut self, condition: u64) -> Option<&mut RandomizedBranch> {
         self.branches.get_mut(&condition)
     }
 
     /// Returns a mutable reference to the branch entry for `condition`.
     ///
     /// If the branch does not exist, a new one with an empty `Bms` is inserted and returned.
-    pub fn branch_entry(&mut self, condition: BigUint) -> &mut RandomizedBranch {
+    pub fn branch_entry(&mut self, condition: u64) -> &mut RandomizedBranch {
         self.branches
             .entry(condition)
-            .or_insert_with_key(|cond| RandomizedBranch::new(cond.clone(), Bms::default()))
+            .or_insert_with_key(|cond| RandomizedBranch::new(*cond, Bms::default()))
     }
 
     /// Returns an iterator over all branches in ascending condition order.
@@ -186,8 +184,8 @@ impl RandomizedObjects {
     /// You may need to call `evaluate` recursively on the result if you want full resolution.
     pub fn evaluate(&self, mut rng: impl Rng) -> Bms {
         let val = match &self.generating {
-            Some(ControlFlowValue::Set(v)) => v.clone(),
-            Some(ControlFlowValue::GenMax(max)) => rng.generate(BigUint::from(1u64)..=max.clone()),
+            Some(ControlFlowValue::Set(v)) => *v,
+            Some(ControlFlowValue::GenMax(max)) => rng.generate(1..=*max),
             None => return Bms::default(),
         };
 
