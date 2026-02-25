@@ -1,5 +1,67 @@
 # Changelog
 
+## [1.0.0](https://github.com/MikuroXina/bms-rs/compare/v0.10.1...v1.0.0) (2026-02-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **bms:** rm fraction, use StringValue for `FromStr` values ([#331](https://github.com/MikuroXina/bms-rs/issues/331))
+* **chart_processor:** split player ([#295](https://github.com/MikuroXina/bms-rs/issues/295))
+* **chart_processor:** `visible_events` now return RangeInclusive; fix formula ([#287](https://github.com/MikuroXina/bms-rs/issues/287))
+* **bms::parse:** impl new control flow structure, let `Bms` contain all branches ([#268](https://github.com/MikuroXina/bms-rs/issues/268))
+* **chart_processor:** add VisibleRangePerBpm & replace SystemTime with Instant ([#271](https://github.com/MikuroXina/bms-rs/issues/271))
+* replace use_relaxed with TokenModifier ([#263](https://github.com/MikuroXina/bms-rs/issues/263))
+* remove seperate of common_preset/minor_preset ([#262](https://github.com/MikuroXina/bms-rs/issues/262))
+* use Result<Bms, ParseError> in BmsOutput/ParseOutput, functions return BmsOutput/ParseOutput again ([#251](https://github.com/MikuroXina/bms-rs/issues/251))
+* use id to sign different events, avoid duplicate calculation ([#249](https://github.com/MikuroXina/bms-rs/issues/249))
+
+### Features
+
+* add activate_time ([#259](https://github.com/MikuroXina/bms-rs/issues/259)) ([ca38d1f](https://github.com/MikuroXina/bms-rs/commit/ca38d1fc2a7ab1dda78f05bd864e0152d962dcff))
+* add collect_bms_reports not to print extra diagnostic in tests ([#254](https://github.com/MikuroXina/bms-rs/issues/254)) ([56761b2](https://github.com/MikuroXina/bms-rs/commit/56761b2252c73dc3e6ca1584704eb52971e36468))
+* **bms::parse:** impl new control flow structure, let `Bms` contain all branches ([#268](https://github.com/MikuroXina/bms-rs/issues/268)) ([cabde97](https://github.com/MikuroXina/bms-rs/commit/cabde97b9ebc14932d43446c3d5a11d6e5ff2d9b))
+* **bms:** allow #XXX02:0.0 ([#311](https://github.com/MikuroXina/bms-rs/issues/311)) ([4417c82](https://github.com/MikuroXina/bms-rs/commit/4417c82952dc027280df755f36d75116dcad9cb7))
+* **chart_processor:** `visible_events` now return RangeInclusive; fix formula ([#287](https://github.com/MikuroXina/bms-rs/issues/287)) ([430c7b6](https://github.com/MikuroXina/bms-rs/commit/430c7b6161c1d4ffb3ba7d9dcac01d82fd971b37))
+* **chart_processor:** add started_at ([#270](https://github.com/MikuroXina/bms-rs/issues/270)) ([ac0e295](https://github.com/MikuroXina/bms-rs/commit/ac0e295bb1129d07cbd7fde9a9aa2ac2673888d6))
+* **chart_processor:** add VisibleRangePerBpm & replace SystemTime with Instant ([#271](https://github.com/MikuroXina/bms-rs/issues/271)) ([5876197](https://github.com/MikuroXina/bms-rs/commit/5876197d929244015560b5a5666ae5c10d7d7160))
+* **chart_processor:** create player at start ([#297](https://github.com/MikuroXina/bms-rs/issues/297)) ([9af19a4](https://github.com/MikuroXina/bms-rs/commit/9af19a455cfdff00294babcb55517f9c175dd9ba))
+* **chart_processor:** events_in_time_range ([#273](https://github.com/MikuroXina/bms-rs/issues/273)) ([ad90779](https://github.com/MikuroXina/bms-rs/commit/ad90779b9adf7e6f4f124e82365c7b413bd1dec6))
+* **chart_processor:** split player ([#295](https://github.com/MikuroXina/bms-rs/issues/295)) ([66cda85](https://github.com/MikuroXina/bms-rs/commit/66cda856256810bd461b8bc90abf6f35dd18aa0a))
+* compute continue duration ([#255](https://github.com/MikuroXina/bms-rs/issues/255)) ([c6ed199](https://github.com/MikuroXina/bms-rs/commit/c6ed19985d5b353231bbcaa96e08e4b310cb47cd))
+* not binding to original chart object ([#269](https://github.com/MikuroXina/bms-rs/issues/269)) ([21e9387](https://github.com/MikuroXina/bms-rs/commit/21e93877bf967236e55b120d2af55e800e4e9ff2))
+* **processor:** Impl `TryFrom` ([#328](https://github.com/MikuroXina/bms-rs/issues/328)) ([2531e86](https://github.com/MikuroXina/bms-rs/commit/2531e86f7851716e34b47173b5e34df48136dcd7))
+* Random/Switch model ([#253](https://github.com/MikuroXina/bms-rs/issues/253)) ([060c1ae](https://github.com/MikuroXina/bms-rs/commit/060c1ae9f253d005070dd5d85e35090667b8dc22))
+* replace use_relaxed with TokenModifier ([#263](https://github.com/MikuroXina/bms-rs/issues/263)) ([bf4f4be](https://github.com/MikuroXina/bms-rs/commit/bf4f4bee63a3edb5b1f9ee7c9a6cd849b0664cc6))
+* use id to sign different events, avoid duplicate calculation ([#249](https://github.com/MikuroXina/bms-rs/issues/249)) ([a3fad4a](https://github.com/MikuroXina/bms-rs/commit/a3fad4aba8499500ce881225486a721e1f496e20))
+* use Result&lt;Bms, ParseError&gt; in BmsOutput/ParseOutput, functions return BmsOutput/ParseOutput again ([#251](https://github.com/MikuroXina/bms-rs/issues/251)) ([228a5b5](https://github.com/MikuroXina/bms-rs/commit/228a5b5041880fd482c8b0cc752b7521993e3ba4))
+
+
+### Bug Fixes
+
+* add lints ([#285](https://github.com/MikuroXina/bms-rs/issues/285)) ([5adaf4a](https://github.com/MikuroXina/bms-rs/commit/5adaf4a8bc63fd93315008efee7b83211e47359d))
+* **bms_processor:** stop length ([#291](https://github.com/MikuroXina/bms-rs/issues/291)) ([b786ed8](https://github.com/MikuroXina/bms-rs/commit/b786ed814f85d5acd63d5632648fc5258bd1b657))
+* **bmson:** use FinF64 from strict-num-extended ([#296](https://github.com/MikuroXina/bms-rs/issues/296)) ([b8640e5](https://github.com/MikuroXina/bms-rs/commit/b8640e59a9c9d4795bb2a83ed61036ece4d9276c))
+* **bms:** rm fraction, use StringValue for `FromStr` values ([#331](https://github.com/MikuroXina/bms-rs/issues/331)) ([42ed441](https://github.com/MikuroXina/bms-rs/commit/42ed44172c41d4b0d4882d378d626117b2d2a85d))
+* **chart_process:** FlowEvents in same Y should be triggered together ([#292](https://github.com/MikuroXina/bms-rs/issues/292)) ([03566c0](https://github.com/MikuroXina/bms-rs/commit/03566c0613490cb5b19d0313df25b7cd03eb2b6f))
+* **chart_processor:** restore speed/scroll on start ([#282](https://github.com/MikuroXina/bms-rs/issues/282)) ([41b9178](https://github.com/MikuroXina/bms-rs/commit/41b9178e6052e84c260fcd8d985926f55316ba6a))
+* **chart_processor:** visible_events no need passing `now` and use a new return type ([#280](https://github.com/MikuroXina/bms-rs/issues/280)) ([180c66a](https://github.com/MikuroXina/bms-rs/commit/180c66a439477932ef8d732ce6b3aa4012f4a52e))
+* **chart_process:** remove nanosecond ([#336](https://github.com/MikuroXina/bms-rs/issues/336)) ([5661e40](https://github.com/MikuroXina/bms-rs/commit/5661e40514c7d361b70fe0bcd81f3a4b59a1fa3a))
+* **chart_process:** use round() to avoid misalignment ([#293](https://github.com/MikuroXina/bms-rs/issues/293)) ([765ddcc](https://github.com/MikuroXina/bms-rs/commit/765ddcc5cff986f72c639d03d0d583cc3dc391cb))
+* clippy with nursery ([#250](https://github.com/MikuroXina/bms-rs/issues/250)) ([6811115](https://github.com/MikuroXina/bms-rs/commit/6811115b1ee3388e9ddedaf8cb7b1f5dda0201ec))
+* delete `crate::bms` pub use ([#245](https://github.com/MikuroXina/bms-rs/issues/245)) ([01f5ce5](https://github.com/MikuroXina/bms-rs/commit/01f5ce544a49828e09ae46427ddaacbb9acb0488))
+* fill feature gate for compile in different features ([#240](https://github.com/MikuroXina/bms-rs/issues/240)) ([c964d53](https://github.com/MikuroXina/bms-rs/commit/c964d537c686b495efa432aeb0e3e06a920b8989))
+* impl `ToAradine` for `PlayingWarning`/`PlayingError` ([#252](https://github.com/MikuroXina/bms-rs/issues/252)) ([879155e](https://github.com/MikuroXina/bms-rs/commit/879155ee75ff47fa803ae88bb100330a7da0c7cf))
+* **player:** LN showing ([#326](https://github.com/MikuroXina/bms-rs/issues/326)) ([c2787df](https://github.com/MikuroXina/bms-rs/commit/c2787df3c5c4f497145a8cb05bcba2fbea8964be))
+* rearrange chart_process ([#314](https://github.com/MikuroXina/bms-rs/issues/314)) ([1567fa5](https://github.com/MikuroXina/bms-rs/commit/1567fa5c561325fdf962425c0536f2260e2965af))
+* refine `ObjTime` constructor ([#257](https://github.com/MikuroXina/bms-rs/issues/257)) ([9bc148c](https://github.com/MikuroXina/bms-rs/commit/9bc148cf2d870cc770398951cb3ae5bae73b6258))
+* remove seperate of common_preset/minor_preset ([#262](https://github.com/MikuroXina/bms-rs/issues/262)) ([06d0727](https://github.com/MikuroXina/bms-rs/commit/06d0727a3dfdb9fa42932b1d40295329ac823ffd))
+* Rename into PlayheadEvent, VisibleChartEvent ([#261](https://github.com/MikuroXina/bms-rs/issues/261)) ([9372b93](https://github.com/MikuroXina/bms-rs/commit/9372b93c09c61bf5530201b287241db60112f4fe))
+* rm audio/wav files from ChartPlayer ([#305](https://github.com/MikuroXina/bms-rs/issues/305)) ([ebf63ee](https://github.com/MikuroXina/bms-rs/commit/ebf63ee9110fa65f7152016e2cd3b525041cb648))
+* rm round calling ([#306](https://github.com/MikuroXina/bms-rs/issues/306)) ([7954aff](https://github.com/MikuroXina/bms-rs/commit/7954aff68a4742ea339c7fa5f3bdc7fae5527c93))
+* use `AsRef` for new-type struct, and fix unneed clone/ref ([#283](https://github.com/MikuroXina/bms-rs/issues/283)) ([bd6b4ef](https://github.com/MikuroXina/bms-rs/commit/bd6b4ef1bc6e964d8cb8425f98f2ba38ae40f3e8))
+* use fraction::BigDecimal as Decimal ([#260](https://github.com/MikuroXina/bms-rs/issues/260)) ([f28c578](https://github.com/MikuroXina/bms-rs/commit/f28c578fab78c136ec809c70f7d3244d7812369e))
+* **visible_event:** formula ([#323](https://github.com/MikuroXina/bms-rs/issues/323)) ([26b92af](https://github.com/MikuroXina/bms-rs/commit/26b92af4b5f2ffc06ef26214223c366e619f3e8f))
+
 ## [0.10.1](https://github.com/MikuroXina/bms-rs/compare/v0.10.0...v0.10.1) (2025-10-25)
 
 
