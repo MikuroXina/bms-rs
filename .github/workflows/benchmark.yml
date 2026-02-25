@@ -1,0 +1,194 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  benchmark:
+    name: Benchmark ${{ matrix.bench }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        bench: [parse_bms, parse_bmson]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install APT packages with cache
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libasound2-dev
+          version: 1.0
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          workspaces: |
+            . -> target
+          key: benchmark
+
+      - name: Run baseline (main branch)
+        if: github.event_name == 'pull_request'
+        id: run_baseline
+        continue-on-error: true
+        run: |
+          git fetch origin ${{ github.base_ref || 'main' }}
+          git checkout FETCH_HEAD
+          cargo bench --bench ${{ matrix.bench }} --profile release -- --save-baseline main
+          mv target/criterion baseline-${{ matrix.bench }}
+
+      - name: Run benchmark
+        run: |
+          git checkout ${{ github.sha }}
+          if [ "${{ steps.run_baseline.outcome }}" == "success" ]; then
+            cargo bench --bench ${{ matrix.bench }} --profile release -- --baseline main
+          else
+            cargo bench --bench ${{ matrix.bench }} --profile release
+          fi
+          mv target/criterion results-${{ matrix.bench }}
+
+      - name: Upload baseline
+        if: steps.run_baseline.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-${{ matrix.bench }}
+          path: baseline-${{ matrix.bench }}/
+          retention-days: 7
+
+      - name: Upload current results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.bench }}
+          path: results-${{ matrix.bench }}/
+          retention-days: 30
+
+  compare:
+    name: Benchmark Results
+    needs: benchmark
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Check for baseline data
+        id: check_baseline
+        run: |
+          has_baseline=false
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            for baseline_dir in artifacts/baseline-*; do
+              if [ -d "$baseline_dir" ]; then
+                has_baseline=true
+                break
+              fi
+            done
+          fi
+          echo "has_baseline=$has_baseline" >> $GITHUB_OUTPUT
+
+      - name: Generate comparison report
+        if: steps.check_baseline.outputs.has_baseline == 'true'
+        run: |
+          {
+            echo "# Benchmark Results"
+            echo ""
+            echo "## Comparison: Main Branch vs Current"
+            echo ""
+
+            for baseline_dir in artifacts/baseline-*; do
+              [ ! -d "$baseline_dir" ] && continue
+
+              bench_name="${baseline_dir#artifacts/baseline-}"
+              current_dir="artifacts/results-$bench_name"
+              [ ! -d "$current_dir" ] && continue
+
+              # Iterate through each benchmark group
+              for group_baseline_dir in "$baseline_dir"/*; do
+                [ ! -d "$group_baseline_dir" ] && continue
+                group_name=$(basename "$group_baseline_dir")
+                group_current_dir="$current_dir/$group_name"
+                [ ! -d "$group_current_dir" ] && continue
+
+                echo "### $group_name"
+                echo ""
+                echo "| Case | Median (ms) | Change | Std Dev (ms) |"
+                echo "|------|-------------|--------|--------------|"
+
+                for baseline_est in "$group_baseline_dir"/*/new/estimates.json; do
+                  [ -f "$baseline_est" ] || continue
+
+                  case_name=$(basename "$(dirname "$(dirname "$baseline_est")")")
+                  current_est="$group_current_dir/$case_name/new/estimates.json"
+                  [ ! -f "$current_est" ] && continue
+
+                  baseline_median=$(jq -r 'if .median.point_estimate then .median.point_estimate / 1e6 else null end' "$baseline_est")
+                  current_median=$(jq -r 'if .median.point_estimate then .median.point_estimate / 1e6 else null end' "$current_est")
+
+                  baseline_stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate / 1e6 else null end' "$baseline_est")
+                  current_stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate / 1e6 else null end' "$current_est")
+
+                  if [ "$baseline_median" != "null" ] && [ "$current_median" != "null" ] && [ -n "$baseline_median" ]; then
+                    median_change=$(awk "BEGIN {printf \"%.2f\", ($current_median - $baseline_median) / $baseline_median * 100}")
+                    printf "| %s | %.6f / %.6f | %s%% | %.6f / %.6f |\n" \
+                      "$case_name" "$baseline_median" "$current_median" "$median_change" \
+                      "$baseline_stddev" "$current_stddev"
+                  fi
+                done
+                echo ""
+              done
+            done
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate results report
+        if: steps.check_baseline.outputs.has_baseline != 'true'
+        run: |
+          {
+            echo "# Benchmark Results"
+            echo ""
+            echo "## Current Branch Results"
+            echo ""
+
+            for current_dir in artifacts/results-*; do
+              [ ! -d "$current_dir" ] && continue
+
+              # Iterate through each benchmark group
+              for group_dir in "$current_dir"/*; do
+                [ ! -d "$group_dir" ] && continue
+                group_name=$(basename "$group_dir")
+
+                echo "### $group_name"
+                echo ""
+                echo "| Case | Median (ms) | Std Dev (ms) |"
+                echo "|------|-------------|--------------|"
+
+                for current_est in "$group_dir"/*/new/estimates.json; do
+                  [ -f "$current_est" ] || continue
+
+                  case_name=$(basename "$(dirname "$(dirname "$current_est")")")
+                  median=$(jq -r 'if .median.point_estimate then .median.point_estimate / 1e6 else null end' "$current_est")
+                  stddev=$(jq -r 'if .std_dev.point_estimate then .std_dev.point_estimate / 1e6 else null end' "$current_est")
+
+                  if [ "$median" != "null" ] && [ -n "$median" ]; then
+                    printf "| %s | %.6f | %.6f |\n" "$case_name" "$median" "${stddev:-N/A}"
+                  fi
+                done
+                echo ""
+              done
+            done
+          } >> $GITHUB_STEP_SUMMARY
