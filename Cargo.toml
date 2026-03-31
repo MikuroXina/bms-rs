@@ -79,16 +79,6 @@ bare_urls = "warn"
 [lints.clippy]
 pedantic = { level = "allow", priority = -1 }
 
-# Complexity (Applicability: MachineApplicable)
-default_constructed_unit_structs = "allow"
-
-# Complexity (Applicability: Unspecified)
-type_complexity = "allow"
-
-# Style (Applicability: Unspecified)
-mixed_attributes_style = "allow"
-ptr_arg = "allow"
-
 # Pedantic (Applicability: MachineApplicable)
 cast_lossless = "allow"
 wildcard_imports = "allow"
