@@ -79,79 +79,6 @@ bare_urls = "warn"
 [lints.clippy]
 pedantic = { level = "allow", priority = -1 }
 
-# Correctness (Applicability: MaybeIncorrect)
-async_yields_async = "warn"
-vec_resize_to_zero = "warn"
-
-# Correctness (Applicability: Unspecified)
-if_let_mutex = "warn"
-panicking_overflow_checks = "warn"
-redundant_comparisons = "warn"
-
-# Complexity (Applicability: MachineApplicable)
-bind_instead_of_map = "warn"
-char_lit_as_u8 = "warn"
-clone_on_copy = "warn"
-double_comparisons = "warn"
-extra_unused_type_parameters = "warn"
-filter_map_identity = "warn"
-int_plus_one = "warn"
-iter_count = "warn"
-manual_filter = "warn"
-manual_filter_map = "warn"
-manual_find = "warn"
-manual_flatten = "warn"
-manual_strip = "warn"
-map_identity = "warn"
-match_single_binding = "warn"
-needless_borrowed_reference = "warn"
-needless_match = "warn"
-redundant_closure_call = "warn"
-string_from_utf8_as_bytes = "warn"
-unnecessary_cast = "warn"
-unnecessary_operation = "warn"
-
-# Complexity (Applicability: MaybeIncorrect)
-no_effect = "warn"
-
-# Complexity (Applicability: Unspecified)
-borrowed_box = "warn"
-extra_unused_lifetimes = "warn"
-too_many_arguments = "warn"
-type_complexity = "warn"
-unnecessary_unwrap = "warn"
-vec_box = "warn"
-zero_divided_by_zero = "warn"
-
-# Style (Applicability: MachineApplicable)
-collapsible_if = "warn"
-iter_next_slice = "warn"
-iter_nth_zero = "warn"
-manual_map = "warn"
-must_use_unit = "warn"
-needless_borrow = "warn"
-needless_borrows_for_generic_args = "warn"
-partialeq_to_none = "warn"
-redundant_closure = "warn"
-string_extend_chars = "warn"
-unnecessary_fold = "warn"
-unnecessary_lazy_evaluations = "warn"
-unused_unit = "warn"
-
-# Style (Applicability: MaybeIncorrect)
-fn_to_numeric_cast = "warn"
-fn_to_numeric_cast_with_truncation = "warn"
-inconsistent_digit_grouping = "warn"
-
-# Style (Applicability: HasPlaceholders)
-needless_range_loop = "warn"
-
-# Style (Applicability: Unspecified)
-collapsible_match = "warn"
-double_must_use = "warn"
-module_inception = "warn"
-should_implement_trait = "warn"
-
 # Pedantic (Applicability: MachineApplicable)
 borrow_as_ptr = "warn"
 cast_lossless = "allow"
@@ -203,21 +130,6 @@ unused_self = "allow"
 used_underscore_binding = "allow"
 zero_sized_map_values = "warn"
 
-# Perf (Applicability: MachineApplicable)
-missing_const_for_thread_local = "warn"
-unnecessary_to_owned = "warn"
-
-# Perf (Applicability: MaybeIncorrect)
-redundant_allocation = "warn"
-
-# Perf (Applicability: HasPlaceholders)
-manual_try_fold = "warn"
-vec_init_then_push = "warn"
-
-# Perf (Applicability: Unspecified)
-box_collection = "warn"
-manual_memcpy = "warn"
-
 # Restriction (Applicability: MachineApplicable)
 if_then_some_else_none = "warn"
 lossy_float_literal = "warn"
@@ -258,14 +170,6 @@ unneeded_field_pattern = "allow"
 unreachable = "warn"
 unwrap_used = "warn"
 verbose_file_reads = "warn"
-
-# Suspicious (Applicability: MaybeIncorrect)
-float_equality_without_abs = "warn"
-octal_escapes = "warn"
-
-# Suspicious (Applicability: Unspecified)
-await_holding_lock = "warn"
-incompatible_msrv = "warn"
 
 # Nursery (Applicability: MachineApplicable)
 missing_const_for_fn = "warn"
