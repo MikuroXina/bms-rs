@@ -77,7 +77,7 @@ invalid_html_tags = "warn"
 bare_urls = "warn"
 
 [lints.clippy]
-pedantic = { level = "allow", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
 
 # Pedantic (Applicability: MachineApplicable)
 borrow_as_ptr = "warn"
