@@ -11,44 +11,67 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup-rust
+        with:
+          install-apt: true
+          components: rustfmt
+      - name: Format Check
+        run: cargo fmt --check
+
+  lint:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+      - uses: ./.github/actions/setup-rust
+        with:
+          install-apt: ${{ matrix.os == 'ubuntu-latest' }}
+          components: clippy
+      - name: Clippy Check
+        run: cargo clippy --verbose --all-targets --all-features -- -D warnings
+
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-
     steps:
-      - uses: actions/checkout@v6
-
-      - if: matrix.os == 'ubuntu-latest'
-        name: Install APT packages with cache
-        uses: awalsh128/cache-apt-pkgs-action@latest
+      - uses: ./.github/actions/setup-rust
         with:
-          packages: libasound2-dev
-          version: 1.0
-
-      - name: Setup rustfmt and clippy
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-
-      - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          workspaces: |
-            . -> target
-
-      - name: Format Check
-        run: cargo fmt --check
-      - name: Clippy Check
-        run: cargo clippy --verbose --all-targets --all-features -- -D warnings
+          install-apt: ${{ matrix.os == 'ubuntu-latest' }}
       - name: Build all targets
         run: cargo build --verbose --all-targets --all-features --examples
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+      - uses: ./.github/actions/setup-rust
+        with:
+          install-apt: ${{ matrix.os == 'ubuntu-latest' }}
       - name: Binary tests
         run: cargo test --verbose --all-targets --all-features
+
+  doc-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup-rust
+        with:
+          install-apt: true
       - name: Doc tests
         run: cargo test --verbose --doc --all-features
+
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup-rust
+        with:
+          install-apt: true
       - name: Build documentation
         run: cargo doc --no-deps --all-features --document-private-items
