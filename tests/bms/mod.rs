@@ -37,7 +37,7 @@ pub fn test_bms_assert_objs(src: &str, rng: impl Rng, expect_objs: Vec<WavObj>) 
     assert_eq!(parse_warnings, vec![]);
     let bms = match bms {
         Ok(b) => b,
-        Err(e) => panic!("parse failed: {:?}", e),
+        Err(e) => panic!("parse failed: {e:?}"),
     };
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),

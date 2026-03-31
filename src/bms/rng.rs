@@ -181,7 +181,7 @@ impl JavaRandom {
         let m = bound - 1;
         if (bound & m) == 0 {
             // i.e., bound is a power of 2
-            ((bound as i64 * self.next(31) as i64) >> 31) as i32
+            ((i64::from(bound) * i64::from(self.next(31))) >> 31) as i32
         } else {
             loop {
                 let bits = self.next(31);

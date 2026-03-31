@@ -30,9 +30,7 @@ fn assert_btree_maps_equal<K, V>(
     for key in right.keys() {
         assert!(
             left.contains_key(key),
-            "{} missing key {:?} in left map",
-            field_name,
-            key
+            "{field_name} missing key {key:?} in left map"
         );
     }
 }
@@ -70,9 +68,7 @@ fn assert_hash_maps_equal<K, V>(
     for key in right.keys() {
         assert!(
             left.contains_key(key),
-            "{} missing key {:?} in left map",
-            field_name,
-            key
+            "{field_name} missing key {key:?} in left map"
         );
     }
 }

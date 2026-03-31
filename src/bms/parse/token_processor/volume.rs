@@ -19,16 +19,15 @@ pub struct VolumeProcessor;
 impl TokenProcessor for VolumeProcessor {
     type Output = VolumeObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = VolumeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
                 Ok(Self::on_header(name.as_ref(), args.as_ref(), &mut objects)
-                    .map(|()| Vec::new())
-                    .unwrap_or_else(|warn| vec![warn.into_wrapper(token)]))
+                    .map_or_else(|warn| vec![warn.into_wrapper(token)], |()| Vec::new()))
             }
             Token::Message {
                 track,

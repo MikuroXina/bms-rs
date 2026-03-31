@@ -36,9 +36,9 @@ impl ScrollProcessor {
 impl TokenProcessor for ScrollProcessor {
     type Output = ScrollObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = ScrollObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {

@@ -215,9 +215,9 @@ impl<T, P, R, M> ParseConfig<T, P, R, M> {
         impl<T: KeyLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
             type Output = Bms;
 
-            fn process<'a, 't, P: Prompter>(
+            fn process<P: Prompter>(
                 &self,
-                ctx: &mut parse::token_processor::ProcessContext<'a, 't, P>,
+                ctx: &mut parse::token_processor::ProcessContext<'_, '_, P>,
             ) -> Result<Self::Output, ParseErrorWithRange> {
                 full_preset::<T, R>(Rc::clone(&self.rng)).process(ctx)
             }

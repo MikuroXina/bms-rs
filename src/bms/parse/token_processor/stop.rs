@@ -38,9 +38,9 @@ impl StopProcessor {
 impl TokenProcessor for StopProcessor {
     type Output = StopObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = StopObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
@@ -113,7 +113,7 @@ impl StopProcessor {
             let ms: u64 = ms
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected pos u64".into()))?;
-            let time = ObjTime::new(measure as u64, pos as u64, 1000).ok_or_else(|| {
+            let time = ObjTime::new(u64::from(measure), u64::from(pos), 1000).ok_or_else(|| {
                 ParseWarning::SyntaxError("denominator should be non-zero".into())
             })?;
             let duration = Duration::from_millis(ms);

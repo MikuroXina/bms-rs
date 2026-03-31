@@ -3,11 +3,11 @@ use num::BigUint;
 
 #[test]
 fn test_channel_volume() {
-    let src = r#"
+    let src = r"
     #00197:01020304
     #00198:22232425
     #00297:05060708
-    "#;
+    ";
     let BmsOutput { bms, warnings } =
         parse_bms(src, default_config_with_rng(RngMock([BigUint::from(1u64)])));
     let bms = bms.unwrap();
@@ -57,12 +57,12 @@ fn test_channel_volume() {
 
 #[test]
 fn test_channel_text() {
-    let src = r#"
+    let src = r"
     #TEXT01 Hello World
     #TEXT02  Test Message
     #00199:01000200
     #00299:02000100
-    "#;
+    ";
     let BmsOutput { bms, warnings } =
         parse_bms(src, default_config_with_rng(RngMock([BigUint::from(1u64)])));
     let bms = bms.unwrap();
@@ -101,12 +101,12 @@ fn test_channel_judge() {
         );
     };
 
-    let src = r#"
+    let src = r"
     #EXRANK01 3
     #EXRANK02 2
     #001A0:01000200
     #002A0:02000100
-    "#;
+    ";
     let BmsOutput { bms, warnings } = parse_bms::<KeyLayoutBeat, _, _, _>(
         src,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
@@ -150,12 +150,12 @@ fn test_channel_judge() {
 fn test_bga_opacity_channels() {
     // Test BGA opacity channels as a group
     // Direct hexadecimal values for opacity (0x01-0xFF)
-    let src = r#"
+    let src = r"
     #0010B:80
     #0010C:90
     #0010D:A0
     #0010E:B0
-    "#;
+    ";
     let BmsOutput { bms, warnings } = parse_bms::<KeyLayoutBeat, _, _, _>(
         src,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
@@ -233,7 +233,7 @@ fn test_bga_opacity_channels() {
 fn test_bga_argb_channels() {
     // Test BGA ARGB channels as a group
     // Using #ARGB definitions and channel references
-    let src = r#"
+    let src = r"
     #ARGB01 255,0,0,255
     #ARGB02 0,255,0,255
     #ARGB03 0,0,255,255
@@ -242,7 +242,7 @@ fn test_bga_argb_channels() {
     #001A2:02010304
     #001A3:03010204
     #001A4:04010203
-    "#;
+    ";
     let BmsOutput { bms, warnings } = parse_bms::<KeyLayoutBeat, _, _, _>(
         src,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),

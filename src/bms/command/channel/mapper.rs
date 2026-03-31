@@ -21,10 +21,10 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
 
     // Second character based on Key
     let second_char = match key {
-        Key::Key(key @ 1..=5) => char::from_digit(key as u32, 10).unwrap_or('0'),
+        Key::Key(key @ 1..=5) => char::from_digit(u32::from(key), 10).unwrap_or('0'),
         Key::Scratch(1) => '6',
         Key::FreeZone => '7',
-        Key::Key(key @ 6..=7) => char::from_digit((key + 2) as u32, 10).unwrap_or('0'),
+        Key::Key(key @ 6..=7) => char::from_digit(u32::from(key + 2), 10).unwrap_or('0'),
         _ => '0', // Default fallback
     };
 

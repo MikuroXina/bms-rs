@@ -158,7 +158,7 @@ impl Bms {
                 }
             },
             chart_name: Cow::Owned(String::new()),
-            level: self.metadata.play_level.unwrap_or_default() as u32,
+            level: u32::from(self.metadata.play_level.unwrap_or_default()),
             init_bpm: {
                 let bpm_value = self.bpm.bpm.as_ref().map_or_else(
                     || {

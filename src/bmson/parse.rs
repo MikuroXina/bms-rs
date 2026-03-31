@@ -204,7 +204,7 @@ pub struct Warning<'a>(pub Rich<'a, char>);
 pub struct Error<'a>(pub Rich<'a, char>);
 
 #[cfg(feature = "diagnostics")]
-impl<'a> ToAriadne for Recovered<'a> {
+impl ToAriadne for Recovered<'_> {
     fn to_report<'b>(
         &self,
         src: &SimpleSource<'b>,
@@ -222,7 +222,7 @@ impl<'a> ToAriadne for Recovered<'a> {
 }
 
 #[cfg(feature = "diagnostics")]
-impl<'a> ToAriadne for Warning<'a> {
+impl ToAriadne for Warning<'_> {
     fn to_report<'b>(
         &self,
         src: &SimpleSource<'b>,
@@ -240,7 +240,7 @@ impl<'a> ToAriadne for Warning<'a> {
 }
 
 #[cfg(feature = "diagnostics")]
-impl<'a> ToAriadne for Error<'a> {
+impl ToAriadne for Error<'_> {
     fn to_report<'b>(
         &self,
         src: &SimpleSource<'b>,

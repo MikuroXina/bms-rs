@@ -46,7 +46,7 @@ fn demonstrate_integration() {
     println!("2. Complete integration workflow:");
 
     // Parse a BMS file that may produce warnings
-    let bms_source = r#"#TITLE Integration Demo
+    let bms_source = r"#TITLE Integration Demo
 #ARTIST Composer
 #PLAYER 1
 #GENRE Demo
@@ -54,7 +54,7 @@ fn demonstrate_integration() {
 
 #00001:01000000
 #00002:02000000
-"#;
+";
 
     println!("   Parsing BMS file...");
     let output = parse_bms(bms_source, default_config());

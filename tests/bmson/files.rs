@@ -178,11 +178,10 @@ fn test_parse_bmson_with_large_resolution() {
             "genre": "Test",
             "level": 1,
             "init_bpm": 120,
-            "resolution": {}
+            "resolution": {large_value}
         }},
         "sound_channels": []
-    }}"#,
-        large_value
+    }}"#
     );
 
     let output = parse_bmson(&json);
@@ -259,22 +258,20 @@ fn test_parse_bmson_with_invalid_json() {
     assert!(!path.is_empty());
 
     // Check that the error message contains information about the invalid type
-    let error_string = format!("{}", error);
+    let error_string = format!("{error}");
     assert!(
         error_string.contains("invalid type") || error_string.contains("expected"),
-        "Error message should indicate invalid type. Got: {}",
-        error_string
+        "Error message should indicate invalid type. Got: {error_string}"
     );
 
     // The path should contain information about the problematic field
     assert!(
         path.contains("info.level"),
-        "Error path should contain 'level' field information. Got path: {}",
-        path
+        "Error path should contain 'level' field information. Got path: {path}"
     );
 
-    println!("Error path: {}", path);
-    println!("Error message: {}", error);
+    println!("Error path: {path}");
+    println!("Error message: {error}");
 }
 
 #[test]
@@ -307,18 +304,17 @@ fn test_parse_bmson_with_missing_required_field() {
     assert!(!path.is_empty());
 
     // Check that the error message contains information about the missing field
-    let error_string = format!("{}", error);
+    let error_string = format!("{error}");
     assert!(
         error_string.contains("missing field") || error_string.contains("info"),
-        "Error message should indicate missing 'info' field. Got: {}",
-        error_string
+        "Error message should indicate missing 'info' field. Got: {error_string}"
     );
 
     // The path may be empty for missing fields, but the error message should contain field info
     // Note: serde_path_to_error may not always provide path info for missing fields
 
-    println!("Error path: {}", path);
-    println!("Error message: {}", error);
+    println!("Error path: {path}");
+    println!("Error message: {error}");
 }
 
 #[test]
@@ -360,12 +356,12 @@ fn test_chumsky_detects_missing_commas() {
     // Print the chumsky errors for debugging
     println!("Chumsky errors count: {}", json_parse_errors.len());
     for (i, error) in json_parse_errors.iter().enumerate() {
-        println!("Chumsky error {}: {:?}", i, error);
+        println!("Chumsky error {i}: {error:?}");
     }
 
     // Verify that the errors are related to missing commas
     let has_comma_error = json_parse_errors.iter().any(|error| {
-        let error_str = format!("{:?}", error);
+        let error_str = format!("{error:?}");
         error_str.contains("expected") && error_str.contains(',')
     });
     assert!(
@@ -429,7 +425,7 @@ fn test_parse_bmson_with_trailing_comma() {
 
     println!("Chumsky errors count: {}", json_parse_errors.len());
     for (i, error) in json_parse_errors.iter().enumerate() {
-        println!("Chumsky error {}: {:?}", i, error);
+        println!("Chumsky error {i}: {error:?}");
     }
 
     // The parsing should succeed despite trailing commas

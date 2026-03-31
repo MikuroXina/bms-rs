@@ -23,9 +23,9 @@ pub struct SpriteProcessor;
 impl TokenProcessor for SpriteProcessor {
     type Output = Sprites;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut sprites = Sprites::default();
         ctx.all_tokens(|token, _prompter| match token.content() {

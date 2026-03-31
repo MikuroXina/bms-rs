@@ -54,9 +54,9 @@ impl BmpProcessor {
 impl TokenProcessor for BmpProcessor {
     type Output = BmpObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = BmpObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
@@ -466,7 +466,7 @@ impl BmpProcessor {
                     let argb = objects
                         .argb_defs
                         .get(&argb_id)
-                        .cloned()
+                        .copied()
                         .ok_or(ParseWarning::UndefinedObject(argb_id))?;
                     objects.push_bga_argb_change(
                         BgaArgbObj { time, layer, argb },

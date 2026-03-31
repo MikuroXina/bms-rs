@@ -108,11 +108,11 @@ impl BpmObjects {
                 let existing = entry.get();
                 let older = BpmChangeObj {
                     time,
-                    bpm: PositiveF64::new(*existing as f64).unwrap_or(DEFAULT_BPM),
+                    bpm: PositiveF64::new(f64::from(*existing)).unwrap_or(DEFAULT_BPM),
                 };
                 let newer = BpmChangeObj {
                     time,
-                    bpm: PositiveF64::new(bpm_change as f64).unwrap_or(DEFAULT_BPM),
+                    bpm: PositiveF64::new(f64::from(bpm_change)).unwrap_or(DEFAULT_BPM),
                 };
                 prompt_handler
                     .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {

@@ -14,14 +14,14 @@ use super::parse_bms_no_warnings;
 
 #[test]
 fn test_bms_events_in_time_range_returns_note_near_center() {
-    let source = r#"
+    let source = r"
 #TITLE Time Range Test
 #ARTIST Test
 #BPM 120
 #PLAYER 1
 #WAV01 test.wav
 #00111:01
-"#;
+";
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(source, config);
@@ -55,7 +55,7 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
 
 #[test]
 fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
-    let bms_source = r#"
+    let bms_source = r"
 #WAV01 test1.wav
 #WAV02 test2.wav
 #WAV03 test3.wav
@@ -65,7 +65,7 @@ fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
 #00212:02
 #00213:0103
 #00314:04
-"#;
+";
 
     let config = default_config().prompter(AlwaysUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);

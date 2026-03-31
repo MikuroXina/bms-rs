@@ -13,7 +13,7 @@ const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
 
 #[test]
 fn test_bms_zero_length_section_parser_allows_no_warnings() {
-    let bms_source = r#"
+    let bms_source = r"
 #TITLE Zero Length Section Test
 #ARTIST Test
 #BPM 120
@@ -31,7 +31,7 @@ fn test_bms_zero_length_section_parser_allows_no_warnings() {
 // Events in normal sections for comparison
 #00111:01
 #00311:01
-"#;
+";
 
     let LexOutput {
         tokens,
@@ -45,15 +45,14 @@ fn test_bms_zero_length_section_parser_allows_no_warnings() {
     } = Bms::from_token_stream(&tokens, default_config());
     assert!(
         parse_warnings.is_empty(),
-        "Parser should allow zero-length sections without warnings, got: {:?}",
-        parse_warnings
+        "Parser should allow zero-length sections without warnings, got: {parse_warnings:?}"
     );
     let _bms = bms_res.expect("Failed to parse BMS with zero-length section");
 }
 
 #[test]
 fn test_bms_zero_length_section_comprehensive() {
-    let bms_source = r#"
+    let bms_source = r"
 #TITLE Zero Length Section Test
 #ARTIST Test
 #BPM 120
@@ -71,7 +70,7 @@ fn test_bms_zero_length_section_comprehensive() {
 // Events in normal sections for comparison
 #00111:01
 #00311:01
-"#;
+";
 
     let LexOutput {
         tokens,
@@ -124,7 +123,7 @@ fn test_bms_zero_length_section_comprehensive() {
 
 #[test]
 fn test_bms_very_small_section_no_division_by_zero() {
-    let bms_source = r#"
+    let bms_source = r"
 #TITLE Very Small Section Test
 #ARTIST Test
 #BPM 120
@@ -142,7 +141,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
 
 // Note AFTER the very small section (in section 3)
 #00311:01
-"#;
+";
 
     let reaction_time = TimeSpan::MILLISECOND * 1200;
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
@@ -196,20 +195,18 @@ fn test_bms_very_small_section_no_division_by_zero() {
     let expected_bpm = TEST_BPM_120;
     assert_eq!(
         state.current_bpm, expected_bpm,
-        "BPM should be {} after processing",
-        expected_bpm,
+        "BPM should be {expected_bpm} after processing",
     );
     let expected_speed = PositiveF64::ONE;
     assert_eq!(
         state.current_speed, expected_speed,
-        "Speed should be {} after processing",
-        expected_speed,
+        "Speed should be {expected_speed} after processing",
     );
 }
 
 #[test]
 fn test_bms_consecutive_zero_length_sections() {
-    let bms_source = r#"
+    let bms_source = r"
 #TITLE Consecutive Zero Length Sections
 #ARTIST Test
 #BPM 120
@@ -228,7 +225,7 @@ fn test_bms_consecutive_zero_length_sections() {
 
 // Note in normal section after
 #00511:01
-"#;
+";
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let config = default_config().prompter(AlwaysWarnAndUseNewer);

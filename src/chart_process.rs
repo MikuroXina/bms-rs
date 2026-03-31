@@ -389,9 +389,9 @@ impl PlayheadEvent {
         activate_time: TimeSpan,
     ) -> Self {
         Self {
+            id,
             position,
             event,
-            id,
             activate_time,
         }
     }
