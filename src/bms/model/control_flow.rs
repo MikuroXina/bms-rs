@@ -95,7 +95,7 @@ impl RandomizedObjects {
             branches
                 .entry(cond.clone())
                 .and_modify(|e| {
-                    let merged_bms = e.sub.union(*branch.sub.clone());
+                    let merged_bms = e.sub.union(&branch.sub);
                     *e.sub = merged_bms;
                 })
                 .or_insert_with(|| branch.clone());
@@ -110,7 +110,7 @@ impl RandomizedObjects {
     /// Merge another `RandomizedObjects` into this one in-place.
     pub fn union_inplace(&mut self, other: &Self) {
         if other.generating.is_some() {
-            self.generating = other.generating.clone();
+            self.generating.clone_from(&other.generating);
         }
         for (cond, branch) in &other.branches {
             self.branches
@@ -141,15 +141,15 @@ impl RandomizedObjects {
     ///
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
     #[must_use]
-    pub fn branch(&self, condition: BigUint) -> Option<&RandomizedBranch> {
-        self.branches.get(&condition)
+    pub fn branch(&self, condition: &BigUint) -> Option<&RandomizedBranch> {
+        self.branches.get(condition)
     }
 
     /// Returns a mutable reference to the branch with the given condition value.
     ///
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
-    pub fn branch_mut(&mut self, condition: BigUint) -> Option<&mut RandomizedBranch> {
-        self.branches.get_mut(&condition)
+    pub fn branch_mut(&mut self, condition: &BigUint) -> Option<&mut RandomizedBranch> {
+        self.branches.get_mut(condition)
     }
 
     /// Returns a mutable reference to the branch entry for `condition`.

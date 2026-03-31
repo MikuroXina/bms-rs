@@ -188,10 +188,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         Ok(final_bms)
     }
 
-    fn top_state(
-        &self,
-        token: &TokenWithRange<'_>,
-    ) -> Result<ProcessState, ParseErrorWithRange> {
+    fn top_state(&self, token: &TokenWithRange<'_>) -> Result<ProcessState, ParseErrorWithRange> {
         self.state_stack.borrow().last().cloned().ok_or_else(|| {
             SourceRangeMixin::new(
                 ParseError::UnexpectedControlFlow("internal control flow state is empty"),
@@ -881,7 +878,9 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             return self.visit_skip(collector, prompter, token).map(|()| None);
         }
         if name.eq_ignore_ascii_case("DEF") {
-            return self.visit_default(collector, prompter, token).map(|()| None);
+            return self
+                .visit_default(collector, prompter, token)
+                .map(|()| None);
         }
         if name.eq_ignore_ascii_case("ENDSW") {
             return self

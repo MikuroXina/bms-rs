@@ -310,7 +310,7 @@ pub fn full_preset<T: KeyLayoutMapper, R: Rng>(
             video,
             volume,
             wav,
-            randomized: Default::default(),
+            randomized: Vec::default(),
         },
     );
     let bms_mapper = Rc::new(bms_mapper);

@@ -175,6 +175,10 @@ impl JavaRandom {
     }
 
     /// Java's `nextInt(int bound)` method
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bound` is not positive.
     pub fn next_int_bound(&mut self, bound: i32) -> i32 {
         assert!(bound > 0, "bound must be positive");
 

@@ -272,8 +272,8 @@ pub fn split_chumsky_errors<'a>(
             // which we treat as non-fatal parser diagnostics.
             RichReason::Custom(_) => warnings.push(Warning(err)),
             // All other errors: recovered if we produced an output value, otherwise fatal.
-            _ if had_output => recovered.push(Recovered(err)),
-            _ => fatal.push(Error(err)),
+            RichReason::ExpectedFound { .. } if had_output => recovered.push(Recovered(err)),
+            RichReason::ExpectedFound { .. } => fatal.push(Error(err)),
         }
     }
     (warnings, recovered, fatal)

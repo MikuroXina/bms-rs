@@ -55,7 +55,7 @@ impl TokenProcessor for VideoProcessor {
                 .on_message(
                     *track,
                     *channel,
-                    message.as_ref().into_wrapper(token),
+                    &message.as_ref().into_wrapper(token),
                     prompter,
                     &mut video,
                 )
@@ -118,7 +118,7 @@ impl VideoProcessor {
         &self,
         track: Track,
         channel: Channel,
-        message: SourceRangeMixin<&str>,
+        message: &SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         video: &mut Video,
     ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
@@ -126,7 +126,7 @@ impl VideoProcessor {
         if channel == Channel::Seek {
             use super::parse_obj_ids;
 
-            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, seek_id) in pairs {
                 let string_value = video

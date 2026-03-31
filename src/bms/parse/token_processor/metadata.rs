@@ -41,10 +41,10 @@ impl TokenProcessor for MetadataProcessor {
                 .err()
                 .map(|warn| warn.into_wrapper(token))),
             Token::Message { .. } => Ok(None),
-            Token::NotACommand(line) => Ok(self
-                .on_comment(line, &mut metadata)
-                .err()
-                .map(|warn| warn.into_wrapper(token))),
+            Token::NotACommand(line) => {
+                self.on_comment(line, &mut metadata);
+                Ok(None)
+            }
         })?;
         Ok(metadata)
     }
@@ -88,7 +88,7 @@ impl MetadataProcessor {
         Ok(())
     }
 
-    fn on_comment(self, line: &str, metadata: &mut Metadata) -> Result<()> {
+    fn on_comment(self, line: &str, metadata: &mut Metadata) {
         let line = line.trim();
         if line.starts_with("%EMAIL") {
             metadata.email = Some(line.trim_start_matches("%EMAIL").trim().to_string());
@@ -96,6 +96,5 @@ impl MetadataProcessor {
         if line.starts_with("%URL") {
             metadata.url = Some(line.trim_start_matches("%URL").trim().to_string());
         }
-        Ok(())
     }
 }

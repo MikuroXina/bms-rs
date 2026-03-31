@@ -1524,19 +1524,20 @@ fn split_group_into_message_segments<'a, Event>(
     let mut current_message_segment = Vec::new();
 
     for event_unit in group {
-        let should_join = current_message_segment
-            .last()
-            .map_or(true, |last_unit: &EventUnit<'a, Event>| {
-                // MESSAGE SEGMENT JOINING RULES:
-                // 1. Time must be strictly increasing (prevents overlapping events)
-                // 2. Denominators must be compatible:
-                //    - If current message segment is empty, accept any denominator
-                //    - Otherwise, denominators must share a factor relationship (either is a factor of the other)
-                //    - Reference denominator is the maximum denominator currently in the message segment
-                (last_unit.time < event_unit.time)
-                    && (current_message_segment.is_empty()
-                        || is_denominator_compatible(&event_unit, &current_message_segment))
-            }); // Empty message segment always accepts the first event
+        let should_join =
+            current_message_segment
+                .last()
+                .is_none_or(|last_unit: &EventUnit<'a, Event>| {
+                    // MESSAGE SEGMENT JOINING RULES:
+                    // 1. Time must be strictly increasing (prevents overlapping events)
+                    // 2. Denominators must be compatible:
+                    //    - If current message segment is empty, accept any denominator
+                    //    - Otherwise, denominators must share a factor relationship (either is a factor of the other)
+                    //    - Reference denominator is the maximum denominator currently in the message segment
+                    (last_unit.time < event_unit.time)
+                        && (current_message_segment.is_empty()
+                            || is_denominator_compatible(&event_unit, &current_message_segment))
+                }); // Empty message segment always accepts the first event
 
         if should_join {
             current_message_segment.push(event_unit);

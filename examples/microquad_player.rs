@@ -225,8 +225,8 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
             // BMSON format
             #[cfg(feature = "bmson")]
             {
-                let bmson = serde_json::from_str(&content)
-                    .map_err(|e| format!("JSON parse error: {e}"))?;
+                let bmson =
+                    serde_json::from_str(&content).map_err(|e| format!("JSON parse error: {e}"))?;
 
                 // First generate base BPM from BMSON
                 let base_bpm = StartBpmGenerator
@@ -298,9 +298,7 @@ fn load_audio_files_parallel(
             {
                 Ok(data) => Some((*wav_id, data)),
                 Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to load audio {found_path:?} (ID: {wav_id:?}): {e}"
-                    );
+                    eprintln!("Warning: Failed to load audio {found_path:?} (ID: {wav_id:?}): {e}");
                     None
                 }
             }

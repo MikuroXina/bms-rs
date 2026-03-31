@@ -32,6 +32,10 @@ pub struct BmsonProcessor;
 
 impl BmsonProcessor {
     /// Parse BMSON file and return a `PlayableChart` containing all precomputed data.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `init_bpm` is not a positive number.
     #[must_use]
     pub fn parse(bmson: &Bmson<'_>) -> PlayableChart {
         let init_bpm: PositiveF64 =

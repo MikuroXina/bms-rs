@@ -62,6 +62,10 @@ pub struct BmsToBmsonOutput<'a> {
 
 impl Bms {
     /// Convert `Bms` to `Bmson`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the parsed BPM value is not a valid finite number.
     pub fn to_bmson<'a>(self) -> BmsToBmsonOutput<'a> {
         const EASY_WIDTH: f64 = 21.0;
         const VERY_EASY_WIDTH: f64 = EASY_WIDTH * 1.25;

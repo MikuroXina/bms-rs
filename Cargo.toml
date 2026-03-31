@@ -81,6 +81,7 @@ pedantic = { level = "warn", priority = -1 }
 
 # Pedantic (Applicability: MachineApplicable)
 cast_lossless = "allow"
+enum_glob_use = "allow"
 wildcard_imports = "allow"
 
 # Pedantic (Applicability: MaybeIncorrect)

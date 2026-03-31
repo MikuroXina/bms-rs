@@ -890,9 +890,7 @@ mod tests {
             Err(PlayingError::InvalidBpm { raw, .. }) => {
                 assert_eq!(raw, "");
             }
-            _ => panic!(
-                "Expected PlayingError::InvalidBpm for empty BPM, got: {result:?}"
-            ),
+            _ => panic!("Expected PlayingError::InvalidBpm for empty BPM, got: {result:?}"),
         }
     }
 
@@ -909,9 +907,7 @@ mod tests {
             Err(PlayingError::InvalidBpm { raw, .. }) => {
                 assert_eq!(raw, "NaN");
             }
-            _ => panic!(
-                "Expected PlayingError::InvalidBpm for NaN BPM, got: {result:?}"
-            ),
+            _ => panic!("Expected PlayingError::InvalidBpm for NaN BPM, got: {result:?}"),
         }
     }
 
@@ -963,9 +959,9 @@ mod tests {
             Err(PlayingError::InvalidBpm { raw, .. }) => {
                 assert_eq!(raw, "abc123!@#");
             }
-            _ => panic!(
-                "Expected PlayingError::InvalidBpm for special characters, got: {result:?}"
-            ),
+            _ => {
+                panic!("Expected PlayingError::InvalidBpm for special characters, got: {result:?}")
+            }
         }
     }
 

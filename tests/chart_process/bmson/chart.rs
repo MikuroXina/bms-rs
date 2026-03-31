@@ -121,7 +121,12 @@ fn assert_events_equal(events1: &[PlayheadEvent], events2: &[PlayheadEvent]) {
             e2.position().as_f64()
         );
 
-        assert!(std::mem::discriminant(e1.event()) == std::mem::discriminant(e2.event()), "Event type mismatch: {:?} vs {:?}", e1.event(), e2.event())
+        assert!(
+            std::mem::discriminant(e1.event()) == std::mem::discriminant(e2.event()),
+            "Event type mismatch: {:?} vs {:?}",
+            e1.event(),
+            e2.event()
+        );
     }
 }
 

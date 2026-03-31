@@ -293,7 +293,7 @@ impl ToAriadne for BmsWarning {
         &self,
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        use BmsWarning::*;
+        use BmsWarning::{Lex, Parse, PlayingError, PlayingWarning};
         match self {
             Lex(e) => e.to_report(src),
             Parse(e) => e.to_report(src),

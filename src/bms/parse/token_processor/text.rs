@@ -52,7 +52,7 @@ impl TokenProcessor for TextProcessor {
                 .on_message(
                     *track,
                     *channel,
-                    message.as_ref().into_wrapper(token),
+                    &message.as_ref().into_wrapper(token),
                     prompter,
                     &mut objects,
                 )
@@ -97,13 +97,13 @@ impl TextProcessor {
         &self,
         track: Track,
         channel: Channel,
-        message: SourceRangeMixin<&str>,
+        message: &SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut TextObjects,
     ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Text {
-            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, text_id) in pairs {
                 let text = objects

@@ -53,6 +53,10 @@ pub struct BmsonToBmsOutput {
 
 impl Bms {
     /// Convert `Bmson` to `Bms`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the resolution value cannot be converted to a finite f64.
     pub fn from_bmson(value: Bmson) -> BmsonToBmsOutput {
         let mut bms = Self::default();
         let mut warnings = Vec::new();
