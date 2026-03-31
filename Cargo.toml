@@ -78,80 +78,95 @@ bare_urls = "warn"
 
 [lints.clippy]
 pedantic = { level = "allow", priority = -1 }
+
+# Complexity (Applicability: MachineApplicable)
+default_constructed_unit_structs = "allow"
+
+# Complexity (Applicability: Unspecified)
+type_complexity = "allow"
+
+# Style (Applicability: Unspecified)
+mixed_attributes_style = "allow"
+ptr_arg = "allow"
+
+# Pedantic (Applicability: MachineApplicable)
+cast_lossless = "allow"
 wildcard_imports = "allow"
 
-# Restriction
+# Pedantic (Applicability: MaybeIncorrect)
+cast_possible_wrap = "allow"
+cast_sign_loss = "allow"
+
+# Pedantic (Applicability: Unspecified)
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+similar_names = "allow"
+
+# Restriction (Applicability: MachineApplicable)
+if_then_some_else_none = "warn"
+lossy_float_literal = "warn"
+rest_pat_in_fully_bound_structs = "allow"
+separated_literal_suffix = "allow"
+unseparated_literal_suffix = "allow"
+
+# Restriction (Applicability: MaybeIncorrect)
+decimal_literal_representation = "warn"
+empty_drop = "warn"
+mutex_atomic = "warn"
+wildcard_enum_match_arm = "allow"
+
+# Restriction (Applicability: HasPlaceholders)
+float_cmp_const = "warn"
+
+# Restriction (Applicability: Unspecified)
 as_conversions = "allow"
 cognitive_complexity = "allow"
-decimal_literal_representation = "warn"
-default_constructed_unit_structs = "allow"
-empty_drop = "warn"
 empty_structs_with_brackets = "warn"
 exit = "warn"
 expect_used = "allow"
-float_cmp_const = "warn"
-if_then_some_else_none = "warn"
 indexing_slicing = "warn"
-lossy_float_literal = "warn"
 missing_docs_in_private_items = "allow"
-mixed_attributes_style = "allow"
 module_name_repetitions = "allow"
-mutex_atomic = "warn"
 panic = "allow"
 panic_in_result_fn = "warn"
 print_stderr = "allow"
 print_stdout = "allow"
 rc_buffer = "warn"
-rest_pat_in_fully_bound_structs = "allow"
 self_named_module_files = "allow"
-separated_literal_suffix = "allow"
 shadow_unrelated = "allow"
-similar_names = "allow"
 string_add = "warn"
 string_slice = "allow"
 todo = "warn"
-too_long_first_doc_paragraph = "allow"
-type_complexity = "allow"
 unimplemented = "warn"
-unnecessary_struct_initialization = "allow"
 unneeded_field_pattern = "allow"
 unreachable = "warn"
-unseparated_literal_suffix = "allow"
 unwrap_used = "warn"
 verbose_file_reads = "warn"
-wildcard_enum_match_arm = "allow"
-
-# Cast and precision
-cast_precision_loss = "allow"
-cast_possible_truncation = "allow"
-cast_possible_wrap = "allow"
-cast_lossless = "allow"
-cast_sign_loss = "allow"
-
-# Unused variables and bindings
-underscore_imported_binding = "allow"
-underscore_prefixed_binding = "allow"
-
-# Value consumption
-ptr_arg = "allow"
-redundant_clone = "allow"
 
 # Nursery (Applicability: MachineApplicable)
 missing_const_for_fn = "warn"
 needless_collect = "warn"
+redundant_clone = "allow"
 redundant_pub_crate = "warn"
 string_lit_as_bytes = "warn"
+too_long_first_doc_paragraph = "allow"
+unnecessary_struct_initialization = "allow"
 unused_rounding = "warn"
 
 # Nursery (Applicability: MaybeIncorrect)
-future_not_send = "warn"
 iter_with_drain = "warn"
 option_if_let_else = "warn"
-or_fun_call = "warn"
 significant_drop_in_scrutinee = "warn"
 
-# Cargo (Applicability: MaybeIncorrect)
+# Nursery (Applicability: HasPlaceholders)
+or_fun_call = "warn"
+
+# Nursery (Applicability: Unspecified)
+future_not_send = "warn"
+
+# Cargo (Applicability: Unspecified)
 multiple_crate_versions = "allow"
 negative_feature_names = "warn"
 redundant_feature_names = "warn"
 wildcard_dependencies = "deny"
+
