@@ -298,7 +298,10 @@ fn load_audio_files_parallel(
             {
                 Ok(data) => Some((*wav_id, data)),
                 Err(e) => {
-                    eprintln!("Warning: Failed to load audio {} (ID: {wav_id:?}): {e}", found_path.display());
+                    eprintln!(
+                        "Warning: Failed to load audio {} (ID: {wav_id:?}): {e}",
+                        found_path.display()
+                    );
                     None
                 }
             }
