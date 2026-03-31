@@ -67,16 +67,12 @@ fn test_playing_conditions_with_bpm_change_only() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    assert!(
-        !tokens
-            .iter()
-            .any(|t| t.content() == &Token::header("BPM", "120"))
-    );
-    assert!(
-        tokens
-            .iter()
-            .any(|t| t.content() == &Token::header("BPM08", "120"))
-    );
+    assert!(!tokens
+        .iter()
+        .any(|t| t.content() == &Token::header("BPM", "120")));
+    assert!(tokens
+        .iter()
+        .any(|t| t.content() == &Token::header("BPM08", "120")));
 
     let ParseOutput {
         bms,

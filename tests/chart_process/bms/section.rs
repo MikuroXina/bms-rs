@@ -4,8 +4,8 @@ use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use strict_num_extended::PositiveF64;
 
-use bms_rs::chart_process::BaseBpm;
 use bms_rs::chart_process::prelude::*;
+use bms_rs::chart_process::BaseBpm;
 
 use super::parse_bms_no_warnings;
 

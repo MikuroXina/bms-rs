@@ -4,10 +4,10 @@ use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
-use bms_rs::chart_process::BaseBpm;
 use bms_rs::chart_process::prelude::*;
+use bms_rs::chart_process::BaseBpm;
 
-use super::{MICROSECOND_EPSILON, assert_time_close, parse_bms_no_warnings};
+use super::{assert_time_close, parse_bms_no_warnings, MICROSECOND_EPSILON};
 
 const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
 
@@ -93,6 +93,9 @@ fn test_bms_restart_resets_scroll_to_one() {
 
 #[test]
 fn test_visible_events_duration_matches_reaction_time() {
+    const FIN_120: FinF64 = FinF64::new_const(120.0);
+    const FIN_240: FinF64 = FinF64::new_const(240.0);
+
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let bms_source = r"
 #TITLE Reaction Time Test
@@ -112,7 +115,6 @@ fn test_visible_events_duration_matches_reaction_time() {
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
-    let _start_time = start_time;
 
     let initial_state = processor.playback_state();
     assert_eq!(initial_state.current_bpm, TEST_BPM_120);
@@ -125,8 +127,6 @@ fn test_visible_events_duration_matches_reaction_time() {
     let visible_window_y =
         visible_range.window_y(state.current_bpm, state.current_speed, state.playback_ratio);
 
-    const FIN_120: FinF64 = FinF64::new_const(120.0);
-    const FIN_240: FinF64 = FinF64::new_const(240.0);
     let velocity = ((FIN_120 * FinF64::ONE * FinF64::ONE) / FIN_240).unwrap();
     let time_to_cross = visible_window_y.as_f64() / velocity.as_f64();
 

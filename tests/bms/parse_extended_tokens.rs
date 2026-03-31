@@ -201,31 +201,26 @@ fn test_notes_parse_extended_tokens() {
     let bms = bms.unwrap();
 
     // Verify that extended fields in Notes are parsed correctly
-    assert!(
-        bms.judge
-            .exrank_defs
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
-    assert!(
-        bms.wav
-            .exwav_defs
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
-    assert!(
-        bms.wav
-            .exwav_defs
-            .contains_key(&ObjId::try_from("02", false).unwrap())
-    );
-    assert!(
-        bms.option
-            .change_options
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
-    assert!(
-        bms.text
-            .texts
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
+    assert!(bms
+        .judge
+        .exrank_defs
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
+    assert!(bms
+        .wav
+        .exwav_defs
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
+    assert!(bms
+        .wav
+        .exwav_defs
+        .contains_key(&ObjId::try_from("02", false).unwrap()));
+    assert!(bms
+        .option
+        .change_options
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
+    assert!(bms
+        .text
+        .texts
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
 }
 
 #[test]
@@ -281,36 +276,30 @@ fn test_token_parsing_comprehensive() {
     );
 
     // Verify new definition structures
-    assert!(
-        bms.bmp
-            .atbga_defs
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
-    assert!(
-        bms.bmp
-            .bga_defs
-            .contains_key(&ObjId::try_from("02", false).unwrap())
-    );
-    assert!(
-        bms.judge
-            .exrank_defs
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
-    assert!(
-        bms.wav
-            .exwav_defs
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
-    assert!(
-        bms.option
-            .change_options
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
-    assert!(
-        bms.text
-            .texts
-            .contains_key(&ObjId::try_from("01", false).unwrap())
-    );
+    assert!(bms
+        .bmp
+        .atbga_defs
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
+    assert!(bms
+        .bmp
+        .bga_defs
+        .contains_key(&ObjId::try_from("02", false).unwrap()));
+    assert!(bms
+        .judge
+        .exrank_defs
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
+    assert!(bms
+        .wav
+        .exwav_defs
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
+    assert!(bms
+        .option
+        .change_options
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
+    assert!(bms
+        .text
+        .texts
+        .contains_key(&ObjId::try_from("01", false).unwrap()));
 }
 
 #[test]

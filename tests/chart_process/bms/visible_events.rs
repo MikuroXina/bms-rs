@@ -6,8 +6,8 @@ use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
-use bms_rs::chart_process::BaseBpm;
 use bms_rs::chart_process::prelude::*;
+use bms_rs::chart_process::BaseBpm;
 
 use super::{assert_time_close, parse_bms_no_warnings};
 
@@ -330,8 +330,9 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 
 #[test]
 fn test_bms_stop_duration_conversion_from_192nd_note_to_beats() {
-    let duration_192nd = FinF64::try_from(192.0).unwrap();
     const EXPECTED_BEATS_4: FinF64 = FinF64::new_const(4.0);
+
+    let duration_192nd = FinF64::try_from(192.0).unwrap();
     let expected_beats = EXPECTED_BEATS_4;
 
     let converted_beats = (duration_192nd / FinF64::try_from(48.0).unwrap()).unwrap();

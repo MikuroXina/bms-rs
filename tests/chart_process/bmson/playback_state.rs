@@ -128,6 +128,8 @@ fn test_bmson_edge_cases_no_division_by_zero() {
 
 #[test]
 fn test_very_long_elapsed_time_no_errors() {
+    use std::time::Duration;
+
     let json = r#"{
         "version": "1.0.0",
         "info": {
@@ -168,12 +170,11 @@ fn test_very_long_elapsed_time_no_errors() {
             bmson.info
         );
     };
+
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
     let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
-
-    use std::time::Duration;
 
     let thirty_days = TimeSpan::from_duration(Duration::from_secs(2592000));
     let after_long_time = start_time + thirty_days;

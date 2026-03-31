@@ -219,11 +219,9 @@ fn test_always_warn_and_use_older() {
     let bms = bms.unwrap();
 
     // Should have warnings for duplicate definitions (e.g., DuplicatingDef)
-    assert!(
-        parse_warnings
-            .iter()
-            .any(|w: &_| matches!(w.content(), ParseWarning::DuplicatingDef(_)))
-    );
+    assert!(parse_warnings
+        .iter()
+        .any(|w: &_| matches!(w.content(), ParseWarning::DuplicatingDef(_))));
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
@@ -308,11 +306,9 @@ fn test_always_warn_and_use_newer() {
     let bms = bms.unwrap();
 
     // Should have warnings for duplicate definitions (e.g., DuplicatingDef)
-    assert!(
-        parse_warnings
-            .iter()
-            .any(|w: &_| matches!(w.content(), ParseWarning::DuplicatingDef(_)))
-    );
+    assert!(parse_warnings
+        .iter()
+        .any(|w: &_| matches!(w.content(), ParseWarning::DuplicatingDef(_))));
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(

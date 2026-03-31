@@ -20,7 +20,11 @@ use bms_rs::bms::prelude::*;
 use pretty_assertions::assert_eq;
 
 /// Parses the BMS source with the given RNG and asserts that the resulting objects match expectations.
-pub fn test_bms_assert_objs(src: &str, rng: impl Rng, expect_objs: Vec<WavObj>) {
+///
+/// # Panics
+///
+/// Panics if there are any lex or parse warnings, or if parsing fails.
+pub fn test_bms_assert_objs(src: &str, rng: impl Rng, expect_objs: impl AsRef<[WavObj]>) {
     let LexOutput {
         tokens,
         lex_warnings,
@@ -41,6 +45,6 @@ pub fn test_bms_assert_objs(src: &str, rng: impl Rng, expect_objs: Vec<WavObj>) 
     };
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        expect_objs
+        expect_objs.as_ref()
     );
 }
