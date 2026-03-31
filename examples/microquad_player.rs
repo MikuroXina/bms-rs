@@ -84,7 +84,7 @@ async fn main() -> Result<(), String> {
         internal_buffer_size: 256,
         ..Default::default()
     })
-    .map_err(|e| format!("Failed to initialize audio: {}", e))?;
+    .map_err(|e| format!("Failed to initialize audio: {e}"))?;
     println!("Audio system initialized");
 
     // Track played events to prevent duplicate audio playback
@@ -138,7 +138,7 @@ async fn main() -> Result<(), String> {
                 if matches!(e, kira::PlaySoundError::SoundLimitReached) {
                     missed_sounds += 1;
                 } else {
-                    eprintln!("Failed to play audio: {}", e);
+                    eprintln!("Failed to play audio: {e}");
                 }
             } else {
                 // Mark as played only on success
@@ -191,7 +191,7 @@ struct Config {
 fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
     // Read file content
     // First read as bytes
-    let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file: {}", e))?;
+    let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file: {e}"))?;
 
     // Use Shift-JIS encoding
     let content = {
@@ -209,7 +209,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
         "bms" | "bme" | "bml" | "pms" => {
             // Parse using BmsProcessor
             let output = parse_bms(&content, default_config());
-            let bms = output.bms.map_err(|e| format!("Parse error: {:?}", e))?;
+            let bms = output.bms.map_err(|e| format!("Parse error: {e:?}"))?;
 
             // First generate base BPM from BMS
             let base_bpm = StartBpmGenerator
@@ -218,7 +218,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
 
             // Use KeyLayoutBeat mapper (supports 7+1k)
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
-                .map_err(|e| format!("Failed to parse chart: {}", e))?;
+                .map_err(|e| format!("Failed to parse chart: {e}"))?;
             (chart, base_bpm)
         }
         "bmson" => {
@@ -226,7 +226,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
             #[cfg(feature = "bmson")]
             {
                 let bmson = serde_json::from_str(&content)
-                    .map_err(|e| format!("JSON parse error: {}", e))?;
+                    .map_err(|e| format!("JSON parse error: {e}"))?;
 
                 // First generate base BPM from BMSON
                 let base_bpm = StartBpmGenerator
@@ -239,7 +239,7 @@ fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
             #[cfg(not(feature = "bmson"))]
             return Err("BMSON feature not enabled".to_string());
         }
-        _ => return Err(format!("Unsupported format: {}", extension)),
+        _ => return Err(format!("Unsupported format: {extension}")),
     };
 
     Ok((chart, base_bpm))
@@ -294,13 +294,12 @@ fn load_audio_files_parallel(
                 find_audio_with_extensions(&full_path, &["ogg", "flac", "wav", "mp3"])?;
 
             match StaticSoundData::from_file(&found_path)
-                .map_err(|e| format!("Failed to load audio: {}", e))
+                .map_err(|e| format!("Failed to load audio: {e}"))
             {
                 Ok(data) => Some((*wav_id, data)),
                 Err(e) => {
                     eprintln!(
-                        "Warning: Failed to load audio {:?} (ID: {:?}): {}",
-                        found_path, wav_id, e
+                        "Warning: Failed to load audio {found_path:?} (ID: {wav_id:?}): {e}"
                     );
                     None
                 }
@@ -518,7 +517,7 @@ fn render_info(player: &ChartPlayer) {
     // Display BPM
     let bpm = state.current_bpm.as_f64();
     macroquad::prelude::draw_text(
-        &format!("BPM: {:.1}", bpm),
+        &format!("BPM: {bpm:.1}"),
         10.0,
         20.0,
         20.0,
@@ -528,7 +527,7 @@ fn render_info(player: &ChartPlayer) {
     // Display progress (current Y coordinate)
     let y = state.progressed_y().as_f64();
     macroquad::prelude::draw_text(
-        &format!("Position: {:.2}", y),
+        &format!("Position: {y:.2}"),
         10.0,
         50.0,
         20.0,

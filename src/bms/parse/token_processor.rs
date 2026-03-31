@@ -128,9 +128,9 @@ pub trait TokenProcessor {
     /// # Errors
     ///
     /// Returns [`ParseErrorWithRange`] when the token processor encounters a fatal parse error.
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> Result<Self::Output, ParseErrorWithRange>;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
@@ -161,9 +161,9 @@ pub trait TokenProcessor {
 impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
     type Output = <T as TokenProcessor>::Output;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         T::process(self, ctx)
     }
@@ -172,9 +172,9 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
 impl<T: TokenProcessor + ?Sized> TokenProcessor for Rc<T> {
     type Output = <T as TokenProcessor>::Output;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         T::process(self, ctx)
     }
@@ -194,9 +194,9 @@ where
 {
     type Output = (F::Output, S::Output);
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let checkpoint = ctx.save();
         let first_output = self.first.process(ctx)?;
@@ -220,9 +220,9 @@ where
 {
     type Output = O;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let res = self.source.process(ctx)?;
         Ok((self.mapping)(res))
@@ -321,8 +321,8 @@ pub fn full_preset<T: KeyLayoutMapper, R: Rng>(
     })
 }
 
-pub(crate) fn relax_tokens_default<'a>(tokens: &mut TokenStream<'a>) {
-    for twr in tokens.tokens.iter_mut() {
+pub(crate) fn relax_tokens_default(tokens: &mut TokenStream<'_>) {
+    for twr in &mut tokens.tokens {
         match twr.content_mut() {
             Token::Header { name, args } => {
                 let n_ref = name.as_ref();

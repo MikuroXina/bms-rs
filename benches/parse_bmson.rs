@@ -62,7 +62,7 @@ fn bench_parse_bmson(c: &mut Criterion) {
     let files = scan_bmson_files();
     let mut group = c.benchmark_group("parse_bmson");
 
-    for file in files.iter() {
+    for file in &files {
         group.throughput(Throughput::Bytes(file.source.len() as u64));
         group.bench_function(&file.name, |b| {
             b.iter(|| parse_bmson(std::hint::black_box(&file.source)));

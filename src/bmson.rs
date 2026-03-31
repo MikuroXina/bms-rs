@@ -252,7 +252,7 @@ where
             }
             // Now av is a positive integer value in f64
             if av > (u64::MAX as f64) {
-                return Err(E::custom(format!("Resolution value too large: {}", v)));
+                return Err(E::custom(format!("Resolution value too large: {v}")));
             }
             Ok(NonZeroU64::new(av as u64).unwrap_or_else(default_resolution_nonzero))
         }
@@ -490,7 +490,7 @@ impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
 }
 
 #[cfg(feature = "diagnostics")]
-impl<'a> ToAriadne for BmsonParseError<'a> {
+impl ToAriadne for BmsonParseError<'_> {
     fn to_report<'b>(
         &self,
         src: &crate::diagnostics::SimpleSource<'b>,
@@ -567,7 +567,7 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
     {
         let span = SimpleSpan::new((), 0..json.len());
         errors.push(BmsonParseError::JsonError {
-            error: JsonError(Rich::custom(span, format!("Invalid JSON: {}", e))),
+            error: JsonError(Rich::custom(span, format!("Invalid JSON: {e}"))),
         });
     }
 

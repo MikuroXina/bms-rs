@@ -184,8 +184,7 @@ fn test_very_long_elapsed_time_no_errors() {
     let expected_bpm = PositiveF64::try_from(180.0).unwrap();
     assert_eq!(
         state.current_bpm, expected_bpm,
-        "BPM should be {} after 30 days",
-        expected_bpm,
+        "BPM should be {expected_bpm} after 30 days",
     );
 
     let events = processor.visible_events();

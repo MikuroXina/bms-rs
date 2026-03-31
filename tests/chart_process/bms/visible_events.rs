@@ -67,9 +67,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
         assert!(
             (0.0..=2.0).contains(&display_ratio_value),
-            "Display ratio should be in reasonable range, current value: {:.3}, event Y: {:.3}",
-            display_ratio_value,
-            y_value
+            "Display ratio should be in reasonable range, current value: {display_ratio_value:.3}, event Y: {y_value:.3}"
         );
 
         match visible_event.event() {
@@ -251,15 +249,14 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         return;
     }
 
-    for ratio in after_scroll_half_ratios.iter() {
+    for ratio in &after_scroll_half_ratios {
         assert!(
             ratio.is_finite(),
             "Display ratio should be finite when scroll is 0.5"
         );
         assert!(
             *ratio >= -5.0 && *ratio <= 5.0,
-            "Display ratio should be in reasonable range when scroll is 0.5: {:.6}",
-            ratio
+            "Display ratio should be in reasonable range when scroll is 0.5: {ratio:.6}"
         );
     }
 
@@ -286,9 +283,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
             if *first_ratio > 0.0 {
                 assert!(
                     *half_ratio < *first_ratio,
-                    "Display ratio should be less when scroll is 0.5 than when scroll is 1.0, 1.0: {:.6}, 0.5: {:.6}",
-                    first_ratio,
-                    half_ratio
+                    "Display ratio should be less when scroll is 0.5 than when scroll is 1.0, 1.0: {first_ratio:.6}, 0.5: {half_ratio:.6}"
                 );
             }
         }

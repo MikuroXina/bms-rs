@@ -409,7 +409,7 @@ pub struct ObjIdManager<'a, K: ?Sized> {
     unused_ids: VecDeque<ObjId>,
 }
 
-impl<'a, K> Default for ObjIdManager<'a, K>
+impl<K> Default for ObjIdManager<'_, K>
 where
     K: std::hash::Hash + Eq + ?Sized,
 {
@@ -514,16 +514,12 @@ mod tests {
             if i < 1295 {
                 assert!(
                     obj_id.is_base36(),
-                    "Value at index {} should be Base36: {:?}",
-                    i,
-                    obj_id
+                    "Value at index {i} should be Base36: {obj_id:?}"
                 );
             } else {
                 assert!(
                     !obj_id.is_base36(),
-                    "Value at index {} should NOT be Base36: {:?}",
-                    i,
-                    obj_id
+                    "Value at index {i} should NOT be Base36: {obj_id:?}"
                 );
             }
         }
@@ -546,8 +542,7 @@ mod tests {
         for value in &all_values {
             assert!(
                 unique_values.insert(*value),
-                "Duplicate value found: {:?}",
-                value
+                "Duplicate value found: {value:?}"
             );
         }
     }

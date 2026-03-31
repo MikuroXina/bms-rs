@@ -268,7 +268,7 @@ impl RandomizedObjects {
             }),
         }
 
-        for (cond, branch) in self.branches.iter() {
+        for (cond, branch) in &self.branches {
             tokens.push(Token::Header {
                 name: "CASE".into(),
                 args: cond.to_string().into(),

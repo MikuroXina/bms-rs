@@ -2,10 +2,10 @@ use bms_rs::bms::prelude::*;
 
 #[test]
 fn test_atbga_parsing() {
-    let source = r#"
+    let source = r"
 #TITLE Test BMS
 #@BGA01 02 10 20 100 200 30 40
-"#;
+";
     let LexOutput {
         tokens,
         lex_warnings,
@@ -33,10 +33,10 @@ fn test_atbga_parsing() {
 
 #[test]
 fn test_bga_parsing() {
-    let source = r#"
+    let source = r"
 #TITLE Test BMS
 #BGA01 02 10 20 110 220 30 40
-"#;
+";
     let LexOutput {
         tokens,
         lex_warnings,
@@ -65,10 +65,10 @@ fn test_bga_parsing() {
 
 #[test]
 fn test_exrank_parsing() {
-    let source = r#"
+    let source = r"
 #TITLE Test BMS
 #EXRANK01 2
-"#;
+";
     let LexOutput {
         tokens,
         lex_warnings,
@@ -93,10 +93,10 @@ fn test_exrank_parsing() {
 
 #[test]
 fn test_exwav_parsing() {
-    let source = r#"
+    let source = r"
 #TITLE Test BMS
 #EXWAV01 pvf 10000 0 48000 test.wav
-"#;
+";
     let LexOutput {
         tokens,
         lex_warnings,
@@ -124,10 +124,10 @@ fn test_exwav_parsing() {
 
 #[test]
 fn test_changeoption_parsing() {
-    let source = r#"
+    let source = r"
 #TITLE Test BMS
 #CHANGEOPTION01 test_option
-"#;
+";
     let LexOutput {
         tokens,
         lex_warnings,
@@ -152,10 +152,10 @@ fn test_changeoption_parsing() {
 
 #[test]
 fn test_text_parsing() {
-    let source = r#"
+    let source = r"
 #TITLE Test BMS
 #TEXT01 test_text
-"#;
+";
     let LexOutput {
         tokens,
         lex_warnings,
@@ -180,14 +180,14 @@ fn test_text_parsing() {
 
 #[test]
 fn test_notes_parse_extended_tokens() {
-    let source = r#"
+    let source = r"
 #TITLE Test BMS
 #EXRANK01 2
 #EXWAV01 pvf 10000 0 48000 test.wav
 #EXWAV02 vpf 0 10000 48000 test2.wav
 #CHANGEOPTION01 test_option
 #TEXT01 test_text
-"#;
+";
     let LexOutput {
         tokens,
         lex_warnings,
@@ -230,7 +230,7 @@ fn test_notes_parse_extended_tokens() {
 
 #[test]
 fn test_token_parsing_comprehensive() {
-    let source = r#"
+    let source = r"
 #TITLE Test BMS
 #ARTIST Test Artist
 #EMAIL test@example.com
@@ -247,7 +247,7 @@ fn test_token_parsing_comprehensive() {
 #EXWAV01 pvf 10000 0 48000 test.wav
 #CHANGEOPTION01 test_option
 #TEXT01 test_text
-"#;
+";
     let LexOutput {
         tokens,
         lex_warnings,
@@ -316,10 +316,10 @@ fn test_token_parsing_comprehensive() {
 #[test]
 fn test_exwav_out_of_range_values() {
     {
-        let source = r#"
+        let source = r"
 #TITLE Test BMS
 #EXWAV01 p 10001 test.wav
-"#;
+";
         let LexOutput {
             tokens,
             lex_warnings,
@@ -331,7 +331,7 @@ fn test_exwav_out_of_range_values() {
             parse_warnings,
         } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
         let [warn]: &[_] = &parse_warnings[..] else {
-            panic!("expected 1 warning, got: {0:?}", parse_warnings);
+            panic!("expected 1 warning, got: {parse_warnings:?}");
         };
         assert_eq!(
             warn.content(),
@@ -342,10 +342,10 @@ fn test_exwav_out_of_range_values() {
     }
 
     {
-        let source = r#"
+        let source = r"
 #TITLE Test BMS
 #EXWAV01 v 1 test.wav
-"#;
+";
         let LexOutput {
             tokens,
             lex_warnings,
@@ -357,7 +357,7 @@ fn test_exwav_out_of_range_values() {
             parse_warnings,
         } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
         let [warn]: &[_] = &parse_warnings[..] else {
-            panic!("expected 1 warning, got: {0:?}", parse_warnings);
+            panic!("expected 1 warning, got: {parse_warnings:?}");
         };
         assert_eq!(
             warn.content(),
@@ -366,10 +366,10 @@ fn test_exwav_out_of_range_values() {
     }
 
     {
-        let source = r#"
+        let source = r"
 #TITLE Test BMS
 #EXWAV01 f 99 test.wav
-"#;
+";
         let LexOutput {
             tokens,
             lex_warnings,
@@ -381,7 +381,7 @@ fn test_exwav_out_of_range_values() {
             parse_warnings,
         } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
         let [warn]: &[_] = &parse_warnings[..] else {
-            panic!("expected 1 warning, got: {0:?}", parse_warnings);
+            panic!("expected 1 warning, got: {parse_warnings:?}");
         };
         assert_eq!(
             warn.content(),

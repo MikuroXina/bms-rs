@@ -31,8 +31,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
     let events = processor.update(now);
     assert!(
         !events.is_empty(),
-        "Expected triggered events after {:?} elapsed",
-        elapsed
+        "Expected triggered events after {elapsed:?} elapsed"
     );
 
     for evp in events {
@@ -50,7 +49,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
 #[test]
 fn test_bms_restart_resets_scroll_to_one() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = r#"
+    let bms_source = r"
 #TITLE Scroll Reset Test
 #ARTIST Test
 #BPM 120
@@ -61,7 +60,7 @@ fn test_bms_restart_resets_scroll_to_one() {
 
 #001SC:00020000
 #00111:00000000
-"#;
+";
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -95,14 +94,14 @@ fn test_bms_restart_resets_scroll_to_one() {
 #[test]
 fn test_visible_events_duration_matches_reaction_time() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = r#"
+    let bms_source = r"
 #TITLE Reaction Time Test
 #ARTIST Test
 #BPM 120
 #PLAYER 1
 
 #00111:00000001
-"#;
+";
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 

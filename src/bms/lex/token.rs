@@ -172,8 +172,8 @@ mod tests {
 
         for input in test_cases {
             let token = parse_token(input);
-            let output = format!("{}", token);
-            assert_eq!(input, output, "Failed roundtrip for: {}", input);
+            let output = format!("{token}");
+            assert_eq!(input, output, "Failed roundtrip for: {input}");
         }
     }
 
@@ -191,8 +191,8 @@ mod tests {
 
         for input in test_cases {
             let token = parse_token(input);
-            let output = format!("{}", token);
-            assert_eq!(input, output, "Failed for: {}", input);
+            let output = format!("{token}");
+            assert_eq!(input, output, "Failed for: {input}");
         }
     }
 
@@ -217,8 +217,8 @@ mod tests {
 
         for input in test_cases {
             let token = parse_token(input);
-            let output = format!("{}", token);
-            assert_eq!(input, output, "Failed roundtrip for: {}", input);
+            let output = format!("{token}");
+            assert_eq!(input, output, "Failed roundtrip for: {input}");
         }
     }
 
@@ -235,8 +235,8 @@ mod tests {
 
         for input in test_cases {
             let token = parse_token(input);
-            let output = format!("{}", token);
-            assert_eq!(input, output, "Failed roundtrip for: {}", input);
+            let output = format!("{token}");
+            assert_eq!(input, output, "Failed roundtrip for: {input}");
         }
     }
 
@@ -259,8 +259,8 @@ mod tests {
 
         for input in test_cases {
             let token = parse_token(input);
-            let output = format!("{}", token);
-            assert_eq!(input, output, "Failed roundtrip for: {}", input);
+            let output = format!("{token}");
+            assert_eq!(input, output, "Failed roundtrip for: {input}");
         }
     }
 
@@ -286,8 +286,8 @@ mod tests {
 
         for input in test_cases {
             let token = parse_token(input);
-            let output = format!("{}", token);
-            assert_eq!(input, output, "Failed for: {}", input);
+            let output = format!("{token}");
+            assert_eq!(input, output, "Failed for: {input}");
         }
     }
 }

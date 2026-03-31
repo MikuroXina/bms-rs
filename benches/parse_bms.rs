@@ -60,7 +60,7 @@ fn bench_parse_bms(c: &mut Criterion) {
     let files = scan_bms_files();
     let mut group = c.benchmark_group("parse_bms");
 
-    for file in files.iter() {
+    for file in &files {
         group.throughput(Throughput::Bytes(file.source.len() as u64));
         group.bench_function(&file.name, |b| {
             b.iter(|| {

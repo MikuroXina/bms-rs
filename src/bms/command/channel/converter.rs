@@ -80,7 +80,7 @@ impl KeyMappingConvertLaneRotateShuffle {
         }
 
         let inc = rng.next_int_bound(2) == 1;
-        let start = rng.next_int_bound(keys.len() as i32 - 1) as usize + if inc { 1 } else { 0 };
+        let start = rng.next_int_bound(keys.len() as i32 - 1) as usize + usize::from(inc);
 
         let mut rlane = start;
         for &lane_key in keys {
@@ -200,7 +200,7 @@ mod channel_mode_tests {
             .map(|s| {
                 let v = s.split_whitespace().collect::<Vec<_>>();
                 let [list, seed] = v.as_slice() else {
-                    println!("{:?}", v);
+                    println!("{v:?}");
                     panic!("Invalid input: expected [list, seed]");
                 };
                 let list = list
@@ -233,15 +233,15 @@ mod channel_mode_tests {
     ) where
         T: KeyConverter,
     {
-        println!("Test case {}: seed = {}", test_case_idx, seed);
+        println!("Test case {test_case_idx}: seed = {seed}");
 
         let result_values = keys
             .iter()
             .map(|&key| key_to_value(converter.convert(key)))
             .collect::<Vec<_>>();
 
-        println!("  Expected: {:?}", expected_list);
-        println!("  Got:      {:?}", result_values);
+        println!("  Expected: {expected_list:?}");
+        println!("  Got:      {result_values:?}");
         println!("  Match:    {}", result_values == expected_list);
 
         if result_values != expected_list {

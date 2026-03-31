@@ -607,7 +607,7 @@ impl Bms {
                         name: format!("SWBGA{id}").into(),
                         args: format!(
                             "{frame_rate}:{total_time}:{line}:{}:{alpha},{red},{green},{blue} {pattern}",
-                            if *loop_mode { 1 } else { 0 }
+                            i32::from(*loop_mode)
                         ).into(),
                     }),
             );
@@ -812,7 +812,7 @@ impl Bms {
             )>,
             |_ev| Channel::BpmChangeU8,
             |bpm, _id| {
-                let s = format!("{:02X}", bpm);
+                let s = format!("{bpm:02X}");
                 let mut chars = s.chars();
                 [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
             },
@@ -1494,12 +1494,11 @@ fn group_events_by_track_channel_time<'a, Event>(
     for event_unit in processed_events {
         let should_join = current_group
             .last()
-            .map(|last_unit: &EventUnit<'a, Event>| {
+            .is_some_and(|last_unit: &EventUnit<'a, Event>| {
                 event_unit.time.track() == last_unit.time.track()
                     && last_unit.channel == event_unit.channel
                     && last_unit.time <= event_unit.time
-            })
-            .unwrap_or(false);
+            });
 
         if should_join {
             current_group.push(event_unit);
@@ -1527,7 +1526,7 @@ fn split_group_into_message_segments<'a, Event>(
     for event_unit in group {
         let should_join = current_message_segment
             .last()
-            .map(|last_unit: &EventUnit<'a, Event>| {
+            .map_or(true, |last_unit: &EventUnit<'a, Event>| {
                 // MESSAGE SEGMENT JOINING RULES:
                 // 1. Time must be strictly increasing (prevents overlapping events)
                 // 2. Denominators must be compatible:
@@ -1537,8 +1536,7 @@ fn split_group_into_message_segments<'a, Event>(
                 (last_unit.time < event_unit.time)
                     && (current_message_segment.is_empty()
                         || is_denominator_compatible(&event_unit, &current_message_segment))
-            })
-            .unwrap_or(true); // Empty message segment always accepts the first event
+            }); // Empty message segment always accepts the first event
 
         if should_join {
             current_message_segment.push(event_unit);
