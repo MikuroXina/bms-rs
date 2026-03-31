@@ -80,55 +80,24 @@ bare_urls = "warn"
 pedantic = { level = "warn", priority = -1 }
 
 # Pedantic (Applicability: MachineApplicable)
-borrow_as_ptr = "warn"
 cast_lossless = "allow"
-doc_markdown = "warn"
-explicit_deref_methods = "warn"
-implicit_clone = "warn"
-match_bool = "warn"
-must_use_candidate = "warn"
-needless_bitwise_bool = "warn"
-redundant_closure_for_method_calls = "warn"
-redundant_else = "warn"
-semicolon_if_nothing_returned = "warn"
-single_char_pattern = "warn"
 wildcard_imports = "allow"
 
 # Pedantic (Applicability: MaybeIncorrect)
 cast_possible_wrap = "allow"
 cast_sign_loss = "allow"
-format_push_string = "warn"
-macro_use_imports = "warn"
-match_same_arms = "warn"
-str_split_at_newline = "warn"
 unreadable_literal = "allow"
-verbose_bit_mask = "warn"
 
 # Pedantic (Applicability: HasPlaceholders)
-comparison_chain = "warn"
-float_cmp = "warn"
 manual_let_else = "allow"
 
 # Pedantic (Applicability: Unspecified)
 cast_possible_truncation = "allow"
 cast_precision_loss = "allow"
-cast_ptr_alignment = "warn"
-copy_iterator = "warn"
-large_futures = "warn"
-match_wild_err_arm = "warn"
-missing_errors_doc = "warn"
-return_self_not_must_use = "warn"
 similar_names = "allow"
-string_add_assign = "warn"
-struct_excessive_bools = "warn"
-struct_field_names = "warn"
 too_many_lines = "allow"
-trivially_copy_pass_by_ref = "warn"
-unnecessary_box_returns = "warn"
-unused_async = "warn"
 unused_self = "allow"
 used_underscore_binding = "allow"
-zero_sized_map_values = "warn"
 
 # Restriction (Applicability: MachineApplicable)
 if_then_some_else_none = "warn"
