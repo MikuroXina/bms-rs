@@ -120,12 +120,12 @@ async fn main() -> Result<(), String> {
         // Process all triggered events (play audio once per event)
         for event in &events {
             let wav_id = match event.event() {
-                ChartEvent::Note { wav_id, .. } | ChartEvent::Bgm { wav_id } => wav_id,
+                ChartEvent::Note { wav_id, .. } | ChartEvent::Bgm { wav_id } => *wav_id,
                 _ => continue,
             };
 
             let Some(id) = wav_id else { continue };
-            let Some(audio) = audio_data_map.get(id) else {
+            let Some(audio) = audio_data_map.get(&id) else {
                 continue;
             };
 

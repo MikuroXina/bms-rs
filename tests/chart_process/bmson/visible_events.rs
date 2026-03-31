@@ -101,9 +101,8 @@ fn test_visible_events_duration_matches_reaction_time() {
     let visible_window_y =
         visible_range.window_y(state.current_bpm, PositiveF64::ONE, state.playback_ratio);
 
-    let velocity = (TEST_BPM_120 * PositiveF64::ONE
-        / PositiveF64::try_from(f64::from((240))).unwrap())
-    .unwrap();
+    let velocity =
+        (TEST_BPM_120 * PositiveF64::ONE / PositiveF64::try_from(f64::from(240)).unwrap()).unwrap();
     let time_to_cross = visible_window_y.as_f64() / velocity.as_f64();
 
     let actual_time_to_cross_f64 = time_to_cross;
@@ -170,7 +169,7 @@ fn test_visible_events_duration_with_playback_ratio() {
     );
 
     let velocity = (TEST_BPM_120 * PositiveF64::HALF
-        / PositiveF64::try_from(f64::from((240))).unwrap())
+        / PositiveF64::try_from(f64::from(240)).unwrap())
     .unwrap();
     let time_to_cross = visible_window_y_ratio_0_5.as_f64() / velocity.as_f64();
 

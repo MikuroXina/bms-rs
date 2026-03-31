@@ -345,14 +345,12 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             ProcessState::Random { generated, .. } => push_new_one(collector, generated),
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
                 self.visit_end_if(collector, prompter, token)?;
-                let generated = match self.state_stack.borrow().last().cloned() {
-                    Some(ProcessState::Random { generated, .. }) => generated,
-                    _ => {
-                        return Err(SourceRangeMixin::new(
-                            ParseError::UnexpectedControlFlow("#IF must be on a random scope"),
-                            token.range().clone(),
-                        ));
-                    }
+                let Some(ProcessState::Random { generated, .. }) = self.state_stack.borrow().last().cloned()
+                else {
+                    return Err(SourceRangeMixin::new(
+                        ParseError::UnexpectedControlFlow("#IF must be on a random scope"),
+                        token.range().clone(),
+                    ));
                 };
                 push_new_one(collector, generated)
             }
@@ -377,14 +375,12 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 ..
             } => {
                 self.state_stack.borrow_mut().pop();
-                let generated = match self.state_stack.borrow().last().cloned() {
-                    Some(ProcessState::Random { generated, .. }) => generated,
-                    _ => {
-                        return Err(SourceRangeMixin::new(
-                            ParseError::UnexpectedControlFlow("#ELSEIF must be on a random scope"),
-                            token.range().clone(),
-                        ));
-                    }
+                let Some(ProcessState::Random { generated, .. }) = self.state_stack.borrow().last().cloned()
+                else {
+                    return Err(SourceRangeMixin::new(
+                        ParseError::UnexpectedControlFlow("#ELSEIF must be on a random scope"),
+                        token.range().clone(),
+                    ));
                 };
 
                 self.finish_current_branch(collector, prompter)?;
