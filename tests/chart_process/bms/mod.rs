@@ -10,6 +10,10 @@ use bms_rs::bms::prelude::*;
 use super::{MICROSECOND_EPSILON, assert_time_close};
 
 /// Parse BMS source and return the BMS struct, asserting no warnings.
+///
+/// # Panics
+///
+/// Panics if there are any lex or parse warnings.
 pub fn parse_bms_no_warnings<T, P, R, M>(source: &str, config: ParseConfig<T, P, R, M>) -> Bms
 where
     T: KeyLayoutMapper,

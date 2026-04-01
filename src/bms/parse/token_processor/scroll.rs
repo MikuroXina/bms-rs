@@ -36,9 +36,9 @@ impl ScrollProcessor {
 impl TokenProcessor for ScrollProcessor {
     type Output = ScrollObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = ScrollObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
@@ -54,7 +54,7 @@ impl TokenProcessor for ScrollProcessor {
                 .on_message(
                     *track,
                     *channel,
-                    message.as_ref().into_wrapper(token),
+                    &message.as_ref().into_wrapper(token),
                     prompter,
                     &mut objects,
                 )
@@ -96,13 +96,13 @@ impl ScrollProcessor {
         &self,
         track: Track,
         channel: Channel,
-        message: SourceRangeMixin<&str>,
+        message: &SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut ScrollObjects,
     ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Scroll {
-            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
                 let string_value = objects

@@ -36,15 +36,15 @@ fn test_emit_warnings_with_real_bms() {
     // Parse BMS file, should produce warnings
     let BmsOutput { bms: _, warnings } = parse_bms(bms_source, default_config());
 
-    if !warnings.is_empty() {
-        // Verify diagnostics can be generated without printing to terminal
-        let reports = collect_bms_reports("test.bms", bms_source, &warnings);
-        assert_eq!(reports.len(), warnings.len());
-    } else {
+    if warnings.is_empty() {
         // If no warnings, also test empty warnings case
         let empty_warnings: Vec<BmsWarning> = vec![];
         let reports = collect_bms_reports("test.bms", bms_source, &empty_warnings);
         assert_eq!(reports.len(), 0);
+    } else {
+        // Verify diagnostics can be generated without printing to terminal
+        let reports = collect_bms_reports("test.bms", bms_source, &warnings);
+        assert_eq!(reports.len(), warnings.len());
     }
 }
 

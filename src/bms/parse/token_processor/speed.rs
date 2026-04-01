@@ -37,9 +37,9 @@ impl SpeedProcessor {
 impl TokenProcessor for SpeedProcessor {
     type Output = SpeedObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SpeedObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
@@ -55,7 +55,7 @@ impl TokenProcessor for SpeedProcessor {
                 .on_message(
                     *track,
                     *channel,
-                    message.as_ref().into_wrapper(token),
+                    &message.as_ref().into_wrapper(token),
                     prompter,
                     &mut objects,
                 )
@@ -98,13 +98,13 @@ impl SpeedProcessor {
         &self,
         track: Track,
         channel: Channel,
-        message: SourceRangeMixin<&str>,
+        message: &SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut SpeedObjects,
     ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Speed {
-            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
                 let string_value = objects

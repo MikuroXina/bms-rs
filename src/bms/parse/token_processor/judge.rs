@@ -36,9 +36,9 @@ impl JudgeProcessor {
 impl TokenProcessor for JudgeProcessor {
     type Output = JudgeObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = JudgeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
@@ -54,7 +54,7 @@ impl TokenProcessor for JudgeProcessor {
                 .on_message(
                     *track,
                     *channel,
-                    message.as_ref().into_wrapper(token),
+                    &message.as_ref().into_wrapper(token),
                     prompter,
                     &mut objects,
                 )
@@ -120,13 +120,13 @@ impl JudgeProcessor {
         &self,
         track: Track,
         channel: Channel,
-        message: SourceRangeMixin<&str>,
+        message: &SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut JudgeObjects,
     ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Judge {
-            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, judge_id) in pairs {
                 let exrank_def = objects

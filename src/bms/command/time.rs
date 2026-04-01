@@ -57,6 +57,10 @@ impl ObjTime {
     }
 
     /// Create a new time from a guaranteed non-zero denominator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the reduced denominator would be zero (which cannot happen with a non-zero input).
     #[must_use]
     pub fn new_checked(track: u64, numerator: u64, denominator: NonZeroU64) -> Self {
         // If numerator is greater than denominator, add the integer part of numerator / denominator to track and set numerator to the remainder.

@@ -515,6 +515,6 @@ fn test_switch_insane() {
         Box::new(RngMock([BigUint::from(3u64), BigUint::from(2u64)])),
         Box::new(RngMock([BigUint::from(4u64)])),
     ] {
-        super::test_bms_assert_objs(SRC, rng, expected.clone());
+        super::test_bms_assert_objs(SRC, rng, &expected);
     }
 }

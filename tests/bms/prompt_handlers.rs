@@ -11,7 +11,7 @@ const TEST_SPEED_1_5: PositiveF64 = PositiveF64::new_const(1.5);
 const TEST_STOP_0_5: NonNegativeF64 = NonNegativeF64::HALF;
 
 // BMS source with various conflicts
-const SOURCE_WITH_CONFLICTS: &str = r#"
+const SOURCE_WITH_CONFLICTS: &str = r"
     // BPM definition conflicts
     #BPM01 120
     #BPM01 140
@@ -43,7 +43,7 @@ const SOURCE_WITH_CONFLICTS: &str = r#"
     #00208:02
     #00108:03
     // Same time as first
-"#;
+";
 
 /// Test `AlwaysUseOlder` behavior with various conflict types
 #[test]
@@ -113,7 +113,7 @@ fn test_always_use_older() {
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
-        panic!("expected at least 1 BPM change, but got: {:?}", bpm_changes);
+        panic!("expected at least 1 BPM change, but got: {bpm_changes:?}");
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01) - check the BPM value
@@ -196,7 +196,7 @@ fn test_always_use_newer() {
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
-        panic!("expected at least 1 BPM change, but got: {:?}", bpm_changes);
+        panic!("expected at least 1 BPM change, but got: {bpm_changes:?}");
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
@@ -285,7 +285,7 @@ fn test_always_warn_and_use_older() {
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
-        panic!("expected at least 1 BPM change, but got: {:?}", bpm_changes);
+        panic!("expected at least 1 BPM change, but got: {bpm_changes:?}");
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01)
@@ -398,7 +398,7 @@ fn test_always_warn_and_use_newer() {
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
-        panic!("expected at least 1 BPM change, but got: {:?}", bpm_changes);
+        panic!("expected at least 1 BPM change, but got: {bpm_changes:?}");
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)

@@ -131,6 +131,8 @@ impl ChartPlayer {
     /// speed changes that occur during the time slice, updating the internal
     /// `playback_state` accordingly.
     pub fn update(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
+        use std::ops::Bound::{Excluded, Included};
+
         let prev_y = self.playback_state.progressed_y;
         let speed = self.playback_state.current_speed;
         self.step_to(now, speed);
@@ -140,8 +142,6 @@ impl ChartPlayer {
         // Calculate preload range: current y + visible y range
         let visible_y_length = self.visible_window_y(speed);
         let preload_end_y = cur_y + visible_y_length;
-
-        use std::ops::Bound::{Excluded, Included};
 
         // Collect events triggered at current moment
         let mut triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(&cur_y)));
@@ -401,25 +401,25 @@ impl ChartPlayer {
         // Remove events from the map to take ownership, avoiding borrow conflicts
         if let Some(events) = self.flow_events_by_y.remove(&y) {
             for event in events {
-                self.apply_flow_event(event);
+                self.apply_flow_event(&event);
             }
             // Note: events are not re-inserted since they've been applied
         }
     }
 
     /// Apply a flow event to this player.
-    const fn apply_flow_event(&mut self, event: FlowEvent) {
+    const fn apply_flow_event(&mut self, event: &FlowEvent) {
         match event {
             FlowEvent::Bpm(bpm) => {
                 self.mark_velocity_dirty();
-                self.playback_state.current_bpm = bpm;
+                self.playback_state.current_bpm = *bpm;
             }
             FlowEvent::Speed(_s) => {
                 // Speed is format-specific (BMS only)
                 // Handled in update() method
             }
             FlowEvent::Scroll(s) => {
-                self.playback_state.current_scroll = s;
+                self.playback_state.current_scroll = *s;
                 // Scroll doesn't affect velocity
             }
         }
@@ -955,7 +955,7 @@ mod tests {
         assert!((player.playback_state().current_scroll.as_f64() - 1.0).abs() < f64::EPSILON);
 
         // Apply BPM change
-        player.apply_flow_event(FlowEvent::Bpm(TEST_BPM));
+        player.apply_flow_event(&FlowEvent::Bpm(TEST_BPM));
 
         assert!((player.playback_state().current_bpm.as_f64() - 180.0).abs() < f64::EPSILON);
         assert!(player.velocity_dirty);

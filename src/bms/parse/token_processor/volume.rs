@@ -19,16 +19,15 @@ pub struct VolumeProcessor;
 impl TokenProcessor for VolumeProcessor {
     type Output = VolumeObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = VolumeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
                 Ok(Self::on_header(name.as_ref(), args.as_ref(), &mut objects)
-                    .map(|()| Vec::new())
-                    .unwrap_or_else(|warn| vec![warn.into_wrapper(token)]))
+                    .map_or_else(|warn| vec![warn.into_wrapper(token)], |()| Vec::new()))
             }
             Token::Message {
                 track,
@@ -37,7 +36,7 @@ impl TokenProcessor for VolumeProcessor {
             } => Ok(Self::on_message(
                 *track,
                 *channel,
-                message.as_ref().into_wrapper(token),
+                &message.as_ref().into_wrapper(token),
                 prompter,
                 &mut objects,
             )
@@ -65,14 +64,14 @@ impl VolumeProcessor {
     fn on_message(
         track: Track,
         channel: Channel,
-        message: SourceRangeMixin<&str>,
+        message: &SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut VolumeObjects,
     ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         match channel {
             Channel::BgmVolume => {
-                let (pairs, w) = parse_hex_values(track, &message);
+                let (pairs, w) = parse_hex_values(track, message);
                 warnings.extend(w);
                 for (time, volume_value) in pairs {
                     objects.push_bgm_volume_change(
@@ -85,7 +84,7 @@ impl VolumeProcessor {
                 }
             }
             Channel::KeyVolume => {
-                let (pairs, w) = parse_hex_values(track, &message);
+                let (pairs, w) = parse_hex_values(track, message);
                 warnings.extend(w);
                 for (time, volume_value) in pairs {
                     objects.push_key_volume_change(

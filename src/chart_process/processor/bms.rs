@@ -59,7 +59,7 @@ impl BmsProcessor {
             if let Err(e) = string_value.value() {
                 errors.push(PlayingError::InvalidBpm {
                     raw: string_value.raw().to_string(),
-                    error: format!("{:?}", e),
+                    error: format!("{e:?}"),
                 });
             }
         }
@@ -70,7 +70,7 @@ impl BmsProcessor {
                 errors.push(PlayingError::InvalidStop {
                     obj_id: *obj_id,
                     raw: string_value.raw().to_string(),
-                    error: format!("{:?}", e),
+                    error: format!("{e:?}"),
                 });
             }
         }
@@ -81,7 +81,7 @@ impl BmsProcessor {
                 errors.push(PlayingError::InvalidSpeed {
                     obj_id: *obj_id,
                     raw: string_value.raw().to_string(),
-                    error: format!("{:?}", e),
+                    error: format!("{e:?}"),
                 });
             }
         }
@@ -92,7 +92,7 @@ impl BmsProcessor {
                 errors.push(PlayingError::InvalidScroll {
                     obj_id: *obj_id,
                     raw: string_value.raw().to_string(),
-                    error: format!("{:?}", e),
+                    error: format!("{e:?}"),
                 });
             }
         }
@@ -103,7 +103,7 @@ impl BmsProcessor {
                 errors.push(PlayingError::InvalidSeek {
                     obj_id: *obj_id,
                     raw: string_value.raw().to_string(),
-                    error: format!("{:?}", e),
+                    error: format!("{e:?}"),
                 });
             }
         }
@@ -120,8 +120,7 @@ impl BmsProcessor {
         let init_bpm = bms
             .bpm
             .bpm
-            .as_ref()
-            .cloned()
+            .clone()
             .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM));
 
         // Precompute resource maps
@@ -149,7 +148,7 @@ impl BmsProcessor {
             .as_ref()
             .map_err(|e| PlayingError::InvalidBpm {
                 raw: init_bpm.raw().to_string(),
-                error: format!("{:?}", e),
+                error: format!("{e:?}"),
             })?;
 
         Ok(PlayableChart::from_parts(
@@ -693,13 +692,12 @@ pub fn precompute_activate_times(
     use std::collections::{BTreeMap, BTreeSet};
     let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
     points.insert(YCoordinate::ZERO);
-    points.extend(all_events.as_by_y().keys().cloned());
+    points.extend(all_events.as_by_y().keys().copied());
 
     let init_bpm = bms
         .bpm
         .bpm
-        .as_ref()
-        .cloned()
+        .clone()
         .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM));
     let bpm_changes: Vec<(YCoordinate, PositiveF64)> = bms
         .bpm
@@ -729,10 +727,10 @@ pub fn precompute_activate_times(
         .as_ref()
         .map_err(|e| PlayingError::InvalidBpm {
             raw: init_bpm.raw().to_string(),
-            error: format!("{:?}", e),
+            error: format!("{e:?}"),
         })?;
     bpm_map.insert(YCoordinate::ZERO, init_bpm_value);
-    bpm_map.extend(bpm_changes.iter().cloned());
+    bpm_map.extend(bpm_changes.iter().copied());
 
     let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
     let mut total_secs: f64 = 0.0;
@@ -762,8 +760,7 @@ pub fn precompute_activate_times(
                 let bpm_at_stop = bpm_map
                     .range(..=sy)
                     .next_back()
-                    .map(|(_, b)| *b)
-                    .unwrap_or(init_bpm_value);
+                    .map_or(init_bpm_value, |(_, b)| *b);
                 let dur_secs = dur_y.as_f64() * 240.0 / bpm_at_stop.as_f64();
                 total_secs = (total_secs + dur_secs).min(f64::MAX);
             }
@@ -876,7 +873,7 @@ mod tests {
                 // Verify error message contains details
                 assert!(error.contains("invalid") || error.contains("digit") || !error.is_empty());
             }
-            _ => panic!("Expected PlayingError::InvalidBpm, got: {:?}", result),
+            _ => panic!("Expected PlayingError::InvalidBpm, got: {result:?}"),
         }
     }
 
@@ -893,10 +890,7 @@ mod tests {
             Err(PlayingError::InvalidBpm { raw, .. }) => {
                 assert_eq!(raw, "");
             }
-            _ => panic!(
-                "Expected PlayingError::InvalidBpm for empty BPM, got: {:?}",
-                result
-            ),
+            _ => panic!("Expected PlayingError::InvalidBpm for empty BPM, got: {result:?}"),
         }
     }
 
@@ -913,10 +907,7 @@ mod tests {
             Err(PlayingError::InvalidBpm { raw, .. }) => {
                 assert_eq!(raw, "NaN");
             }
-            _ => panic!(
-                "Expected PlayingError::InvalidBpm for NaN BPM, got: {:?}",
-                result
-            ),
+            _ => panic!("Expected PlayingError::InvalidBpm for NaN BPM, got: {result:?}"),
         }
     }
 
@@ -931,8 +922,7 @@ mod tests {
 
         assert!(
             result.is_ok(),
-            "Parse should succeed with missing BPM: {:?}",
-            result
+            "Parse should succeed with missing BPM: {result:?}"
         );
         let chart = result.unwrap();
         assert_eq!(chart.init_bpm, DEFAULT_BPM, "Should use default BPM of 120");
@@ -950,8 +940,7 @@ mod tests {
 
         assert!(
             result.is_ok(),
-            "Parse should succeed with valid BPM: {:?}",
-            result
+            "Parse should succeed with valid BPM: {result:?}"
         );
         let chart = result.unwrap();
         assert_eq!(chart.init_bpm, TEST_BPM_150_5);
@@ -970,10 +959,9 @@ mod tests {
             Err(PlayingError::InvalidBpm { raw, .. }) => {
                 assert_eq!(raw, "abc123!@#");
             }
-            _ => panic!(
-                "Expected PlayingError::InvalidBpm for special characters, got: {:?}",
-                result
-            ),
+            _ => {
+                panic!("Expected PlayingError::InvalidBpm for special characters, got: {result:?}")
+            }
         }
     }
 

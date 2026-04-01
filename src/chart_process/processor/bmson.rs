@@ -32,6 +32,10 @@ pub struct BmsonProcessor;
 
 impl BmsonProcessor {
     /// Parse BMSON file and return a `PlayableChart` containing all precomputed data.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `init_bpm` is not a positive number.
     #[must_use]
     pub fn parse(bmson: &Bmson<'_>) -> PlayableChart {
         let init_bpm: PositiveF64 =
@@ -157,8 +161,8 @@ fn lane_from_x(mode_hint: &str, x: Option<std::num::NonZeroU8>) -> Option<(Playe
 }
 
 impl AllEventsIndex {
-    fn precompute_events<'a>(
-        bmson: &Bmson<'a>,
+    fn precompute_events(
+        bmson: &Bmson<'_>,
         audio_name_to_id: &HashMap<String, WavId>,
         bmp_name_to_id: &HashMap<String, BmpId>,
     ) -> Self {
@@ -218,7 +222,7 @@ impl AllEventsIndex {
                 points.insert(pulses_to_y(bar_line.y.0));
             }
         } else {
-            let max_y = points.iter().cloned().max().unwrap_or(YCoordinate::ZERO);
+            let max_y = points.iter().copied().max().unwrap_or(YCoordinate::ZERO);
             let floor = max_y.as_f64() as i64;
             for i in 0..=floor {
                 points.insert(YCoordinate::new(
@@ -249,8 +253,7 @@ impl AllEventsIndex {
         let mut cur_bpm = bpm_map
             .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
             .next_back()
-            .map(|(_, b)| *b)
-            .unwrap_or(init_bpm);
+            .map_or(init_bpm, |(_, b)| *b);
         let secs_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| {
             let bpm_at_stop = bpm_map
                 .range((
@@ -258,15 +261,14 @@ impl AllEventsIndex {
                     std::ops::Bound::Included(stop_y),
                 ))
                 .next_back()
-                .map(|(_, b)| *b)
-                .unwrap_or(init_bpm);
+                .map_or(init_bpm, |(_, b)| *b);
             {
                 let stop_y_len = pulses_to_y(stop_pulses);
                 stop_y_len.as_f64() * 240.0 / bpm_at_stop.as_f64()
             }
         };
         let mut stop_idx = 0usize;
-        for curr in points.into_iter() {
+        for curr in points {
             if curr <= prev {
                 continue;
             }
@@ -285,8 +287,7 @@ impl AllEventsIndex {
             cur_bpm = bpm_map
                 .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
                 .next_back()
-                .map(|(_, b)| *b)
-                .unwrap_or(init_bpm);
+                .map_or(init_bpm, |(_, b)| *b);
             cum_map.insert(curr, total_secs);
             prev = curr;
         }

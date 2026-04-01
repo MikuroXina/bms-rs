@@ -167,9 +167,9 @@ impl<R, N> RandomTokenProcessor<R, N> {
 
 impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N> {
     // Helper to process a branch buffer into a Bms
-    fn process_branch_buffer<'t>(
+    fn process_branch_buffer(
         &self,
-        buffer: &BranchBuffer<'t>,
+        buffer: &BranchBuffer<'_>,
         prompter: &impl crate::bms::parse::Prompter,
     ) -> Result<Bms, crate::bms::parse::ParseErrorWithRange> {
         // Create a new processor for recursion
@@ -188,10 +188,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         Ok(final_bms)
     }
 
-    fn top_state<'t>(
-        &self,
-        token: &TokenWithRange<'t>,
-    ) -> Result<ProcessState, ParseErrorWithRange> {
+    fn top_state(&self, token: &TokenWithRange<'_>) -> Result<ProcessState, ParseErrorWithRange> {
         self.state_stack.borrow().last().cloned().ok_or_else(|| {
             SourceRangeMixin::new(
                 ParseError::UnexpectedControlFlow("internal control flow state is empty"),
@@ -200,16 +197,16 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         })
     }
 
-    fn finish_current_branch<'t>(
+    fn finish_current_branch(
         &self,
-        collector: &mut Collector<'t>,
+        collector: &mut Collector<'_>,
         prompter: &impl crate::bms::parse::Prompter,
     ) -> Result<(), crate::bms::parse::ParseErrorWithRange> {
         if let Some(scope) = collector.current_scope_mut()
             && let Some(buffer) = scope.current_branch.take()
         {
             let bms = self.process_branch_buffer(&buffer, prompter)?;
-            for cond in buffer.conditions.iter() {
+            for cond in &buffer.conditions {
                 scope.branches.insert(
                     cond.clone(),
                     RandomizedBranch::new(cond.clone(), bms.clone()),
@@ -762,7 +759,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 token.range().clone(),
             )),
         }
-        .map(|_| {
+        .map(|()| {
             if let Some(scope) = collector.current_scope_mut()
                 && let Some(max) = &scope.max_value
             {
@@ -858,15 +855,15 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             return self.visit_else_if(args, collector, prompter, token);
         }
         if name.eq_ignore_ascii_case("ELSE") {
-            return self.visit_else(collector, prompter, token).map(|_| None);
+            return self.visit_else(collector, prompter, token).map(|()| None);
         }
         if name.eq_ignore_ascii_case("ENDIF") {
-            return self.visit_end_if(collector, prompter, token).map(|_| None);
+            return self.visit_end_if(collector, prompter, token).map(|()| None);
         }
         if name.eq_ignore_ascii_case("ENDRANDOM") {
             return self
                 .visit_end_random(collector, prompter, token)
-                .map(|_| None);
+                .map(|()| None);
         }
         if name.eq_ignore_ascii_case("SWITCH") {
             return self.visit_switch(args, collector, prompter, token);
@@ -878,15 +875,17 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             return self.visit_case(args, collector, prompter, token);
         }
         if name.eq_ignore_ascii_case("SKIP") {
-            return self.visit_skip(collector, prompter, token).map(|_| None);
+            return self.visit_skip(collector, prompter, token).map(|()| None);
         }
         if name.eq_ignore_ascii_case("DEF") {
-            return self.visit_default(collector, prompter, token).map(|_| None);
+            return self
+                .visit_default(collector, prompter, token)
+                .map(|()| None);
         }
         if name.eq_ignore_ascii_case("ENDSW") {
             return self
                 .visit_end_switch(collector, prompter, token)
-                .map(|_| None);
+                .map(|()| None);
         }
         Ok(None)
     }

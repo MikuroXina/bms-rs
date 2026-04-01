@@ -186,6 +186,10 @@ impl AllEventsIndex {
     ///
     /// # Returns
     /// A new `AllEventsIndex` with optimized lookup structures
+    ///
+    /// # Panics
+    ///
+    /// Panics if the calculated end Y coordinate for a long note would be negative.
     #[must_use]
     pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
         let mut events: Vec<PlayheadEvent> = Vec::new();
@@ -295,6 +299,10 @@ impl AllEventsIndex {
     /// // - LN starting at 5.0 and ending at 8.0: excluded (completely before)
     /// // - LN starting at 22.0 and ending at 30.0: excluded (completely after)
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the end bound is `Unbounded` and `f64::MAX` is somehow negative (it isn't).
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where

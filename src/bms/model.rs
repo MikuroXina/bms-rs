@@ -123,9 +123,9 @@ impl Bms {
     /// Fields from `other` overwrite `self` if they are present.
     /// Collections are extended.
     #[must_use]
-    pub fn union(&self, other: Bms) -> Self {
+    pub fn union(&self, other: &Bms) -> Self {
         let mut res = self.clone();
-        res.union_inplace(&other);
+        res.union_inplace(other);
         res
     }
 
@@ -133,12 +133,16 @@ impl Bms {
     ///
     /// Fields from `other` overwrite `self` if they are present.
     /// Collections are extended.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the stop definition merge fails (which should never happen with `AlwaysUseNewer`).
     pub fn union_inplace(&mut self, other: &Bms) {
         // bmp
         self.bmp.bmp_files.extend(other.bmp.bmp_files.clone());
         self.bmp.bga_changes.extend(other.bmp.bga_changes.clone());
         if other.bmp.poor_bmp.is_some() {
-            self.bmp.poor_bmp = other.bmp.poor_bmp.clone();
+            self.bmp.poor_bmp.clone_from(&other.bmp.poor_bmp);
         }
         self.bmp.atbga_defs.extend(other.bmp.atbga_defs.clone());
         self.bmp.bga_defs.extend(other.bmp.bga_defs.clone());
@@ -165,10 +169,10 @@ impl Bms {
         // bpm
         self.bpm.bpm_changes.extend(other.bpm.bpm_changes.clone());
         if other.bpm.bpm.is_some() {
-            self.bpm.bpm = other.bpm.bpm.clone();
+            self.bpm.bpm.clone_from(&other.bpm.bpm);
         }
         if other.bpm.base_bpm.is_some() {
-            self.bpm.base_bpm = other.bpm.base_bpm.clone();
+            self.bpm.base_bpm.clone_from(&other.bpm.base_bpm);
         }
         self.bpm.bpm_defs.extend(other.bpm.bpm_defs.clone());
         self.bpm
@@ -180,7 +184,7 @@ impl Bms {
             self.judge.rank = other.judge.rank;
         }
         if other.judge.total.is_some() {
-            self.judge.total = other.judge.total.clone();
+            self.judge.total.clone_from(&other.judge.total);
         }
         self.judge
             .exrank_defs
@@ -200,16 +204,20 @@ impl Bms {
             self.metadata.difficulty = other.metadata.difficulty;
         }
         if other.metadata.email.is_some() {
-            self.metadata.email = other.metadata.email.clone();
+            self.metadata.email.clone_from(&other.metadata.email);
         }
         if other.metadata.url.is_some() {
-            self.metadata.url = other.metadata.url.clone();
+            self.metadata.url.clone_from(&other.metadata.url);
         }
         if other.metadata.wav_path_root.is_some() {
-            self.metadata.wav_path_root = other.metadata.wav_path_root.clone();
+            self.metadata
+                .wav_path_root
+                .clone_from(&other.metadata.wav_path_root);
         }
         if other.metadata.divide_prop.is_some() {
-            self.metadata.divide_prop = other.metadata.divide_prop.clone();
+            self.metadata
+                .divide_prop
+                .clone_from(&other.metadata.divide_prop);
         }
         // is_octave is bool, so we can't know if it was "set" or default false.
         // We'll assume if other is true, we take it.
@@ -219,33 +227,41 @@ impl Bms {
 
         // music_info
         if other.music_info.genre.is_some() {
-            self.music_info.genre = other.music_info.genre.clone();
+            self.music_info.genre.clone_from(&other.music_info.genre);
         }
         if other.music_info.title.is_some() {
-            self.music_info.title = other.music_info.title.clone();
+            self.music_info.title.clone_from(&other.music_info.title);
         }
         if other.music_info.subtitle.is_some() {
-            self.music_info.subtitle = other.music_info.subtitle.clone();
+            self.music_info
+                .subtitle
+                .clone_from(&other.music_info.subtitle);
         }
         if other.music_info.artist.is_some() {
-            self.music_info.artist = other.music_info.artist.clone();
+            self.music_info.artist.clone_from(&other.music_info.artist);
         }
         if other.music_info.sub_artist.is_some() {
-            self.music_info.sub_artist = other.music_info.sub_artist.clone();
+            self.music_info
+                .sub_artist
+                .clone_from(&other.music_info.sub_artist);
         }
         if other.music_info.maker.is_some() {
-            self.music_info.maker = other.music_info.maker.clone();
+            self.music_info.maker.clone_from(&other.music_info.maker);
         }
         if other.music_info.comment.is_some() {
-            self.music_info.comment = other.music_info.comment.clone();
+            self.music_info
+                .comment
+                .clone_from(&other.music_info.comment);
         }
         if other.music_info.preview_music.is_some() {
-            self.music_info.preview_music = other.music_info.preview_music.clone();
+            self.music_info
+                .preview_music
+                .clone_from(&other.music_info.preview_music);
         }
 
         // option
         if other.option.options.is_some() {
-            self.option.options = other.option.options.clone();
+            self.option.options.clone_from(&other.option.options);
         }
         self.option
             .change_options
@@ -255,14 +271,14 @@ impl Bms {
             .extend(other.option.option_events.clone());
 
         // repr
-        if other.repr.ln_type != Default::default() {
+        if other.repr.ln_type != LnType::default() {
             self.repr.ln_type = other.repr.ln_type;
         }
-        if other.repr.ln_mode != Default::default() {
+        if other.repr.ln_mode != LnMode::default() {
             self.repr.ln_mode = other.repr.ln_mode;
         }
         if other.repr.charset.is_some() {
-            self.repr.charset = other.repr.charset.clone();
+            self.repr.charset.clone_from(&other.repr.charset);
         }
         self.repr
             .raw_command_lines
@@ -276,7 +292,9 @@ impl Bms {
 
         // resources
         if other.resources.midi_file.is_some() {
-            self.resources.midi_file = other.resources.midi_file.clone();
+            self.resources
+                .midi_file
+                .clone_from(&other.resources.midi_file);
         }
         self.resources.cdda.extend(other.resources.cdda.clone());
         self.resources
@@ -286,7 +304,9 @@ impl Bms {
             .materials_bmp
             .extend(other.resources.materials_bmp.clone());
         if other.resources.materials_path.is_some() {
-            self.resources.materials_path = other.resources.materials_path.clone();
+            self.resources
+                .materials_path
+                .clone_from(&other.resources.materials_path);
         }
 
         // scroll
@@ -310,19 +330,19 @@ impl Bms {
 
         // sprite
         if other.sprite.back_bmp.is_some() {
-            self.sprite.back_bmp = other.sprite.back_bmp.clone();
+            self.sprite.back_bmp.clone_from(&other.sprite.back_bmp);
         }
         if other.sprite.stage_file.is_some() {
-            self.sprite.stage_file = other.sprite.stage_file.clone();
+            self.sprite.stage_file.clone_from(&other.sprite.stage_file);
         }
         if other.sprite.banner.is_some() {
-            self.sprite.banner = other.sprite.banner.clone();
+            self.sprite.banner.clone_from(&other.sprite.banner);
         }
         self.sprite
             .extchr_events
             .extend(other.sprite.extchr_events.clone());
         if other.sprite.char_file.is_some() {
-            self.sprite.char_file = other.sprite.char_file.clone();
+            self.sprite.char_file.clone_from(&other.sprite.char_file);
         }
 
         // stop
@@ -339,16 +359,16 @@ impl Bms {
 
         // video
         if other.video.video_file.is_some() {
-            self.video.video_file = other.video.video_file.clone();
+            self.video.video_file.clone_from(&other.video.video_file);
         }
         if other.video.video_colors.is_some() {
             self.video.video_colors = other.video.video_colors;
         }
         if other.video.video_dly.is_some() {
-            self.video.video_dly = other.video.video_dly.clone();
+            self.video.video_dly.clone_from(&other.video.video_dly);
         }
         if other.video.video_fs.is_some() {
-            self.video.video_fs = other.video.video_fs.clone();
+            self.video.video_fs.clone_from(&other.video.video_fs);
         }
         self.video.seek_defs.extend(other.video.seek_defs.clone());
         self.video

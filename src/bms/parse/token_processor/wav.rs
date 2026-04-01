@@ -52,9 +52,9 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
 impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
     type Output = WavObjects;
 
-    fn process<'a, 't, P: Prompter>(
+    fn process<P: Prompter>(
         &self,
-        ctx: &mut ProcessContext<'a, 't, P>,
+        ctx: &mut ProcessContext<'_, '_, P>,
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = WavObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
@@ -70,11 +70,11 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
                 .on_message(
                     *track,
                     *channel,
-                    message.as_ref().into_wrapper(token),
+                    &message.as_ref().into_wrapper(token),
                     &mut objects,
                 )
-                .err()
-                .map(|warn| warn.into_wrapper(token))),
+                .into_iter()
+                .next()),
             Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)
@@ -290,19 +290,19 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
         &self,
         track: Track,
         channel: Channel,
-        message: SourceRangeMixin<&str>,
+        message: &SourceRangeMixin<&str>,
         objects: &mut WavObjects,
-    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
+    ) -> Vec<ParseWarningWithRange> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Bgm {
-            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
                 objects.notes.push_bgm::<T>(time, obj);
             }
         }
         if let Channel::Note { channel_id } = channel {
-            let (pairs, mut w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
+            let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
             warnings.append(&mut w);
             for (offset, obj) in pairs {
                 objects.notes.push_note(WavObj {
@@ -312,6 +312,6 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
                 });
             }
         }
-        Ok(warnings)
+        warnings
     }
 }

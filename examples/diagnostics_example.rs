@@ -8,14 +8,14 @@ use bms_rs::bms::prelude::*;
 
 fn main() {
     // An example BMS file containing warnings
-    let bms_source = r#"#TITLE Test Song
+    let bms_source = r"#TITLE Test Song
 #ARTIST Test Composer
 #INVALID_COMMAND this will cause a warning
 #TOTAL 100
 
 #00111:01010101
 #00211:02020202
-"#;
+";
 
     println!("Parsing BMS file and displaying diagnostic information...\n");
 

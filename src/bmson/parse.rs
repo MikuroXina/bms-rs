@@ -204,7 +204,7 @@ pub struct Warning<'a>(pub Rich<'a, char>);
 pub struct Error<'a>(pub Rich<'a, char>);
 
 #[cfg(feature = "diagnostics")]
-impl<'a> ToAriadne for Recovered<'a> {
+impl ToAriadne for Recovered<'_> {
     fn to_report<'b>(
         &self,
         src: &SimpleSource<'b>,
@@ -222,7 +222,7 @@ impl<'a> ToAriadne for Recovered<'a> {
 }
 
 #[cfg(feature = "diagnostics")]
-impl<'a> ToAriadne for Warning<'a> {
+impl ToAriadne for Warning<'_> {
     fn to_report<'b>(
         &self,
         src: &SimpleSource<'b>,
@@ -240,7 +240,7 @@ impl<'a> ToAriadne for Warning<'a> {
 }
 
 #[cfg(feature = "diagnostics")]
-impl<'a> ToAriadne for Error<'a> {
+impl ToAriadne for Error<'_> {
     fn to_report<'b>(
         &self,
         src: &SimpleSource<'b>,
@@ -272,8 +272,8 @@ pub fn split_chumsky_errors<'a>(
             // which we treat as non-fatal parser diagnostics.
             RichReason::Custom(_) => warnings.push(Warning(err)),
             // All other errors: recovered if we produced an output value, otherwise fatal.
-            _ if had_output => recovered.push(Recovered(err)),
-            _ => fatal.push(Error(err)),
+            RichReason::ExpectedFound { .. } if had_output => recovered.push(Recovered(err)),
+            RichReason::ExpectedFound { .. } => fatal.push(Error(err)),
         }
     }
     (warnings, recovered, fatal)
