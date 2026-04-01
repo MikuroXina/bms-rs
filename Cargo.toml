@@ -104,7 +104,7 @@ used_underscore_binding = "allow"
 if_then_some_else_none = "warn"
 lossy_float_literal = "warn"
 rest_pat_in_fully_bound_structs = "warn"
-separated_literal_suffix = "warn"
+separated_literal_suffix = "allow"
 unseparated_literal_suffix = "allow"
 
 # Restriction (Applicability: MaybeIncorrect)
