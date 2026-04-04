@@ -79,6 +79,20 @@ pub mod player;
 // Prelude module
 pub mod prelude;
 
+// === Shared Constants ===
+
+/// Default BPM value (120.0)
+pub const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
+
+/// Default speed factor (1.0)
+pub const DEFAULT_SPEED: PositiveF64 = PositiveF64::ONE;
+
+/// Maximum value for `FinF64` when overflow occurs
+pub(crate) const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
+
+/// Maximum value for `NonNegativeF64` when overflow occurs
+pub(crate) const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
+
 /// Events generated during playback (Elm style).
 ///
 /// These events represent actual events during chart playback, such as note triggers, BGM playback,
@@ -261,9 +275,6 @@ impl AsRef<NonNegativeF64> for YCoordinate {
         &self.0
     }
 }
-
-/// Maximum value for `NonNegativeF64` when overflow occurs
-const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
 
 impl std::ops::Add for YCoordinate {
     type Output = Self;

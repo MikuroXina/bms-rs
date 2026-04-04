@@ -14,15 +14,11 @@ use crate::bmson::prelude::*;
 use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart_process::{
+    ChartEvent, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, PlayheadEvent,
+    TimeSpan, YCoordinate,
+};
 use crate::util::StrExtension;
-
-const DEFAULT_SPEED_FACTOR: PositiveF64 = PositiveF64::ONE;
-
-/// Maximum value for `FinF64` when overflow occurs
-const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
-/// Maximum value for `NonNegativeF64` when overflow occurs
-const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
 
 /// BMSON format parser.
 ///
@@ -135,7 +131,7 @@ impl BmsonProcessor {
             all_events,
             flow_events_by_y,
             init_bpm,
-            DEFAULT_SPEED_FACTOR, // BMSON doesn't have Speed concept, default to 1.0
+            DEFAULT_SPEED, // BMSON doesn't have Speed concept, default to 1.0
         )
     }
 }

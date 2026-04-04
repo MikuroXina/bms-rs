@@ -15,16 +15,11 @@ use crate::bms::prelude::*;
 use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart_process::{
+    ChartEvent, DEFAULT_BPM, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,
+    PlayheadEvent, TimeSpan, YCoordinate,
+};
 use strict_num_extended::NonNegativeF64;
-
-/// Maximum value for `FinF64` when overflow occurs
-const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
-/// Maximum value for `NonNegativeF64` when overflow occurs
-const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
-
-const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
-const DEFAULT_SPEED: PositiveF64 = PositiveF64::ONE;
 
 /// BMS format parser.
 ///
@@ -689,16 +684,21 @@ pub fn precompute_activate_times(
     all_events: &AllEventsIndex,
     y_memo: &YMemo,
 ) -> Result<AllEventsIndex, PlayingError> {
-    use std::collections::{BTreeMap, BTreeSet};
-    let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
-    points.insert(YCoordinate::ZERO);
-    points.extend(all_events.as_by_y().keys().copied());
+    use std::collections::BTreeSet;
 
     let init_bpm = bms
         .bpm
         .bpm
         .clone()
         .unwrap_or_else(|| StringValue::from_value(DEFAULT_BPM));
+    let init_bpm_value = *init_bpm
+        .value()
+        .as_ref()
+        .map_err(|e| PlayingError::InvalidBpm {
+            raw: init_bpm.raw().to_string(),
+            error: format!("{e:?}"),
+        })?;
+
     let bpm_changes: Vec<(YCoordinate, PositiveF64)> = bms
         .bpm
         .bpm_changes
@@ -708,9 +708,8 @@ pub fn precompute_activate_times(
             (y, change.bpm)
         })
         .collect();
-    points.extend(bpm_changes.iter().map(|(y, _)| *y));
 
-    let stop_list: Vec<(YCoordinate, NonNegativeF64)> = bms
+    let stops: Vec<(YCoordinate, NonNegativeF64)> = bms
         .stop
         .stops
         .values()
@@ -718,58 +717,15 @@ pub fn precompute_activate_times(
             let sy = y_memo.get_y(st.time);
             (sy, st.duration)
         })
-        .sorted_by_key(|(y, _)| *y)
         .collect();
 
-    let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
-    let init_bpm_value = *init_bpm
-        .value()
-        .as_ref()
-        .map_err(|e| PlayingError::InvalidBpm {
-            raw: init_bpm.raw().to_string(),
-            error: format!("{e:?}"),
-        })?;
-    bpm_map.insert(YCoordinate::ZERO, init_bpm_value);
-    bpm_map.extend(bpm_changes.iter().copied());
+    let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
+    points.insert(YCoordinate::ZERO);
+    points.extend(all_events.as_by_y().keys().copied());
+    points.extend(bpm_changes.iter().map(|(y, _)| *y));
+    let points: Vec<YCoordinate> = points.into_iter().collect();
 
-    let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
-    let mut total_secs: f64 = 0.0;
-    let mut prev = YCoordinate::ZERO;
-    cum_map.insert(prev, 0.0);
-    let mut cur_bpm = init_bpm_value;
-    let mut stop_idx = 0usize;
-
-    for curr in points {
-        if curr <= prev {
-            continue;
-        }
-
-        if let Some((_, bpm)) = bpm_map.range(..=&curr).next_back() {
-            cur_bpm = *bpm;
-        }
-
-        let delta_y = curr - prev;
-        let delta_secs = delta_y.as_f64() * 240.0 / cur_bpm.as_f64();
-        total_secs = (total_secs + delta_secs).min(f64::MAX);
-
-        while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
-            if sy >= &curr {
-                break;
-            }
-            if sy > &prev {
-                let bpm_at_stop = bpm_map
-                    .range(..=sy)
-                    .next_back()
-                    .map_or(init_bpm_value, |(_, b)| *b);
-                let dur_secs = dur_y.as_f64() * 240.0 / bpm_at_stop.as_f64();
-                total_secs = (total_secs + dur_secs).min(f64::MAX);
-            }
-            stop_idx += 1;
-        }
-
-        cum_map.insert(curr, total_secs);
-        prev = curr;
-    }
+    let cum_map = super::compute_cumulative_times(init_bpm_value, bpm_changes, stops, points);
 
     let new_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = all_events
         .as_by_y()

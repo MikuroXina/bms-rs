@@ -5,10 +5,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
+use strict_num_extended::{NonNegativeF64, PositiveF64};
+
 use crate::bms::command::channel::NoteKind;
 use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
-use strict_num_extended::NonNegativeF64;
-use strict_num_extended::PositiveF64;
 
 pub mod bms;
 pub mod bmson;
@@ -613,6 +613,67 @@ impl PlayableChart {
             init_speed,
         }
     }
+}
+
+pub(crate) fn compute_cumulative_times(
+    init_bpm: PositiveF64,
+    bpm_changes: impl IntoIterator<Item = (YCoordinate, PositiveF64)>,
+    stops: impl IntoIterator<Item = (YCoordinate, NonNegativeF64)>,
+    points: impl IntoIterator<Item = YCoordinate>,
+) -> BTreeMap<YCoordinate, f64> {
+    let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
+    cum_map.insert(YCoordinate::ZERO, 0.0);
+
+    let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
+    bpm_map.insert(YCoordinate::ZERO, init_bpm);
+    bpm_map.extend(bpm_changes);
+
+    let mut stop_list: Vec<(YCoordinate, NonNegativeF64)> = stops.into_iter().collect();
+    stop_list.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut total_secs: f64 = 0.0;
+    let mut prev = YCoordinate::ZERO;
+    let mut cur_bpm = init_bpm;
+    let mut stop_idx = 0usize;
+
+    let mut points: Vec<YCoordinate> = points.into_iter().collect();
+    points.sort();
+    points.insert(0, YCoordinate::ZERO);
+    points.dedup();
+
+    for curr in points {
+        if curr <= prev {
+            continue;
+        }
+
+        if let Some((_, bpm)) = bpm_map.range(..=&curr).next_back() {
+            cur_bpm = *bpm;
+        }
+
+        let delta_y = curr - prev;
+        let delta_secs = delta_y.as_f64() * 240.0 / cur_bpm.as_f64();
+        total_secs = (total_secs + delta_secs).min(f64::MAX);
+
+        while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
+            if sy >= &curr {
+                break;
+            }
+            if sy > &prev {
+                let bpm_at_stop = bpm_map
+                    .range(..=sy)
+                    .next_back()
+                    .map_or(init_bpm, |(_, b)| *b);
+                let dur_secs = dur_y.as_f64() * 240.0 / bpm_at_stop.as_f64();
+                total_secs = (total_secs + dur_secs).min(f64::MAX);
+            }
+            stop_idx += 1;
+        }
+
+        cum_map.insert(curr, total_secs);
+        prev = curr;
+    }
+
+    cum_map
 }
 
 #[cfg(test)]
