@@ -645,8 +645,6 @@ where
     B: IntoIterator<Item = &'a (YCoordinate, PositiveF64)>,
     S: IntoIterator<Item = &'a (YCoordinate, NonNegativeF64)>,
 {
-    let points: Vec<YCoordinate> = points.into_iter().copied().collect();
-    let bpm_changes: Vec<(YCoordinate, PositiveF64)> = bpm_changes.into_iter().copied().collect();
     let stops: Vec<(YCoordinate, NonNegativeF64)> = stops.into_iter().copied().collect();
 
     let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
@@ -654,13 +652,13 @@ where
 
     let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
     bpm_map.insert(YCoordinate::ZERO, init_bpm);
-    bpm_map.extend(bpm_changes.iter().copied());
+    bpm_map.extend(bpm_changes.into_iter().copied());
 
     let mut stop_idx = 0usize;
     let mut total_secs: f64 = 0.0;
     let mut prev = YCoordinate::ZERO;
 
-    for &curr in &points {
+    for &curr in points {
         if curr <= prev {
             continue;
         }
