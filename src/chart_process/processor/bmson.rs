@@ -7,6 +7,7 @@ use std::{
     path::PathBuf,
 };
 
+use itertools::Itertools;
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
@@ -232,65 +233,29 @@ impl AllEventsIndex {
         }
         let init_bpm: PositiveF64 =
             PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
-        let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
-        bpm_map.insert(YCoordinate::ZERO, init_bpm);
-        for ev in &bmson.bpm_events {
-            bpm_map.insert(
-                pulses_to_y(ev.y.0),
-                PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive"),
-            );
-        }
-        let mut stop_list: Vec<(YCoordinate, u64)> = bmson
+        let bpm_changes: Vec<(YCoordinate, PositiveF64)> = bmson
+            .bpm_events
+            .iter()
+            .map(|ev| {
+                let y = pulses_to_y(ev.y.0);
+                let bpm = PositiveF64::new(ev.bpm.as_f64()).expect("bpm should be positive");
+                (y, bpm)
+            })
+            .collect();
+        let stop_list: Vec<(YCoordinate, NonNegativeF64)> = bmson
             .stop_events
             .iter()
-            .map(|st| (pulses_to_y(st.y.0), st.duration))
+            .map(|st| {
+                let stop_y = pulses_to_y(st.y.0);
+                let stop_duration = NonNegativeF64::new(pulses_to_y(st.duration).as_f64())
+                    .unwrap_or(MAX_NON_NEGATIVE_F64);
+                (stop_y, stop_duration)
+            })
+            .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect();
-        stop_list.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
-        let mut total_secs: f64 = 0.0;
-        let mut prev = YCoordinate::ZERO;
-        cum_map.insert(prev, 0.0);
-        let mut cur_bpm = bpm_map
-            .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
-            .next_back()
-            .map_or(init_bpm, |(_, b)| *b);
-        let secs_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| {
-            let bpm_at_stop = bpm_map
-                .range((
-                    std::ops::Bound::Unbounded,
-                    std::ops::Bound::Included(stop_y),
-                ))
-                .next_back()
-                .map_or(init_bpm, |(_, b)| *b);
-            {
-                let stop_y_len = pulses_to_y(stop_pulses);
-                stop_y_len.as_f64() * 240.0 / bpm_at_stop.as_f64()
-            }
-        };
-        let mut stop_idx = 0usize;
-        for curr in points {
-            if curr <= prev {
-                continue;
-            }
-            let delta_y = curr - prev;
-            let delta_secs = delta_y.as_f64() * 240.0 / cur_bpm.as_f64();
-            total_secs = (total_secs + delta_secs).min(f64::MAX);
-            while let Some((sy, stop_pulses)) = stop_list.get(stop_idx) {
-                if sy > &curr {
-                    break;
-                }
-                if sy > &prev {
-                    total_secs = (total_secs + secs_for_stop(sy, *stop_pulses)).min(f64::MAX);
-                }
-                stop_idx += 1;
-            }
-            cur_bpm = bpm_map
-                .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
-                .next_back()
-                .map_or(init_bpm, |(_, b)| *b);
-            cum_map.insert(curr, total_secs);
-            prev = curr;
-        }
+
+        let cum_map =
+            super::calculate_cumulative_times(&points, init_bpm, &bpm_changes, &stop_list);
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let to_time_span =
             |secs: f64| TimeSpan::from_duration(std::time::Duration::from_secs_f64(secs));

@@ -615,6 +615,87 @@ impl PlayableChart {
     }
 }
 
+/// Computes cumulative time (in seconds) at each Y coordinate point.
+///
+/// This function calculates the exact time when the playhead reaches each Y coordinate,
+/// accounting for BPM changes and stops. The algorithm:
+///
+/// 1. Iterates through Y coordinate points in ascending order
+/// 2. For each segment, computes time based on the current BPM
+/// 3. Handles stops by pausing time accumulation until after the stop position
+///
+/// # Parameters
+///
+/// * `points` - Sorted set of Y coordinates to compute times for (must include `YCoordinate::ZERO`)
+/// * `init_bpm` - Initial BPM value
+/// * `bpm_changes` - Iterator of (Y coordinate, BPM) pairs, sorted by Y
+/// * `stops` - Iterator of (Y coordinate, stop duration in beats) pairs, sorted by Y
+///
+/// # Returns
+///
+/// `BTreeMap` mapping each Y coordinate to its cumulative time in seconds
+pub fn calculate_cumulative_times<'a, P, B, S>(
+    points: P,
+    init_bpm: PositiveF64,
+    bpm_changes: B,
+    stops: S,
+) -> BTreeMap<YCoordinate, f64>
+where
+    P: IntoIterator<Item = &'a YCoordinate> + Clone,
+    B: IntoIterator<Item = &'a (YCoordinate, PositiveF64)>,
+    S: IntoIterator<Item = &'a (YCoordinate, NonNegativeF64)>,
+{
+    let points: Vec<YCoordinate> = points.into_iter().copied().collect();
+    let bpm_changes: Vec<(YCoordinate, PositiveF64)> = bpm_changes.into_iter().copied().collect();
+    let stops: Vec<(YCoordinate, NonNegativeF64)> = stops.into_iter().copied().collect();
+
+    let mut cum_map: BTreeMap<YCoordinate, f64> = BTreeMap::new();
+    cum_map.insert(YCoordinate::ZERO, 0.0);
+
+    let mut bpm_map: BTreeMap<YCoordinate, PositiveF64> = BTreeMap::new();
+    bpm_map.insert(YCoordinate::ZERO, init_bpm);
+    bpm_map.extend(bpm_changes.iter().copied());
+
+    let mut stop_idx = 0usize;
+    let mut total_secs: f64 = 0.0;
+    let mut prev = YCoordinate::ZERO;
+
+    for &curr in &points {
+        if curr <= prev {
+            continue;
+        }
+
+        let cur_bpm = bpm_map
+            .range(..curr)
+            .next_back()
+            .map_or(init_bpm, |(_, bpm)| *bpm);
+
+        let delta_y = curr - prev;
+        let delta_secs = delta_y.as_f64() * 240.0 / cur_bpm.as_f64();
+        total_secs = (total_secs + delta_secs).min(f64::MAX);
+
+        while let Some((sy, dur)) = stops.get(stop_idx) {
+            if sy > &curr {
+                break;
+            }
+            if sy > &prev {
+                let bpm_at_stop = bpm_map
+                    .range(..=sy)
+                    .next_back()
+                    .map_or(init_bpm, |(_, b)| *b);
+                let dur_secs = dur.as_f64() * 240.0 / bpm_at_stop.as_f64();
+                total_secs = (total_secs + dur_secs).min(f64::MAX);
+            }
+            stop_idx += 1;
+        }
+
+        cum_map.insert(curr, total_secs);
+        prev = curr;
+    }
+
+    cum_map
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
