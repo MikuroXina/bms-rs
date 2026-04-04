@@ -10,16 +10,9 @@ use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::chart_process::processor::AllEventsIndex;
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
-
-/// Maximum value for `FinF64` when overflow occurs
-///
-/// Used for velocity, Y coordinate, and other calculations to gracefully
-/// handle overflow instead of panicking.
-const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
-
-/// Maximum value for `NonNegativeF64` when overflow occurs
-const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
+use crate::chart_process::{
+    ChartEvent, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, PlayheadEvent, YCoordinate,
+};
 
 /// Unified chart player.
 ///

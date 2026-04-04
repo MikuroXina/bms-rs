@@ -15,16 +15,11 @@ use crate::bms::prelude::*;
 use crate::chart_process::processor::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
 };
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart_process::{
+    ChartEvent, DEFAULT_BPM, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,
+    PlayheadEvent, TimeSpan, YCoordinate,
+};
 use strict_num_extended::NonNegativeF64;
-
-/// Maximum value for `FinF64` when overflow occurs
-const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
-/// Maximum value for `NonNegativeF64` when overflow occurs
-const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
-
-const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
-const DEFAULT_SPEED: PositiveF64 = PositiveF64::ONE;
 
 /// BMS format parser.
 ///
