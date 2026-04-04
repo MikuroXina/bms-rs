@@ -13,6 +13,15 @@ use strict_num_extended::PositiveF64;
 pub mod bms;
 pub mod bmson;
 
+/// Trait for chart types that can be processed into a `PlayableChart`.
+pub trait ProcessibleChart {
+    /// Error type returned when processing fails.
+    type Error;
+
+    /// Process the chart into a `PlayableChart`.
+    fn process(self) -> Result<PlayableChart, Self::Error>;
+}
+
 /// WAV audio file ID wrapper type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WavId(pub usize);

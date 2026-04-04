@@ -13,7 +13,8 @@ use crate::bms::command::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
 use crate::bms::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, ProcessibleChart,
+    WavId,
 };
 use crate::chart_process::{
     ChartEvent, DEFAULT_BPM, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,
@@ -806,6 +807,14 @@ impl TryFrom<Bms> for PlayableChart {
 
     fn try_from(bms: Bms) -> Result<Self, Self::Error> {
         BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&bms)
+    }
+}
+
+impl ProcessibleChart for Bms {
+    type Error = PlayingError;
+
+    fn process(self) -> Result<PlayableChart, Self::Error> {
+        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&self)
     }
 }
 
