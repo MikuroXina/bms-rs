@@ -19,6 +19,10 @@ pub trait ProcessibleChart {
     type Error;
 
     /// Process the chart into a `PlayableChart`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Self::Error` if processing fails.
     fn process(self) -> Result<PlayableChart, Self::Error>;
 }
 

@@ -445,7 +445,7 @@ impl<'a> TryFrom<Bmson<'a>> for PlayableChart {
     }
 }
 
-impl<'a> ProcessibleChart for Bmson<'a> {
+impl ProcessibleChart for Bmson<'_> {
     type Error = ();
 
     fn process(self) -> Result<PlayableChart, Self::Error> {
