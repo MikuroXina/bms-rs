@@ -263,7 +263,16 @@ impl AsRef<NonNegativeF64> for YCoordinate {
 }
 
 /// Maximum value for `NonNegativeF64` when overflow occurs
-const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
+pub(crate) const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
+
+/// Maximum value for `FinF64` when overflow occurs
+pub(crate) const MAX_FIN_F64: FinF64 = FinF64::new_const(f64::MAX);
+
+/// Default BPM value
+pub const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
+
+/// Default speed factor
+pub const DEFAULT_SPEED: PositiveF64 = PositiveF64::ONE;
 
 impl std::ops::Add for YCoordinate {
     type Output = Self;
