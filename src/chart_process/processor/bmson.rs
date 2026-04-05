@@ -13,7 +13,7 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, Process, WavId,
 };
 use crate::chart_process::{
     ChartEvent, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, PlayheadEvent,
@@ -441,5 +441,13 @@ impl<'a> TryFrom<Bmson<'a>> for PlayableChart {
 
     fn try_from(bmson: Bmson<'a>) -> Result<Self, Self::Error> {
         Ok(BmsonProcessor::parse(&bmson))
+    }
+}
+
+impl Process for Bmson<'_> {
+    type Error = ();
+
+    fn process(self) -> Result<PlayableChart, Self::Error> {
+        Ok(BmsonProcessor::parse(&self))
     }
 }

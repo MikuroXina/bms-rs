@@ -11,7 +11,7 @@ pub use super::base_bpm::{
 pub use super::player::{DisplayRatio, VisibleRangePerBpm};
 pub use super::processor::{
     AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, PlayableChart,
-    WavId,
+    Process, WavId,
 };
 pub use super::{BaseBpm, YCoordinate};
 pub use gametime::TimeSpan;
