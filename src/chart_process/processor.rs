@@ -13,12 +13,12 @@ use strict_num_extended::PositiveF64;
 pub mod bms;
 pub mod bmson;
 
-/// Trait for chart types that can be processed into a `PlayableChart`.
-pub trait ProcessibleChart {
+/// Trait for types that can be processed into a `PlayableChart`. It's intended that chart types implement this.
+pub trait Process {
     /// Error type returned when processing fails.
     type Error;
 
-    /// Process the chart into a `PlayableChart`.
+    /// Processes into a `PlayableChart`.
     ///
     /// # Errors
     ///
