@@ -9,8 +9,8 @@ use std::time::Duration;
 use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
-use crate::chart_process::processor::AllEventsIndex;
-use crate::chart_process::{
+use crate::chart::processor::AllEventsIndex;
+use crate::chart::{
     ChartEvent, FlowEvent, PlayheadEvent, YCoordinate, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,
 };
 
@@ -61,7 +61,7 @@ impl ChartPlayer {
     ///
     /// ```ignore
     /// use gametime::TimeStamp;
-    /// use bms_rs::chart_process::{ChartPlayer, VisibleRangePerBpm, BaseBpmGenerator};
+    /// use bms_rs::chart::{ChartPlayer, VisibleRangePerBpm, BaseBpmGenerator};
     ///
     /// let start_time = TimeStamp::now();
     /// let base_bpm = StartBpmGenerator.generate(&bms)?;
@@ -72,7 +72,7 @@ impl ChartPlayer {
     /// ```
     #[must_use]
     pub fn start(
-        mut chart: crate::chart_process::processor::Chart,
+        mut chart: crate::chart::processor::Chart,
         visible_range_per_bpm: VisibleRangePerBpm,
         start_time: TimeStamp,
     ) -> Self {
@@ -333,7 +333,7 @@ impl ChartPlayer {
 
     /// Calculate velocity with caching.
     ///
-    /// See [`crate::chart_process`] for the formula.
+    /// See [`crate::chart`] for the formula.
     pub fn calculate_velocity(&mut self, speed: PositiveF64) -> FinF64 {
         if self.velocity_dirty || self.cached_velocity.is_none() {
             let computed = self.compute_velocity(speed);
@@ -679,7 +679,7 @@ impl PlaybackState {
 }
 
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
-/// See [`crate::chart_process`] for the formula.
+/// See [`crate::chart`] for the formula.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VisibleRangePerBpm {
     value: FinF64,
@@ -695,7 +695,7 @@ impl AsRef<FinF64> for VisibleRangePerBpm {
 
 impl VisibleRangePerBpm {
     /// Create a new `VisibleRangePerBpm` from base BPM and reaction time.
-    /// See [`crate::chart_process`] for the formula.
+    /// See [`crate::chart`] for the formula.
     #[must_use]
     pub fn new(base_bpm: &PositiveF64, reaction_time: TimeSpan) -> Self {
         // Check for effectively zero BPM to avoid division by extremely small numbers
@@ -733,7 +733,7 @@ impl VisibleRangePerBpm {
     }
 
     /// Calculate visible window length in y units based on current BPM, speed, and playback ratio.
-    /// See [`crate::chart_process`] for formula.
+    /// See [`crate::chart`] for formula.
     /// This ensures events stay in visible window for exactly `reaction_time` duration.
     #[must_use]
     pub fn window_y(
@@ -773,7 +773,7 @@ impl VisibleRangePerBpm {
     }
 
     /// Calculate reaction time from visible range per BPM.
-    /// See [`crate::chart_process`] for the formula.
+    /// See [`crate::chart`] for the formula.
     #[must_use]
     pub fn to_reaction_time(&self) -> TimeSpan {
         if self.reaction_time_seconds.as_f64() == 0.0 {
@@ -805,7 +805,7 @@ impl From<VisibleRangePerBpm> for FinF64 {
 /// Display ratio wrapper type, representing the actual position of a note in the display area.
 ///
 /// 0 is the judgment line, 1 is the position where the note generally starts to appear.
-/// See [`crate::chart_process`] for the formula.
+/// See [`crate::chart`] for the formula.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub struct DisplayRatio(pub FinF64);
 
@@ -870,8 +870,8 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart_process::processor::{Chart, ChartResources};
-    use crate::chart_process::YCoordinate;
+    use crate::chart::processor::{Chart, ChartResources};
+    use crate::chart::YCoordinate;
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
     /// Default test BPM value (120.0) - used as initial BPM

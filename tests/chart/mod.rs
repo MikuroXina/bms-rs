@@ -1,4 +1,4 @@
-//! Tests for `bms_rs::chart_process`.
+//! Tests for `bms_rs::chart`.
 //!
 //! Unified time precision evaluation criterion:
 //! - All time-related assertions must have absolute error less than 1 microsecond (0.000001s)

@@ -64,7 +64,7 @@
 
 use crate::bms::prelude::SwBgaEvent;
 use crate::bms::prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
-use crate::chart_process::processor::{BmpId, ChartEventId, WavId};
+use crate::chart::processor::{BmpId, ChartEventId, WavId};
 use gametime::TimeSpan;
 use strict_num_extended::FinF64;
 use strict_num_extended::NonNegativeF64;

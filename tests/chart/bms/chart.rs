@@ -7,8 +7,8 @@ use strict_num_extended::PositiveF64;
 /// Default BPM value (120.0) for tests
 const DEFAULT_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
 
-use bms_rs::chart_process::prelude::*;
-use bms_rs::chart_process::{BaseBpm, YCoordinate};
+use bms_rs::chart::prelude::*;
+use bms_rs::chart::{BaseBpm, YCoordinate};
 
 use super::parse_bms_no_warnings;
 

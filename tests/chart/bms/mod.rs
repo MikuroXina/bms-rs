@@ -1,4 +1,4 @@
-//! Integration tests for `bms_rs::chart_process::BmsProcessor`.
+//! Integration tests for `bms_rs::chart::BmsProcessor`.
 
 mod chart;
 mod playback_state;
@@ -7,7 +7,7 @@ mod visible_events;
 
 use bms_rs::bms::prelude::*;
 
-use super::{MICROSECOND_EPSILON, assert_time_close};
+use super::{assert_time_close, MICROSECOND_EPSILON};
 
 /// Parse BMS source and return the BMS struct, asserting no warnings.
 ///

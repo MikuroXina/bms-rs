@@ -7,9 +7,9 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use bms_rs::chart_process::BaseBpm;
-use bms_rs::chart_process::prelude::*;
-use bms_rs::{bms::prelude::*, chart_process::PlayheadEvent};
+use bms_rs::chart::BaseBpm;
+use bms_rs::chart::prelude::*;
+use bms_rs::{bms::prelude::*, chart::PlayheadEvent};
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
 use kira::{

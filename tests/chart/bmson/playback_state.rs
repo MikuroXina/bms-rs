@@ -3,7 +3,7 @@
 use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
-use bms_rs::chart_process::prelude::*;
+use bms_rs::chart::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
 use super::assert_time_close;

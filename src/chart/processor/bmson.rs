@@ -12,10 +12,10 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
-use crate::chart_process::processor::{
+use crate::chart::processor::{
     AllEventsIndex, BmpId, Chart, ChartEventIdGenerator, ChartResources, Process, WavId,
 };
-use crate::chart_process::{
+use crate::chart::{
     ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate, DEFAULT_SPEED, MAX_FIN_F64,
     MAX_NON_NEGATIVE_F64,
 };

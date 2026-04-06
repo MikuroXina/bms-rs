@@ -3,9 +3,9 @@
 use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
-use bms_rs::chart_process::prelude::*;
+use bms_rs::chart::prelude::*;
 
-use super::{MICROSECOND_EPSILON, assert_time_close};
+use super::{assert_time_close, MICROSECOND_EPSILON};
 
 #[test]
 fn test_bmson_continue_duration_references_bpm_and_stop() {

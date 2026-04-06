@@ -3,7 +3,7 @@
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
-use crate::chart_process::BaseBpm;
+use crate::chart::BaseBpm;
 use strict_num_extended::PositiveF64;
 
 /// Trait for generating the base BPM used to derive default visible window length.
@@ -37,7 +37,7 @@ impl AsRef<BaseBpm> for ManualBpmGenerator {
 
 impl AsRef<PositiveF64> for ManualBpmGenerator {
     fn as_ref(&self) -> &PositiveF64 {
-        &self.0.0
+        &self.0 .0
     }
 }
 
@@ -61,7 +61,7 @@ impl From<PositiveF64> for ManualBpmGenerator {
 
 impl From<ManualBpmGenerator> for PositiveF64 {
     fn from(value: ManualBpmGenerator) -> Self {
-        value.0.0
+        value.0 .0
     }
 }
 
