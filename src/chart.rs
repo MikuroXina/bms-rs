@@ -64,14 +64,14 @@
 
 use crate::bms::prelude::SwBgaEvent;
 use crate::bms::prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
-use crate::chart::processor::{BmpId, ChartEventId, WavId};
+use crate::chart::process::{BmpId, ChartEventId, WavId};
 use gametime::TimeSpan;
 use strict_num_extended::FinF64;
 use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
 
 pub mod base_bpm;
-pub mod processor;
+pub mod process;
 
 // Player module
 pub mod player;
@@ -85,7 +85,7 @@ pub mod prelude;
 /// BPM changes, etc.
 ///
 /// The effects of [`ChartEvent`] members on Y coordinates and [`player::DisplayRatio`] are calculated by the corresponding
-/// processor implementation, so there's no need to recalculate them.
+/// process implementation, so there's no need to recalculate them.
 #[derive(Debug, Clone)]
 pub enum ChartEvent {
     /// Key note reaches judgment line (includes visible, long, mine, invisible notes, distinguished by `kind`)

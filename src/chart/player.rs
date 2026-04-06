@@ -9,7 +9,7 @@ use std::time::Duration;
 use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
-use crate::chart::processor::AllEventsIndex;
+use crate::chart::process::AllEventsIndex;
 use crate::chart::{
     ChartEvent, FlowEvent, PlayheadEvent, YCoordinate, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,
 };
@@ -72,7 +72,7 @@ impl ChartPlayer {
     /// ```
     #[must_use]
     pub fn start(
-        mut chart: crate::chart::processor::Chart,
+        mut chart: crate::chart::process::Chart,
         visible_range_per_bpm: VisibleRangePerBpm,
         start_time: TimeStamp,
     ) -> Self {
@@ -870,7 +870,7 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart::processor::{Chart, ChartResources};
+    use crate::chart::process::{Chart, ChartResources};
     use crate::chart::YCoordinate;
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 

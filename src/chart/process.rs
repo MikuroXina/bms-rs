@@ -1,4 +1,4 @@
-//! Module for chart processors
+//! Module for chart process
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};

@@ -12,7 +12,7 @@ use strict_num_extended::{FinF64, PositiveF64};
 use crate::bms::command::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
 use crate::bms::prelude::*;
-use crate::chart::processor::{
+use crate::chart::process::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Chart, Process, WavId,
 };
 use crate::chart::{
