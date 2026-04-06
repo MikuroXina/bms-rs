@@ -37,7 +37,7 @@ impl AsRef<BaseBpm> for ManualBpmGenerator {
 
 impl AsRef<PositiveF64> for ManualBpmGenerator {
     fn as_ref(&self) -> &PositiveF64 {
-        &self.0 .0
+        &self.0.0
     }
 }
 
@@ -61,7 +61,7 @@ impl From<PositiveF64> for ManualBpmGenerator {
 
 impl From<ManualBpmGenerator> for PositiveF64 {
     fn from(value: ManualBpmGenerator) -> Self {
-        value.0 .0
+        value.0.0
     }
 }
 

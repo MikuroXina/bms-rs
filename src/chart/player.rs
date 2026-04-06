@@ -11,7 +11,7 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::chart::process::AllEventsIndex;
 use crate::chart::{
-    ChartEvent, FlowEvent, PlayheadEvent, YCoordinate, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,
+    ChartEvent, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, PlayheadEvent, YCoordinate,
 };
 
 /// Unified chart player.
@@ -870,8 +870,8 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
-    use crate::chart::process::{Chart, ChartResources};
     use crate::chart::YCoordinate;
+    use crate::chart::process::{Chart, ChartResources};
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
     /// Default test BPM value (120.0) - used as initial BPM

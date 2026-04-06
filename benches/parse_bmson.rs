@@ -1,7 +1,7 @@
 //! Benchmark for `BMSON` file parsing and chart conversion.
 
 use bms_rs::{
-    bmson::{parse_bmson, Bmson},
+    bmson::{Bmson, parse_bmson},
     chart::processor::bmson::BmsonProcessor,
 };
 use criterion::{Criterion, Throughput};

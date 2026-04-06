@@ -7,7 +7,7 @@ mod visible_events;
 
 use bms_rs::bms::prelude::*;
 
-use super::{assert_time_close, MICROSECOND_EPSILON};
+use super::{MICROSECOND_EPSILON, assert_time_close};
 
 /// Parse BMS source and return the BMS struct, asserting no warnings.
 ///

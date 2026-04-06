@@ -13,7 +13,7 @@ use crate::bms::command::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
 use crate::bms::prelude::*;
 use crate::chart::process::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Chart, Process, WavId,
+    AllEventsIndex, BmpId, Chart, ChartEventIdGenerator, ChartResources, Process, WavId,
 };
 use crate::chart::{
     ChartEvent, DEFAULT_BPM, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,

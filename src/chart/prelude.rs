@@ -4,6 +4,7 @@
 //! allowing users to import all needed items in one go.
 
 // Re-export types
+pub use super::FlowEvent;
 pub use super::base_bpm::{
     BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator,
 };
@@ -12,7 +13,6 @@ pub use super::process::{
     AllEventsIndex, BmpId, Chart, ChartEventId, ChartEventIdGenerator, ChartResources, Process,
     WavId,
 };
-pub use super::FlowEvent;
 pub use super::{BaseBpm, YCoordinate};
 pub use gametime::TimeSpan;
 

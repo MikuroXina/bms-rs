@@ -16,8 +16,8 @@ use crate::chart::process::{
     AllEventsIndex, BmpId, Chart, ChartEventIdGenerator, ChartResources, Process, WavId,
 };
 use crate::chart::{
-    ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate, DEFAULT_SPEED, MAX_FIN_F64,
-    MAX_NON_NEGATIVE_F64,
+    ChartEvent, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, PlayheadEvent,
+    TimeSpan, YCoordinate,
 };
 use crate::util::StrExtension;
 

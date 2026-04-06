@@ -8,4 +8,4 @@ mod continue_time;
 mod playback_state;
 mod visible_events;
 
-use super::{assert_time_close, MICROSECOND_EPSILON};
+use super::{MICROSECOND_EPSILON, assert_time_close};
