@@ -133,7 +133,8 @@ impl ChartPlayer {
         let cur_y = self.playback_state.progressed_y;
 
         // Calculate preload range: current y + visible y range
-        let visible_y_length = self.visible_window_y(speed);
+        // Use current_speed from playback_state (may have been updated by step_to via FlowEvent::Speed)
+        let visible_y_length = self.visible_window_y(self.playback_state.current_speed);
         let preload_end_y = cur_y + visible_y_length;
 
         // Collect events triggered at current moment
@@ -141,7 +142,8 @@ impl ChartPlayer {
 
         self.update_preloaded_events(FinF64::new(preload_end_y.as_f64()).unwrap_or(MAX_FIN_F64));
 
-        // Apply Speed changes
+        // Apply Speed changes from ChartEvent (for compatibility with charts that use ChartEvent::SpeedChange)
+        // Note: FlowEvent::Speed is now handled in step_to via apply_flow_events_at
         for event in &triggered_events {
             if let ChartEvent::SpeedChange { factor } = event.event() {
                 self.playback_state.current_speed = *factor;
@@ -407,9 +409,9 @@ impl ChartPlayer {
                 self.mark_velocity_dirty();
                 self.playback_state.current_bpm = *bpm;
             }
-            FlowEvent::Speed(_s) => {
-                // Speed is format-specific (BMS only)
-                // Handled in update() method
+            FlowEvent::Speed(s) => {
+                self.mark_velocity_dirty();
+                self.playback_state.current_speed = *s;
             }
             FlowEvent::Scroll(s) => {
                 self.playback_state.current_scroll = *s;
