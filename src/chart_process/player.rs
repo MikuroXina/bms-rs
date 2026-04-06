@@ -11,7 +11,7 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::chart_process::processor::AllEventsIndex;
 use crate::chart_process::{
-    ChartEvent, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, PlayheadEvent, YCoordinate,
+    ChartEvent, FlowEvent, PlayheadEvent, YCoordinate, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,
 };
 
 /// Unified chart player.
@@ -72,7 +72,7 @@ impl ChartPlayer {
     /// ```
     #[must_use]
     pub fn start(
-        mut chart: crate::chart_process::processor::PlayableChart,
+        mut chart: crate::chart_process::processor::Chart,
         visible_range_per_bpm: VisibleRangePerBpm,
         start_time: TimeStamp,
     ) -> Self {
@@ -870,8 +870,8 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::*;
+    use crate::chart_process::processor::{Chart, ChartResources};
     use crate::chart_process::YCoordinate;
-    use crate::chart_process::processor::{ChartResources, PlayableChart};
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
     /// Default test BPM value (120.0) - used as initial BPM
@@ -891,7 +891,7 @@ mod tests {
 
     #[test]
     fn test_velocity_caching() {
-        let chart = PlayableChart::from_parts(
+        let chart = Chart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             BTreeMap::new(),
@@ -931,7 +931,7 @@ mod tests {
             ],
         );
 
-        let chart = PlayableChart::from_parts(
+        let chart = Chart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,
@@ -990,7 +990,7 @@ mod tests {
             ],
         );
 
-        let chart = PlayableChart::from_parts(
+        let chart = Chart::from_parts(
             ChartResources::new(HashMap::new(), HashMap::new()),
             AllEventsIndex::new(BTreeMap::new()),
             flow_events_by_y,

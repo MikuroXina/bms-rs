@@ -13,28 +13,28 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
 use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, Process, WavId,
+    AllEventsIndex, BmpId, Chart, ChartEventIdGenerator, ChartResources, Process, WavId,
 };
 use crate::chart_process::{
-    ChartEvent, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, PlayheadEvent,
-    TimeSpan, YCoordinate,
+    ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate, DEFAULT_SPEED, MAX_FIN_F64,
+    MAX_NON_NEGATIVE_F64,
 };
 use crate::util::StrExtension;
 
 /// BMSON format parser.
 ///
 /// This struct serves as a namespace for BMSON parsing functions.
-/// It parses BMSON files and returns a `PlayableChart` containing all precomputed data.
+/// It parses BMSON files and returns a `Chart` containing all precomputed data.
 pub struct BmsonProcessor;
 
 impl BmsonProcessor {
-    /// Parse BMSON file and return a `PlayableChart` containing all precomputed data.
+    /// Parse BMSON file and return a `Chart` containing all precomputed data.
     ///
     /// # Panics
     ///
     /// Panics if `init_bpm` is not a positive number.
     #[must_use]
-    pub fn parse(bmson: &Bmson<'_>) -> PlayableChart {
+    pub fn parse(bmson: &Bmson<'_>) -> Chart {
         let init_bpm: PositiveF64 =
             PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
         let pulses_denom = FinF64::new((4 * bmson.info.resolution.get()) as f64)
@@ -127,7 +127,7 @@ impl BmsonProcessor {
             .map(|(name, id)| (id, PathBuf::from(name)))
             .collect();
 
-        PlayableChart::from_parts(
+        Chart::from_parts(
             ChartResources::new(wav_files, bmp_files),
             all_events,
             flow_events_by_y,
@@ -436,7 +436,7 @@ impl AllEventsIndex {
     }
 }
 
-impl<'a> TryFrom<Bmson<'a>> for PlayableChart {
+impl<'a> TryFrom<Bmson<'a>> for Chart {
     type Error = ();
 
     fn try_from(bmson: Bmson<'a>) -> Result<Self, Self::Error> {
@@ -447,7 +447,7 @@ impl<'a> TryFrom<Bmson<'a>> for PlayableChart {
 impl Process for Bmson<'_> {
     type Error = ();
 
-    fn process(self) -> Result<PlayableChart, Self::Error> {
+    fn process(self) -> Result<Chart, Self::Error> {
         Ok(BmsonProcessor::parse(&self))
     }
 }
