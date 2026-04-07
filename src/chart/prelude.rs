@@ -5,6 +5,7 @@
 
 // Re-export types
 pub use super::event::FlowEvent;
+pub use super::player::base_bpm::BaseBpm;
 pub use super::player::base_bpm::{
     BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator,
 };
@@ -12,7 +13,7 @@ pub use super::player::{DisplayRatio, VisibleRangePerBpm};
 pub use super::process::{
     AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, Process, WavId,
 };
-pub use super::{BaseBpm, Chart, YCoordinate};
+pub use super::{Chart, YCoordinate};
 pub use gametime::TimeSpan;
 
 // Re-export NonNegativeF64 for backward compatibility
