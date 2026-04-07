@@ -6,7 +6,6 @@ use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
-use bms_rs::chart::BaseBpm;
 use bms_rs::chart::prelude::*;
 
 use super::{assert_time_close, parse_bms_no_warnings};

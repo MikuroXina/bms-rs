@@ -3,8 +3,58 @@
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
-use crate::chart::BaseBpm;
 use strict_num_extended::PositiveF64;
+
+/// Base BPM wrapper type.
+///
+/// Represents a positive BPM value used to derive default visible window length.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BaseBpm(pub PositiveF64);
+
+impl BaseBpm {
+    /// Create a new `BaseBpm` from `PositiveF64`.
+    #[must_use]
+    pub const fn new(value: PositiveF64) -> Self {
+        Self(value)
+    }
+
+    /// Get the internal `PositiveF64` value.
+    #[must_use]
+    pub const fn value(&self) -> &PositiveF64 {
+        &self.0
+    }
+
+    /// Convert to f64.
+    #[must_use]
+    pub const fn as_f64(&self) -> f64 {
+        self.0.as_f64()
+    }
+}
+
+impl From<PositiveF64> for BaseBpm {
+    fn from(value: PositiveF64) -> Self {
+        Self(value)
+    }
+}
+
+impl From<BaseBpm> for PositiveF64 {
+    fn from(value: BaseBpm) -> Self {
+        value.0
+    }
+}
+
+impl AsRef<PositiveF64> for BaseBpm {
+    fn as_ref(&self) -> &PositiveF64 {
+        &self.0
+    }
+}
+
+impl Default for BaseBpm {
+    fn default() -> Self {
+        Self(PositiveF64::new_const(120.0))
+    }
+}
 
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {

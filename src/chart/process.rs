@@ -6,7 +6,8 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
 use crate::bms::command::channel::NoteKind;
-use crate::chart::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart::event::{ChartEvent, PlayheadEvent, YCoordinate};
+use crate::chart::{Chart, TimeSpan};
 use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
 
@@ -538,96 +539,6 @@ impl ChartResources {
     }
 }
 
-/// Playable chart data containing all precomputed information.
-///
-/// This structure is immutable and ready for playback. It can be used to create
-/// multiple player instances. Note that this structure does NOT contain playback
-/// state - playback state is managed by `ChartPlayer`.
-#[derive(Debug, Clone)]
-pub struct Chart {
-    /// Resource file mapping.
-    pub(crate) resources: ChartResources,
-    /// Event index (by Y coordinate and time).
-    pub(crate) events: AllEventsIndex,
-    /// Flow event mapping (affects playback speed).
-    pub(crate) flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
-    /// Initial BPM.
-    pub(crate) init_bpm: PositiveF64,
-    /// Initial Speed (BMS-specific, BMSON defaults to 1.0).
-    pub(crate) init_speed: PositiveF64,
-}
-
-impl Chart {
-    /// Get resource file mapping.
-    #[must_use]
-    pub const fn resources(&self) -> &ChartResources {
-        &self.resources
-    }
-
-    /// Get event index.
-    #[must_use]
-    pub const fn events(&self) -> &AllEventsIndex {
-        &self.events
-    }
-
-    /// Get flow event mapping.
-    #[must_use]
-    pub const fn flow_events(&self) -> &BTreeMap<YCoordinate, Vec<FlowEvent>> {
-        &self.flow_events
-    }
-
-    /// Get initial BPM.
-    #[must_use]
-    pub const fn init_bpm(&self) -> &PositiveF64 {
-        &self.init_bpm
-    }
-
-    /// Get initial Speed.
-    #[must_use]
-    pub const fn init_speed(&self) -> &PositiveF64 {
-        &self.init_speed
-    }
-
-    /// Get audio file resources (WAV ID to path mapping).
-    ///
-    /// This is a convenience method that directly accesses the audio files.
-    /// Equivalent to `self.resources().wav_files()`.
-    #[must_use]
-    pub const fn audio_files(&self) -> &HashMap<WavId, PathBuf> {
-        self.resources.wav_files()
-    }
-
-    /// Get BGA/BMP image resources (BMP ID to path mapping).
-    ///
-    /// This is a convenience method that directly accesses the image files.
-    /// Equivalent to `self.resources().bmp_files()`.
-    #[must_use]
-    pub const fn bmp_files(&self) -> &HashMap<BmpId, PathBuf> {
-        self.resources.bmp_files()
-    }
-
-    /// Create a new `Chart` from its constituent parts.
-    ///
-    /// This is an internal constructor used by chart processors to assemble
-    /// a parsed chart from its components.
-    #[must_use]
-    pub(crate) const fn from_parts(
-        resources: ChartResources,
-        events: AllEventsIndex,
-        flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>>,
-        init_bpm: PositiveF64,
-        init_speed: PositiveF64,
-    ) -> Self {
-        Self {
-            resources,
-            events,
-            flow_events,
-            init_bpm,
-            init_speed,
-        }
-    }
-}
-
 /// Computes cumulative time (in seconds) at each Y coordinate point.
 ///
 /// This function calculates the exact time when the playhead reaches each Y coordinate,
@@ -714,7 +625,8 @@ mod tests {
     use super::AllEventsIndex;
     use super::ChartEventId;
     use crate::bms::command::channel::{Key, NoteKind, PlayerSide};
-    use crate::chart::{ChartEvent, PlayheadEvent, TimeSpan, YCoordinate};
+    use crate::chart::TimeSpan;
+    use crate::chart::event::{ChartEvent, PlayheadEvent, YCoordinate};
     use strict_num_extended::NonNegativeF64;
 
     // Test constants
