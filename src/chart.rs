@@ -64,6 +64,12 @@
 
 pub mod event;
 
+pub mod player;
+
+pub mod prelude;
+
+pub mod process;
+
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
@@ -73,64 +79,7 @@ use strict_num_extended::FinF64;
 use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
 
-pub mod player;
-
-pub mod prelude;
-
-pub mod process;
-
-pub use event::{ChartEvent, FlowEvent, PlayheadEvent};
-
-/// Y coordinate wrapper type.
-///
-/// Represents a non-negative position on the timeline (measure units).
-/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct YCoordinate(pub NonNegativeF64);
-
-impl YCoordinate {
-    /// Create a new `YCoordinate` from `NonNegativeF64`.
-    #[must_use]
-    pub const fn new(value: NonNegativeF64) -> Self {
-        Self(value)
-    }
-
-    /// Get the internal `NonNegativeF64` value.
-    #[must_use]
-    pub const fn value(&self) -> &NonNegativeF64 {
-        &self.0
-    }
-
-    /// Convert to f64.
-    #[must_use]
-    pub const fn as_f64(&self) -> f64 {
-        self.0.as_f64()
-    }
-
-    /// Zero value.
-    pub const ZERO: Self = Self(NonNegativeF64::ZERO);
-    /// One value.
-    pub const ONE: Self = Self(NonNegativeF64::ONE);
-}
-
-impl From<NonNegativeF64> for YCoordinate {
-    fn from(value: NonNegativeF64) -> Self {
-        Self(value)
-    }
-}
-
-impl From<YCoordinate> for NonNegativeF64 {
-    fn from(value: YCoordinate) -> Self {
-        value.0
-    }
-}
-
-impl AsRef<NonNegativeF64> for YCoordinate {
-    fn as_ref(&self) -> &NonNegativeF64 {
-        &self.0
-    }
-}
+use self::event::{FlowEvent, YCoordinate};
 
 /// Maximum value for `NonNegativeF64` when overflow occurs
 pub(crate) const MAX_NON_NEGATIVE_F64: NonNegativeF64 = NonNegativeF64::new_const(f64::MAX);
@@ -143,54 +92,6 @@ pub const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);
 
 /// Default speed factor
 pub const DEFAULT_SPEED: PositiveF64 = PositiveF64::ONE;
-
-impl std::ops::Add for YCoordinate {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0.add(rhs.0).unwrap_or(MAX_NON_NEGATIVE_F64))
-    }
-}
-
-impl std::ops::Add<NonNegativeF64> for YCoordinate {
-    type Output = Self;
-
-    fn add(self, rhs: NonNegativeF64) -> Self::Output {
-        Self(self.0.add(rhs).unwrap_or(MAX_NON_NEGATIVE_F64))
-    }
-}
-
-impl std::ops::Sub for YCoordinate {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(NonNegativeF64::new(self.0.as_f64() - rhs.0.as_f64()).unwrap_or(NonNegativeF64::ZERO))
-    }
-}
-
-impl std::ops::Sub<NonNegativeF64> for YCoordinate {
-    type Output = Self;
-
-    fn sub(self, rhs: NonNegativeF64) -> Self::Output {
-        Self(NonNegativeF64::new(self.0.as_f64() - rhs.as_f64()).unwrap_or(NonNegativeF64::ZERO))
-    }
-}
-
-impl std::ops::Mul<FinF64> for YCoordinate {
-    type Output = Self;
-
-    fn mul(self, rhs: FinF64) -> Self::Output {
-        Self(NonNegativeF64::new(self.0.as_f64() * rhs.as_f64()).unwrap_or(self.0))
-    }
-}
-
-impl std::ops::Div<FinF64> for YCoordinate {
-    type Output = Self;
-
-    fn div(self, rhs: FinF64) -> Self::Output {
-        Self(NonNegativeF64::new(self.0.as_f64() / rhs.as_f64()).unwrap_or(self.0))
-    }
-}
 
 /// Playable chart data containing all precomputed information.
 ///

@@ -9,9 +9,9 @@ use std::time::Duration;
 use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
-use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent};
+use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
 use crate::chart::process::AllEventsIndex;
-use crate::chart::{MAX_FIN_F64, MAX_NON_NEGATIVE_F64, YCoordinate};
+use crate::chart::{MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
 
 pub mod base_bpm;
 

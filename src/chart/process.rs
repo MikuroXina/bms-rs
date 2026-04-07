@@ -6,8 +6,8 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
 use crate::bms::command::channel::NoteKind;
-use crate::chart::event::{ChartEvent, PlayheadEvent};
-use crate::chart::{Chart, TimeSpan, YCoordinate};
+use crate::chart::event::{ChartEvent, PlayheadEvent, YCoordinate};
+use crate::chart::{Chart, TimeSpan};
 use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
 
@@ -625,7 +625,8 @@ mod tests {
     use super::AllEventsIndex;
     use super::ChartEventId;
     use crate::bms::command::channel::{Key, NoteKind, PlayerSide};
-    use crate::chart::{ChartEvent, PlayheadEvent, TimeSpan, YCoordinate};
+    use crate::chart::TimeSpan;
+    use crate::chart::event::{ChartEvent, PlayheadEvent, YCoordinate};
     use strict_num_extended::NonNegativeF64;
 
     // Test constants
