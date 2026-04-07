@@ -5,7 +5,7 @@
 
 // Re-export types
 pub use super::FlowEvent;
-pub use super::base_bpm::{
+pub use super::player::base_bpm::{
     BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator,
 };
 pub use super::player::{DisplayRatio, VisibleRangePerBpm};

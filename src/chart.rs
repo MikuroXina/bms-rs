@@ -70,7 +70,6 @@ use strict_num_extended::FinF64;
 use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
 
-pub mod base_bpm;
 pub mod process;
 
 // Player module

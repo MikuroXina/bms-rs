@@ -14,6 +14,8 @@ use crate::chart::{
     ChartEvent, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, PlayheadEvent, YCoordinate,
 };
 
+pub mod base_bpm;
+
 /// Unified chart player.
 ///
 /// This player takes a parsed chart and manages all playback state and event processing.
