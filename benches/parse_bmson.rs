@@ -2,7 +2,7 @@
 
 use bms_rs::{
     bmson::{Bmson, parse_bmson},
-    chart_process::processor::bmson::BmsonProcessor,
+    chart::process::bmson::BmsonProcessor,
 };
 use criterion::{Criterion, Throughput};
 use std::{collections::BTreeMap, sync::LazyLock};

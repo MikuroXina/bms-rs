@@ -1,6 +1,6 @@
 //! Chart Process module prelude
 //!
-//! This module provides re-exports of commonly used types and traits from the `chart_process` module,
+//! This module provides re-exports of commonly used types and traits from the `chart` module,
 //! allowing users to import all needed items in one go.
 
 // Re-export types
@@ -9,9 +9,9 @@ pub use super::base_bpm::{
     BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator,
 };
 pub use super::player::{DisplayRatio, VisibleRangePerBpm};
-pub use super::processor::{
-    AllEventsIndex, BmpId, ChartEventId, ChartEventIdGenerator, ChartResources, PlayableChart,
-    Process, WavId,
+pub use super::process::{
+    AllEventsIndex, BmpId, Chart, ChartEventId, ChartEventIdGenerator, ChartResources, Process,
+    WavId,
 };
 pub use super::{BaseBpm, YCoordinate};
 pub use gametime::TimeSpan;
@@ -28,11 +28,11 @@ pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 pub use crate::bms::prelude::SwBgaEvent;
 
 // Re-export BmsProcessor from bms module
-pub use super::processor::bms::BmsProcessor;
+pub use super::process::bms::BmsProcessor;
 
 // Re-export BmsonProcessor from bmson module
 #[cfg(feature = "bmson")]
-pub use super::processor::bmson::BmsonProcessor;
+pub use super::process::bmson::BmsonProcessor;
 
 // Re-export ChartPlayer
 pub use super::player::{ChartPlayer, PlaybackState};

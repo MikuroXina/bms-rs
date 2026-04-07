@@ -1,4 +1,4 @@
-//! Module for chart processors
+//! Module for chart process
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
@@ -6,24 +6,24 @@ use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
 use crate::bms::command::channel::NoteKind;
-use crate::chart_process::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
+use crate::chart::{ChartEvent, FlowEvent, PlayheadEvent, TimeSpan, YCoordinate};
 use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
 
 pub mod bms;
 pub mod bmson;
 
-/// Trait for types that can be processed into a `PlayableChart`. It's intended that chart types implement this.
+/// Trait for types that can be processed into a `Chart`. It's intended that chart types implement this.
 pub trait Process {
     /// Error type returned when processing fails.
     type Error;
 
-    /// Processes into a `PlayableChart`.
+    /// Processes into a `Chart`.
     ///
     /// # Errors
     ///
     /// Returns `Self::Error` if processing fails.
-    fn process(self) -> Result<PlayableChart, Self::Error>;
+    fn process(self) -> Result<Chart, Self::Error>;
 }
 
 /// WAV audio file ID wrapper type
@@ -544,7 +544,7 @@ impl ChartResources {
 /// multiple player instances. Note that this structure does NOT contain playback
 /// state - playback state is managed by `ChartPlayer`.
 #[derive(Debug, Clone)]
-pub struct PlayableChart {
+pub struct Chart {
     /// Resource file mapping.
     pub(crate) resources: ChartResources,
     /// Event index (by Y coordinate and time).
@@ -557,7 +557,7 @@ pub struct PlayableChart {
     pub(crate) init_speed: PositiveF64,
 }
 
-impl PlayableChart {
+impl Chart {
     /// Get resource file mapping.
     #[must_use]
     pub const fn resources(&self) -> &ChartResources {
@@ -606,7 +606,7 @@ impl PlayableChart {
         self.resources.bmp_files()
     }
 
-    /// Create a new `PlayableChart` from its constituent parts.
+    /// Create a new `Chart` from its constituent parts.
     ///
     /// This is an internal constructor used by chart processors to assemble
     /// a parsed chart from its components.
@@ -714,7 +714,7 @@ mod tests {
     use super::AllEventsIndex;
     use super::ChartEventId;
     use crate::bms::command::channel::{Key, NoteKind, PlayerSide};
-    use crate::chart_process::{ChartEvent, PlayheadEvent, TimeSpan, YCoordinate};
+    use crate::chart::{ChartEvent, PlayheadEvent, TimeSpan, YCoordinate};
     use strict_num_extended::NonNegativeF64;
 
     // Test constants

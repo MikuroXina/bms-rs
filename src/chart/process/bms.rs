@@ -12,10 +12,10 @@ use strict_num_extended::{FinF64, PositiveF64};
 use crate::bms::command::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
 use crate::bms::prelude::*;
-use crate::chart_process::processor::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, PlayableChart, Process, WavId,
+use crate::chart::process::{
+    AllEventsIndex, BmpId, Chart, ChartEventIdGenerator, ChartResources, Process, WavId,
 };
-use crate::chart_process::{
+use crate::chart::{
     ChartEvent, DEFAULT_BPM, DEFAULT_SPEED, FlowEvent, MAX_FIN_F64, MAX_NON_NEGATIVE_F64,
     PlayheadEvent, TimeSpan, YCoordinate,
 };
@@ -24,7 +24,7 @@ use strict_num_extended::NonNegativeF64;
 /// BMS format parser.
 ///
 /// This struct serves as a namespace for BMS parsing functions.
-/// It parses BMS files and returns a `PlayableChart` containing all precomputed data.
+/// It parses BMS files and returns a `Chart` containing all precomputed data.
 pub struct BmsProcessor;
 
 /// Convert STOP duration from 192nd-note units to beats (measure units).
@@ -40,12 +40,12 @@ fn convert_stop_duration_to_beats(duration_192nd: NonNegativeF64) -> NonNegative
 }
 
 impl BmsProcessor {
-    /// Parse BMS file and return a `PlayableChart` containing all precomputed data.
+    /// Parse BMS file and return a `Chart` containing all precomputed data.
     ///
     /// # Errors
     ///
     /// Returns [`PlayingError::InvalidBpm`] if the BPM value could not be parsed.
-    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> Result<PlayableChart, PlayingError> {
+    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> Result<Chart, PlayingError> {
         // === Validate all StringValue definitions ===
         let mut errors = Vec::new();
 
@@ -146,7 +146,7 @@ impl BmsProcessor {
                 error: format!("{e:?}"),
             })?;
 
-        Ok(PlayableChart::from_parts(
+        Ok(Chart::from_parts(
             ChartResources::new(wav_files, bmp_files),
             all_events,
             y_memo.flow_events().clone(),
@@ -801,7 +801,7 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
     }
 }
 
-impl TryFrom<Bms> for PlayableChart {
+impl TryFrom<Bms> for Chart {
     type Error = PlayingError;
 
     fn try_from(bms: Bms) -> Result<Self, Self::Error> {
@@ -812,7 +812,7 @@ impl TryFrom<Bms> for PlayableChart {
 impl Process for Bms {
     type Error = PlayingError;
 
-    fn process(self) -> Result<PlayableChart, Self::Error> {
+    fn process(self) -> Result<Chart, Self::Error> {
         BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&self)
     }
 }

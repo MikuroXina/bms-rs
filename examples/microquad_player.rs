@@ -7,9 +7,9 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use bms_rs::chart_process::BaseBpm;
-use bms_rs::chart_process::prelude::*;
-use bms_rs::{bms::prelude::*, chart_process::PlayheadEvent};
+use bms_rs::chart::BaseBpm;
+use bms_rs::chart::prelude::*;
+use bms_rs::{bms::prelude::*, chart::PlayheadEvent};
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
 use kira::{
@@ -187,8 +187,8 @@ struct Config {
 ///
 /// # Returns
 ///
-/// Returns parsed `PlayableChart` and base BPM value.
-fn load_chart(path: &Path) -> Result<(PlayableChart, BaseBpm), String> {
+/// Returns parsed `Chart` and base BPM value.
+fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
     // Read file content
     // First read as bytes
     let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file: {e}"))?;

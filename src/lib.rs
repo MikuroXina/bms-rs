@@ -140,6 +140,6 @@
 
 pub mod bms;
 pub mod bmson;
-pub mod chart_process;
+pub mod chart;
 pub mod diagnostics;
 pub(crate) mod util;
