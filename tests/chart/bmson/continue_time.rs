@@ -42,7 +42,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
@@ -104,7 +104,7 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
@@ -160,7 +160,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
@@ -233,7 +233,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let t = start_time + TimeSpan::MILLISECOND * 2400;
     let _ = processor.update(t);
@@ -298,7 +298,7 @@ fn test_bmson_continue_independent_across_sound_channels() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
 

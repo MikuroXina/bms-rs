@@ -101,7 +101,7 @@ fn test_bms_zero_length_section_comprehensive() {
     );
 
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _ = processor.update(start_time + TimeSpan::SECOND * 3);
 
     let state = processor.playback_state();
@@ -152,7 +152,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let _ = processor.update(start_time + TimeSpan::SECOND);
     let events1 = processor.visible_events();
@@ -236,7 +236,7 @@ fn test_bms_consecutive_zero_length_sections() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let _ = processor.update(start_time + TimeSpan::SECOND * 5);
 

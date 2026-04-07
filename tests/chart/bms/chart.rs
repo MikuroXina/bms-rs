@@ -31,7 +31,7 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::start();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _events = processor.update(start_time + TimeSpan::SECOND * 2);
 
     let events = processor.events_in_time_range(

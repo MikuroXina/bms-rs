@@ -34,7 +34,7 @@ fn test_bmson_visible_event_activate_time_prediction() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let _ = processor.update(start_time);
     let events = processor.visible_events();
@@ -80,7 +80,7 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _ = processor.update(start_time);
 
     let events = processor.visible_events();
@@ -126,7 +126,7 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _ = processor.update(start_time);
 
     let events = processor.visible_events();

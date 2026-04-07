@@ -161,7 +161,7 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let processor_start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, processor_start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, processor_start_time);
     let start_time = TimeStamp::start();
     let _events = processor.update(start_time + TimeSpan::SECOND * 2);
 
@@ -224,7 +224,7 @@ fn test_update_consistency_extreme_many_intervals() {
 
     let start_time = TimeStamp::start();
 
-    let mut player1 = ChartPlayer::start(chart.clone(), visible_range.clone(), start_time);
+    let mut player1 = ChartPlayer::start(&chart, visible_range.clone(), start_time);
     let mut events1_total = Vec::new();
     for i in 1..=10000 {
         let t = start_time + TimeSpan::MICROSECOND * 100 * i;
@@ -232,7 +232,7 @@ fn test_update_consistency_extreme_many_intervals() {
         events1_total.extend(events);
     }
 
-    let mut player2 = ChartPlayer::start(chart, visible_range, start_time);
+    let mut player2 = ChartPlayer::start(&chart, visible_range, start_time);
     let t_final = start_time + TimeSpan::SECOND;
     let events2_total = player2.update(t_final);
 
@@ -317,7 +317,7 @@ fn test_update_consistency_zero_interval() {
     let chart = BmsonProcessor::parse(&bmson);
     let visible_range = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
 
-    let mut player = ChartPlayer::start(chart, visible_range, TimeStamp::start());
+    let mut player = ChartPlayer::start(&chart, visible_range, TimeStamp::start());
     let start_time = TimeStamp::start();
 
     let t = start_time + TimeSpan::MILLISECOND * 500;
