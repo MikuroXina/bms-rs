@@ -43,7 +43,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let processor_start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, processor_start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, processor_start_time);
     let start_time = processor.started_at();
 
     let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
@@ -60,7 +60,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let visible_range_per_bpm2 = VisibleRangePerBpm::new(base_bpm2.value(), reaction_time);
     let chart2 = BmsonProcessor::parse(&bmson2);
     let start_time2 = TimeStamp::now();
-    let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
+    let restarted_processor = ChartPlayer::start(&chart2, visible_range_per_bpm2, start_time2);
     let reset_state = restarted_processor.playback_state();
     assert_eq!(reset_state.current_scroll, FinF64::ONE);
 }
@@ -105,7 +105,7 @@ fn test_bmson_edge_cases_no_division_by_zero() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let _ = processor.update(start_time);
 
@@ -174,7 +174,7 @@ fn test_very_long_elapsed_time_no_errors() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let thirty_days = TimeSpan::from_duration(Duration::from_secs(2592000));
     let after_long_time = start_time + thirty_days;

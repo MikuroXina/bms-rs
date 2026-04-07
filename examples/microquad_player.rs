@@ -66,7 +66,7 @@ async fn main() -> Result<(), String> {
 
     // 6. Start ChartPlayer
     let start_time = TimeStamp::now();
-    let mut chart_player = ChartPlayer::start(chart, visible_range, start_time);
+    let mut chart_player = ChartPlayer::start(&chart, visible_range, start_time);
     // Set visibility range to [-0.5, 1.0) to show events past judgment line
     chart_player.set_visibility_range(FinF64::NEG_HALF..FinF64::ONE);
     println!("Player started");

@@ -42,7 +42,7 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::start();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let _ = processor.update(start_time + TimeSpan::MILLISECOND * 100);
 
@@ -88,7 +88,7 @@ fn test_visible_events_duration_matches_reaction_time() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _start_time = TimeStamp::start();
 
     let initial_state = processor.playback_state();
@@ -138,7 +138,7 @@ fn test_visible_events_duration_with_playback_ratio() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _start_time = TimeStamp::start();
 
     let test_base_bpm = TEST_BPM_120;
@@ -205,7 +205,7 @@ fn test_visible_events_with_boundary_conditions() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsonProcessor::parse(&bmson);
     let start_time = TimeStamp::now();
-    let _processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let _processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let test_base_bpm = TEST_BPM_120;
     let visible_range = VisibleRangePerBpm::new(&test_base_bpm, reaction_time);

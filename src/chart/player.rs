@@ -2,7 +2,7 @@
 //!
 //! Unified player for parsed charts, managing playback state and event processing.
 
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::ops::{Bound, RangeBounds};
 use std::time::Duration;
 
@@ -10,15 +10,15 @@ use gametime::{TimeSpan, TimeStamp};
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
-use crate::chart::process::AllEventsIndex;
-use crate::chart::{MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
+use crate::chart::{Chart, MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
 
 pub mod base_bpm;
 
 /// Unified chart player.
 ///
 /// This player takes a parsed chart and manages all playback state and event processing.
-pub struct ChartPlayer {
+pub struct ChartPlayer<'a> {
+    chart: &'a Chart,
     // Playback state
     started_at: TimeStamp,
     last_poll_at: TimeStamp,
@@ -33,16 +33,15 @@ pub struct ChartPlayer {
 
     // Event management
     pub(crate) preloaded_events: Vec<PlayheadEvent>,
-    pub(crate) all_events: AllEventsIndex,
 
-    // Flow event indexing
-    pub(crate) flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+    // Flow event processing tracking
+    processed_flow_y: BTreeSet<YCoordinate>,
 
     // Playback state (always initialized after construction)
     playback_state: PlaybackState,
 }
 
-impl ChartPlayer {
+impl<'a> ChartPlayer<'a> {
     /// Create a new player and start playback at the given time.
     ///
     /// This is the only way to create a `ChartPlayer` instance.
@@ -69,21 +68,20 @@ impl ChartPlayer {
     /// let visible_range = VisibleRangePerBpm::new(base_bpm, reaction_time);
     /// let chart = BmsProcessor::parse(&bms);
     ///
-    /// let mut player = ChartPlayer::start(chart, visible_range, start_time);
+    /// let mut player = ChartPlayer::start(&chart, visible_range, start_time);
     /// ```
     #[must_use]
-    pub fn start(
-        mut chart: crate::chart::Chart,
+    pub const fn start(
+        chart: &'a Chart,
         visible_range_per_bpm: VisibleRangePerBpm,
         start_time: TimeStamp,
     ) -> Self {
-        // Extract flow_events and events from chart (take ownership)
-        let flow_events = std::mem::take(&mut chart.flow_events);
-        let all_events = chart.events.clone();
+        // Chart reference is stored, not cloned
         let init_bpm = chart.init_bpm;
         let init_speed = chart.init_speed;
 
         Self {
+            chart,
             started_at: start_time,
             last_poll_at: start_time,
             visible_range_per_bpm,
@@ -91,8 +89,7 @@ impl ChartPlayer {
             cached_velocity: None,
             velocity_dirty: true,
             preloaded_events: Vec::new(),
-            all_events,
-            flow_events_by_y: flow_events,
+            processed_flow_y: BTreeSet::new(),
             playback_state: PlaybackState::new(
                 init_bpm,
                 init_speed,
@@ -264,7 +261,8 @@ impl ChartPlayer {
         let view_end = *current_y + visible_window_y;
 
         let visible_events = self
-            .all_events
+            .chart
+            .events()
             .events_in_y_range((Bound::Excluded(view_start), Bound::Included(view_end)));
 
         visible_events
@@ -326,7 +324,8 @@ impl ChartPlayer {
             .map(strict_num_extended::FinF64::as_f64)
             .unwrap_or(f64::MAX);
         let center = TimeSpan::from_duration(Duration::from_secs_f64(center_secs));
-        self.all_events
+        self.chart
+            .events()
             .events_in_time_range_offset_from(center, range)
     }
 
@@ -376,9 +375,10 @@ impl ChartPlayer {
         y_from_exclusive: &YCoordinate,
     ) -> Option<(YCoordinate, FlowEvent)> {
         use std::ops::Bound::{Excluded, Unbounded};
-        self.flow_events_by_y
+        self.chart
+            .flow_events()
             .range((Excluded(y_from_exclusive), Unbounded))
-            .next()
+            .find(|(y, _)| !self.processed_flow_y.contains(y))
             .and_then(|(y, events)| events.first().cloned().map(|evt| (*y, evt)))
     }
 
@@ -386,20 +386,25 @@ impl ChartPlayer {
     #[must_use]
     fn next_flow_event_y_after(&self, y_from_exclusive: YCoordinate) -> Option<YCoordinate> {
         use std::ops::Bound::{Excluded, Unbounded};
-        self.flow_events_by_y
-            .range((Excluded(y_from_exclusive), Unbounded))
-            .next()
+        self.chart
+            .flow_events()
+            .range((Excluded(&y_from_exclusive), Unbounded))
+            .find(|(y, _)| !self.processed_flow_y.contains(y))
             .map(|(y, _)| *y)
     }
 
     /// Apply all flow events at the given Y position.
     fn apply_flow_events_at(&mut self, y: YCoordinate) {
-        // Remove events from the map to take ownership, avoiding borrow conflicts
-        if let Some(events) = self.flow_events_by_y.remove(&y) {
+        // Skip if already processed to avoid re-applying events
+        if self.processed_flow_y.contains(&y) {
+            return;
+        }
+        // Get events from chart reference and apply
+        if let Some(events) = self.chart.flow_events().get(&y) {
             for event in events {
-                self.apply_flow_event(&event);
+                self.apply_flow_event(event);
             }
-            // Note: events are not re-inserted since they've been applied
+            self.processed_flow_y.insert(y);
         }
     }
 
@@ -541,7 +546,7 @@ impl ChartPlayer {
     where
         R: Clone + std::ops::RangeBounds<YCoordinate>,
     {
-        self.all_events.events_in_y_range(range)
+        self.chart.events().events_in_y_range(range)
     }
 
     /// Update preloaded events based on current Y position.
@@ -553,7 +558,8 @@ impl ChartPlayer {
             NonNegativeF64::new(preload_end_y.as_f64()).unwrap_or(MAX_NON_NEGATIVE_F64),
         );
         let new_preloaded_events = self
-            .all_events
+            .chart
+            .events()
             .events_in_y_range((Excluded(&cur_y), Included(&preload_end_y_coord)));
 
         self.preloaded_events = new_preloaded_events;
@@ -873,7 +879,7 @@ mod tests {
     use super::*;
     use crate::chart::Chart;
     use crate::chart::YCoordinate;
-    use crate::chart::process::ChartResources;
+    use crate::chart::process::{AllEventsIndex, ChartResources};
     use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
     /// Default test BPM value (120.0) - used as initial BPM
@@ -902,7 +908,7 @@ mod tests {
         );
 
         let mut player = ChartPlayer::start(
-            chart,
+            &chart,
             VisibleRangePerBpm::new(&TEST_BPM_120, TimeSpan::SECOND),
             TimeStamp::now(),
         );
@@ -942,7 +948,7 @@ mod tests {
         );
 
         let mut player = ChartPlayer::start(
-            chart,
+            &chart,
             VisibleRangePerBpm::new(&TEST_BPM_120, TimeSpan::SECOND),
             TimeStamp::now(),
         );
@@ -1002,7 +1008,7 @@ mod tests {
 
         let start_time = TimeStamp::now();
         let mut player = ChartPlayer::start(
-            chart,
+            &chart,
             VisibleRangePerBpm::new(&TEST_BPM_120, TimeSpan::SECOND),
             TimeStamp::now(),
         );

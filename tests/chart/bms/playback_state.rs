@@ -23,7 +23,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let elapsed = TimeSpan::SECOND * 3;
     let now = start_time + elapsed;
@@ -69,7 +69,7 @@ fn test_bms_restart_resets_scroll_to_one() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
-    let mut processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let after_scroll_change = processor.started_at() + TimeSpan::MILLISECOND * 2700;
     let _ = processor.update(after_scroll_change);
@@ -85,7 +85,7 @@ fn test_bms_restart_resets_scroll_to_one() {
     let visible_range_per_bpm2 = VisibleRangePerBpm::new(base_bpm2.value(), reaction_time);
     let chart2 = BmsProcessor::parse::<KeyLayoutBeat>(&bms2).expect("failed to parse chart");
     let start_time2 = TimeStamp::now();
-    let restarted_processor = ChartPlayer::start(chart2, visible_range_per_bpm2, start_time2);
+    let restarted_processor = ChartPlayer::start(&chart2, visible_range_per_bpm2, start_time2);
     let reset_state = restarted_processor.playback_state();
     assert_eq!(reset_state.current_scroll, FinF64::ONE);
 }
@@ -113,7 +113,7 @@ fn test_visible_events_duration_matches_reaction_time() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
     let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
-    let processor = ChartPlayer::start(chart, visible_range_per_bpm, start_time);
+    let processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
     let initial_state = processor.playback_state();
     assert_eq!(initial_state.current_bpm, TEST_BPM_120);
