@@ -97,9 +97,9 @@ impl StopProcessor {
             // Parse xxx.yyy zzzz
             use std::time::Duration;
             let args: Vec<_> = args.split_whitespace().collect();
-            let [measure_pos, _unused, ms] = args.as_slice() else {
+            let [measure_pos, ms] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(
-                    "stp measure/pos must be 3 digits".into(),
+                    "stp requires 2 arguments: measure.position and milliseconds".into(),
                 ));
             };
 
