@@ -283,8 +283,7 @@ impl<'a> ChartPlayer<'a> {
                 {
                     // Calculate end_y with overflow protection
                     let end_y_value = FinF64::new(event_y.as_f64() + length.as_f64())
-                        .map(strict_num_extended::FinF64::as_f64)
-                        .unwrap_or(f64::MAX);
+                        .map_or(f64::MAX, strict_num_extended::FinF64::as_f64);
                     let end_y = YCoordinate::new(
                         NonNegativeF64::new(end_y_value).unwrap_or(MAX_NON_NEGATIVE_F64),
                     );
@@ -321,8 +320,7 @@ impl<'a> ChartPlayer<'a> {
         let playback_ratio = self.playback_state.playback_ratio;
         // Calculate center time with overflow protection
         let center_secs = FinF64::new(elapsed_secs * playback_ratio.as_f64())
-            .map(strict_num_extended::FinF64::as_f64)
-            .unwrap_or(f64::MAX);
+            .map_or(f64::MAX, strict_num_extended::FinF64::as_f64);
         let center = TimeSpan::from_duration(Duration::from_secs_f64(center_secs));
         self.chart
             .events()
@@ -451,8 +449,7 @@ impl<'a> ChartPlayer<'a> {
                 // Use checked multiplication via FinF64 to detect overflow
                 let delta_y = if time_secs.is_finite() {
                     FinF64::new(cur_vel.as_f64() * time_secs)
-                        .map(strict_num_extended::FinF64::as_f64)
-                        .unwrap_or(f64::MAX)
+                        .map_or(f64::MAX, strict_num_extended::FinF64::as_f64)
                 } else {
                     f64::MAX
                 };
@@ -468,8 +465,7 @@ impl<'a> ChartPlayer<'a> {
                 let time_secs = remaining_time.as_secs_f64().max(0.0);
                 let delta_y = if time_secs.is_finite() {
                     FinF64::new(cur_vel.as_f64() * time_secs)
-                        .map(strict_num_extended::FinF64::as_f64)
-                        .unwrap_or(f64::MAX)
+                        .map_or(f64::MAX, strict_num_extended::FinF64::as_f64)
                 } else {
                     f64::MAX
                 };
@@ -515,8 +511,7 @@ impl<'a> ChartPlayer<'a> {
             let time_secs = remaining_time.as_secs_f64().max(0.0);
             let delta_y = if time_secs.is_finite() {
                 FinF64::new(cur_vel.as_f64() * time_secs)
-                    .map(strict_num_extended::FinF64::as_f64)
-                    .unwrap_or(f64::MAX)
+                    .map_or(f64::MAX, strict_num_extended::FinF64::as_f64)
             } else {
                 f64::MAX
             };

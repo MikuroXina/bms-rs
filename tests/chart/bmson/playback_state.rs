@@ -176,7 +176,7 @@ fn test_very_long_elapsed_time_no_errors() {
     let start_time = TimeStamp::start();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
-    let thirty_days = TimeSpan::from_duration(Duration::from_secs(2592000));
+    let thirty_days = TimeSpan::from_duration(Duration::from_hours(720));
     let after_long_time = start_time + thirty_days;
 
     let _ = processor.update(after_long_time);

@@ -311,7 +311,7 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     assert_eq!(initial_state.current_scroll, FinF64::ONE);
     assert_eq!(initial_state.current_scroll, FinF64::ONE);
 
-    let after_changes = start_time + TimeSpan::from_duration(Duration::from_millis(1000));
+    let after_changes = start_time + TimeSpan::from_duration(Duration::from_secs(1));
     let _ = processor.update(after_changes);
 
     assert!(
