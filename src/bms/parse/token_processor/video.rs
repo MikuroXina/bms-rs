@@ -13,7 +13,8 @@ use super::{super::prompt::Prompter, ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::{StringValue, video::Video},
+        command::string_value::StringValue,
+        model::video::Video,
         parse::{ParseWarning, Result},
         prelude::*,
     },

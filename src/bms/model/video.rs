@@ -7,7 +7,7 @@ use std::{
 
 use strict_num_extended::FinF64;
 
-use crate::bms::{command::StringValue, parse::Result, prelude::*};
+use crate::bms::{command::string_value::StringValue, parse::Result, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

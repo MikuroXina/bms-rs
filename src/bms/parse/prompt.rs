@@ -8,8 +8,9 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::bms::{
     command::{
-        ObjId, StringValue,
+        ObjId,
         channel::Channel,
+        string_value::StringValue,
         time::{ObjTime, Track},
     },
     model::{

@@ -329,7 +329,7 @@ mod tests {
             time::ObjTime,
         },
         model::{
-            Notes,
+            notes::Notes,
             obj::{BgaLayer, BgaObj, WavObj},
         },
     };

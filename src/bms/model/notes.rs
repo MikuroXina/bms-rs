@@ -72,7 +72,7 @@ impl Notes {
     ///
     /// To filter out dangling objects, use:
     /// ```rust
-    /// # let notes = bms_rs::bms::model::Notes::default();
+    /// # let notes = bms_rs::bms::model::notes::Notes::default();
     /// notes.all_notes().filter(|obj| !obj.wav_id.is_null())
     /// # ;
     /// ```
@@ -91,7 +91,7 @@ impl Notes {
     ///
     /// To filter out dangling objects, use:
     /// ```rust
-    /// # let notes = bms_rs::bms::model::Notes::default();
+    /// # let notes = bms_rs::bms::model::notes::Notes::default();
     /// notes.all_entries().filter(|(_, obj)| !obj.wav_id.is_null())
     /// # ;
     /// ```
@@ -122,7 +122,7 @@ impl Notes {
     ///
     /// To filter out dangling objects, use:
     /// ```rust
-    /// # let notes = bms_rs::bms::model::Notes::default();
+    /// # let notes = bms_rs::bms::model::notes::Notes::default();
     /// notes.all_notes_insertion_order().filter(|obj| !obj.wav_id.is_null())
     /// # ;
     /// ```

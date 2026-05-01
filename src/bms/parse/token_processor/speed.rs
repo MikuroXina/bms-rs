@@ -12,7 +12,8 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::{StringValue, speed::SpeedObjects},
+        command::string_value::StringValue,
+        model::speed::SpeedObjects,
         parse::{ParseWarning, Result},
         prelude::*,
     },

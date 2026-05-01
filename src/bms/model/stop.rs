@@ -9,7 +9,7 @@ use crate::bms::parse::{
     prompt::{ChannelDuplication, Prompter},
 };
 use crate::bms::{
-    command::{StringValue, channel::Channel},
+    command::{channel::Channel, string_value::StringValue},
     prelude::*,
 };
 

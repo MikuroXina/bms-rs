@@ -13,9 +13,6 @@ pub mod mixin;
 pub mod string_value;
 pub mod time;
 
-// Re-export StringValue for convenience
-pub use string_value::StringValue;
-
 /// Minor command types and utilities.
 ///
 /// This module contains types and utilities for minor BMS commands that are only available

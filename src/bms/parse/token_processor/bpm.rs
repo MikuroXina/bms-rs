@@ -14,7 +14,8 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::{StringValue, bpm::BpmObjects},
+        command::string_value::StringValue,
+        model::bpm::BpmObjects,
         parse::{ParseWarning, Result},
         prelude::*,
     },

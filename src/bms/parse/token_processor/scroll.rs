@@ -12,7 +12,8 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::{StringValue, scroll::ScrollObjects},
+        command::string_value::StringValue,
+        model::scroll::ScrollObjects,
         parse::{ParseWarning, Result},
         prelude::*,
     },

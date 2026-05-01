@@ -12,7 +12,8 @@ use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_i
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::{StringValue, judge::JudgeObjects},
+        command::string_value::StringValue,
+        model::judge::JudgeObjects,
         parse::{ParseWarning, Result},
         prelude::*,
     },
