@@ -22,25 +22,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install APT packages with cache
-        uses: awalsh128/cache-apt-pkgs-action@latest
+      - uses: ./.github/actions/setup-rust
         with:
-          packages: libasound2-dev
-          version: 1.0
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          workspaces: |
-            . -> target
-          key: benchmark
+          install-apt: true
 
       - name: Run baseline (main branch)
         if: github.event_name == 'pull_request'
