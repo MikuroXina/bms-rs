@@ -10,7 +10,10 @@ use std::borrow::Cow;
 
 use thiserror::Error;
 
-use crate::bms::{command::mixin::SourceRangeMixin, prelude::Track};
+use crate::bms::{
+    command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
+    prelude::Track,
+};
 #[cfg(feature = "diagnostics")]
 use crate::diagnostics::{SimpleSource, ToAriadne};
 #[cfg(feature = "diagnostics")]
@@ -146,7 +149,7 @@ impl<'a> TokenStream<'a> {
                     continue;
                 }
             };
-            tokens.push(SourceRangeMixin::new(token, token_range));
+            tokens.push(token.into_wrapper_range(token_range));
         }
         LexOutput {
             tokens: TokenStream { tokens },

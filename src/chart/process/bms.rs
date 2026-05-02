@@ -13,6 +13,7 @@ use crate::bms::command::string_value::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
 use crate::bms::prelude::*;
 use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent};
+use crate::chart::key_mapping::KeyLayoutMapper;
 use crate::chart::process::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Process, WavId,
 };
@@ -192,7 +193,7 @@ impl BmsProcessor {
     pub(crate) fn lane_of_channel_id<T: KeyLayoutMapper>(
         channel_id: NoteChannelId,
     ) -> Option<(PlayerSide, Key, NoteKind)> {
-        let map = channel_id.try_into_map::<T>()?;
+        let map = T::from_channel_id(channel_id)?;
         let side = map.side();
         let key = map.key();
         let kind = map.kind();
@@ -805,7 +806,7 @@ impl TryFrom<Bms> for Chart {
     type Error = PlayingError;
 
     fn try_from(bms: Bms) -> Result<Self, Self::Error> {
-        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&bms)
+        BmsProcessor::parse::<crate::chart::key_mapping::KeyLayoutBeat>(&bms)
     }
 }
 
@@ -813,15 +814,15 @@ impl Process for Bms {
     type Error = PlayingError;
 
     fn process(self) -> Result<Chart, Self::Error> {
-        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&self)
+        BmsProcessor::parse::<crate::chart::key_mapping::KeyLayoutBeat>(&self)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bms::command::channel::mapper::KeyLayoutBeat;
     use crate::bms::command::string_value::StringValue;
+    use crate::chart::key_mapping::KeyLayoutBeat;
 
     /// Test that parsing fails when BPM value is invalid (non-numeric string)
     #[test]

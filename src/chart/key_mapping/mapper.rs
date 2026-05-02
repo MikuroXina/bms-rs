@@ -1,6 +1,6 @@
 //! For converting key/channel between different modes, please see [`KeyLayoutMapper`] enum and `convert_key_mapping_between` function.
 
-use super::{Key, NoteChannelId, NoteKind, PlayerSide};
+use crate::bms::command::channel::{Key, NoteChannelId, NoteKind, PlayerSide};
 use Key::*;
 
 /// Convert from [`KeyLayoutBeat`] to [`NoteChannelId`].

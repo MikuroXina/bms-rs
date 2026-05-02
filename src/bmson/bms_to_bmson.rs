@@ -14,6 +14,7 @@ use crate::{
         BarLine, Bga, BgaEvent, BgaHeader, BgaId, Bmson, BmsonInfo, BpmEvent, KeyChannel, KeyEvent,
         MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent, pulse::PulseConverter,
     },
+    chart::key_mapping::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
 };
 
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
@@ -145,13 +146,11 @@ impl Bms {
             mode_hint: {
                 // TODO: Support other modes
                 let is_7keys = self.wav.notes.all_notes().any(|note| {
-                    note.channel_id
-                        .try_into_map::<KeyLayoutBeat>()
+                    KeyLayoutBeat::from_channel_id(note.channel_id)
                         .is_some_and(|map| matches!(map.key(), Key::Key(6 | 7)))
                 });
                 let is_dp = self.wav.notes.all_notes().any(|note| {
-                    note.channel_id
-                        .try_into_map::<KeyLayoutBeat>()
+                    KeyLayoutBeat::from_channel_id(note.channel_id)
                         .is_some_and(|map| map.side() == PlayerSide::Player2)
                 });
                 match (is_dp, is_7keys) {
@@ -229,35 +228,24 @@ impl Bms {
             let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
             for note in self.wav.notes.all_notes() {
-                let note_lane = note
-                    .channel_id
-                    .try_into_map::<KeyLayoutBeat>()
+                let note_lane = KeyLayoutBeat::from_channel_id(note.channel_id)
                     .filter(|map| map.kind().is_playable())
-                    .map(|map|
-                        match map.key() {
-                            Key::Key(1) => 1,
-                            Key::Key(2) => 2,
-                            Key::Key(3) => 3,
-                            Key::Key(4) => 4,
-                            Key::Key(5) => 5,
-                            Key::Key(6) => 6,
-                            Key::Key(7) => 7,
-                            Key::Scratch(_) | Key::FreeZone => 8,
-                            // TODO: Extra key convertion
-                            Key::Key(_) | Key::FootPedal => 0,
-                        } + match map.side() {
+                    .map(|map| {
+                        let key_num = match map.key() {
+                            Key::Key(n @ 1..=7) => n,
+                            Key::Scratch(1) | Key::FreeZone => 8,
+                            _ => 0,
+                        };
+                        let side_offset = match map.side() {
                             PlayerSide::Player1 => 0,
                             PlayerSide::Player2 => 8,
-                        }
-                    )
+                        };
+                        key_num + side_offset
+                    })
                     .and_then(NonZeroU8::new);
 
                 let pulses = converter.get_pulses_at(note.offset);
-                match note
-                    .channel_id
-                    .try_into_map::<KeyLayoutBeat>()
-                    .map(|map| map.kind())
-                {
+                match note.channel_id.note_kind() {
                     Some(NoteKind::Landmine) => {
                         let damage = DAMAGE_VALUE;
                         mine_map.entry(note.wav_id).or_default().push(MineEvent {
@@ -394,5 +382,67 @@ impl Bms {
         };
 
         BmsToBmsonOutput { bmson, warnings }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::num::NonZeroU8;
+
+    use strict_num_extended::PositiveF64;
+
+    use crate::{
+        bms::{
+            command::{ObjId, string_value::StringValue, time::Track},
+            model::{Bms, obj::WavObj},
+            prelude::*,
+        },
+        bmson::bms_to_bmson::BmsToBmsonOutput,
+        chart::key_mapping::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
+    };
+
+    fn make_bms_with_notes(notes: Vec<WavObj>) -> Bms {
+        let mut bms = Bms::default();
+        bms.bpm.bpm = Some(StringValue::from_value(PositiveF64::new(120.0).unwrap()));
+        bms.wav
+            .wav_files
+            .insert(ObjId::try_from("01", false).unwrap(), "test.wav".into());
+        for note in notes {
+            bms.wav.notes.push_note(note);
+        }
+        bms
+    }
+
+    fn make_note(key: Key, wav_id_str: &str) -> WavObj {
+        let layout = KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, key);
+        WavObj {
+            offset: ObjTime::start_of(Track(0)),
+            channel_id: layout.to_channel_id(),
+            wav_id: ObjId::try_from(wav_id_str, false).unwrap(),
+        }
+    }
+
+    #[test]
+    fn key6_key7_map_to_lane_6_and_7() {
+        let bms = make_bms_with_notes(vec![
+            make_note(Key::Key(6), "01"),
+            make_note(Key::Key(7), "01"),
+        ]);
+        let BmsToBmsonOutput { bmson, .. } = bms.to_bmson();
+
+        let all_x: Vec<_> = bmson
+            .sound_channels
+            .iter()
+            .flat_map(|ch| ch.notes.iter().map(|n| n.x))
+            .collect();
+
+        assert!(
+            all_x.contains(&NonZeroU8::new(6)),
+            "expected lane 6 for Key6, got: {all_x:?}"
+        );
+        assert!(
+            all_x.contains(&NonZeroU8::new(7)),
+            "expected lane 7 for Key7, got: {all_x:?}"
+        );
     }
 }

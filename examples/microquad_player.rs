@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bms_rs::bms::prelude::*;
+use bms_rs::chart::key_mapping::KeyLayoutBeat;
 use bms_rs::chart::prelude::*;
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
@@ -215,7 +216,6 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
                 .generate(&bms)
                 .unwrap_or(BaseBpm::new(DEFAULT_BPM));
 
-            // Use KeyLayoutBeat mapper (supports 7+1k)
             let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
                 .map_err(|e| format!("Failed to parse chart: {e}"))?;
             (chart, base_bpm)

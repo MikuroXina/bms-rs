@@ -14,9 +14,8 @@ use super::{MICROSECOND_EPSILON, assert_time_close};
 /// # Panics
 ///
 /// Panics if there are any lex or parse warnings.
-pub fn parse_bms_no_warnings<T, P, R, M>(source: &str, config: ParseConfig<T, P, R, M>) -> Bms
+pub fn parse_bms_no_warnings<P, R, M>(source: &str, config: ParseConfig<P, R, M>) -> Bms
 where
-    T: KeyLayoutMapper,
     P: Prompter,
     R: Rng,
     M: TokenModifier,

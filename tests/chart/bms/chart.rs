@@ -1,7 +1,7 @@
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
+use bms_rs::chart::key_mapping::KeyLayoutBeat;
 use strict_num_extended::PositiveF64;
 
 /// Default BPM value (120.0) for tests

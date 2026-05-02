@@ -1,4 +1,5 @@
 use bms_rs::bms::prelude::*;
+use bms_rs::chart::key_mapping::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping};
 use num::BigUint;
 use pretty_assertions::assert_eq;
 

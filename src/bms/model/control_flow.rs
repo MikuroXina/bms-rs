@@ -198,9 +198,9 @@ impl RandomizedObjects {
 
     /// Exports this randomized block as `#RANDOM/#SETRANDOM + #IF/#ELSEIF/#ENDIF` tokens.
     ///
-    /// Branch contents are exported via `Bms::unparse::<T>()` for each branch in condition order.
+    /// Branch contents are exported via [`Bms::unparse`] for each branch in condition order.
     #[must_use]
-    pub fn export_as_random<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
+    pub fn export_as_random<'a>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         let Some(gval) = &self.generating else {
@@ -224,14 +224,14 @@ impl RandomizedObjects {
                 name: "IF".into(),
                 args: cond.to_string().into(),
             });
-            tokens.extend(branch.sub.as_ref().unparse::<T>());
+            tokens.extend(branch.sub.as_ref().unparse());
         }
         for (cond, branch) in iter {
             tokens.push(Token::Header {
                 name: "ELSEIF".into(),
                 args: cond.to_string().into(),
             });
-            tokens.extend(branch.sub.as_ref().unparse::<T>());
+            tokens.extend(branch.sub.as_ref().unparse());
         }
 
         tokens.push(Token::Header {
@@ -248,9 +248,9 @@ impl RandomizedObjects {
 
     /// Exports this randomized block as `#SWITCH/#SETSWITCH + #CASE/#SKIP/#ENDSW` tokens.
     ///
-    /// Branch contents are exported via `Bms::unparse::<T>()` for each `#CASE` in condition order.
+    /// Branch contents are exported via [`Bms::unparse`] for each `#CASE` in condition order.
     #[must_use]
-    pub fn export_as_switch<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
+    pub fn export_as_switch<'a>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         let Some(gval) = &self.generating else {
@@ -273,7 +273,7 @@ impl RandomizedObjects {
                 name: "CASE".into(),
                 args: cond.to_string().into(),
             });
-            tokens.extend(branch.sub.as_ref().unparse::<T>());
+            tokens.extend(branch.sub.as_ref().unparse());
             tokens.push(Token::Header {
                 name: "SKIP".into(),
                 args: "".into(),

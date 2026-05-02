@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
+use bms_rs::chart::key_mapping::KeyLayoutBeat;
 use strict_num_extended::{FinF64, PositiveF64};
 
 use bms_rs::chart::prelude::*;

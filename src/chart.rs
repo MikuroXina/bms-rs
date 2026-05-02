@@ -64,6 +64,8 @@
 
 pub mod event;
 
+pub mod key_mapping;
+
 pub mod player;
 
 pub mod prelude;

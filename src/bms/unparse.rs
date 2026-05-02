@@ -12,7 +12,7 @@ impl Bms {
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
     /// - For messages requiring `ObjId`, prioritize reusing existing definitions; if missing, allocate new `ObjId` and add definition Token (only reflected in returned Token list).
     #[must_use]
-    pub fn unparse<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
+    pub fn unparse<'a>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         // Others section lines FIRST to preserve order equality on roundtrip
@@ -21,7 +21,7 @@ impl Bms {
         // Check if any of the used IDs require base62 (not base36 but valid base62)
         let mut base62_checker = Base62Checker::new();
 
-        self.unparse_messages::<T>(&mut tokens, &mut base62_checker);
+        self.unparse_messages(&mut tokens, &mut base62_checker);
 
         // Add ObjIds from definition tokens that are not covered by managers
         // ExWav definitions
@@ -698,11 +698,7 @@ impl Bms {
         }
     }
 
-    fn unparse_messages<'a, T: KeyLayoutMapper>(
-        &'a self,
-        tokens: &mut Vec<Token<'a>>,
-        checker: &mut Base62Checker,
-    ) {
+    fn unparse_messages<'a>(&'a self, tokens: &mut Vec<Token<'a>>, checker: &mut Base62Checker) {
         // Collect late definition tokens and message tokens
         let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
         let mut message_tokens: Vec<Token<'a>> = Vec::new();
@@ -1031,11 +1027,13 @@ impl Bms {
             )>,
             |obj| {
                 // Channel mapping: determine channel based on channel_id
-                obj.channel_id
-                    .try_into_map::<T>()
-                    .map_or(Channel::Bgm, |_map| Channel::Note {
+                if obj.channel_id.is_note_channel() {
+                    Channel::Note {
                         channel_id: obj.channel_id,
-                    })
+                    }
+                } else {
+                    Channel::Bgm
+                }
             },
             |obj, _id| {
                 let s = obj.wav_id.to_string();

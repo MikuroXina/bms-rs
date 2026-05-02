@@ -57,7 +57,7 @@ fn test_scenario_1_no_merge() {
     let bms = bms.unwrap();
 
     // Unparse back to tokens
-    let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
+    let unparsed_tokens = bms.unparse();
 
     // Expected tokens - messages with same track/channel are merged, others remain separate (based on actual unparse behavior)
     let expected_tokens = [
@@ -137,7 +137,7 @@ fn test_scenario_2_can_merge() {
     let bms = bms.unwrap();
 
     // Unparse back to tokens
-    let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
+    let unparsed_tokens = bms.unparse();
 
     // Expected tokens - messages are merged as per actual unparse behavior
     let expected_tokens = [
@@ -214,7 +214,7 @@ fn test_scenario_3_cross_track_no_merge() {
     let bms = bms.unwrap();
 
     // Unparse back to tokens
-    let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
+    let unparsed_tokens = bms.unparse();
 
     // Expected tokens - messages are merged as per actual unparse behavior
     let expected_tokens = [
@@ -286,7 +286,7 @@ fn test_scenario_4_input_order_preservation() {
     let bms = bms.unwrap();
 
     // Unparse back to tokens
-    let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
+    let unparsed_tokens = bms.unparse();
 
     // Expected tokens - FF remains first, AA and BB are merged together (based on actual unparse behavior)
     let expected_tokens = [

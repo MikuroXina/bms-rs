@@ -31,7 +31,7 @@ use std::{
 use num::BigUint;
 
 use crate::bms::{
-    command::mixin::SourceRangeMixin,
+    command::mixin::SourceRangeMixinExt,
     lex::token::{Token, TokenWithRange},
     parse::{ParseError, ParseErrorWithRange, ParseWarning, ParseWarningWithRange},
     prelude::*,
@@ -190,10 +190,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
     fn top_state(&self, token: &TokenWithRange<'_>) -> Result<ProcessState, ParseErrorWithRange> {
         self.state_stack.borrow().last().cloned().ok_or_else(|| {
-            SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("internal control flow state is empty"),
-                token.range().clone(),
-            )
+            ParseError::UnexpectedControlFlow("internal control flow state is empty")
+                .into_wrapper_range(token.range().clone())
         })
     }
 
@@ -225,10 +223,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>| {
             let max: BigUint = match args.parse().map_err(|_| {
-                SourceRangeMixin::new(
-                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
-                    token.range().clone(),
-                )
+                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                    .into_wrapper_range(token.range().clone())
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
@@ -237,13 +233,11 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             let generated = self.rng.borrow_mut().generate(range.clone());
             let activated = self.is_activated();
             if activated && !range.contains(&generated) {
-                return Err(SourceRangeMixin::new(
-                    ParseError::RandomGeneratedValueOutOfRange {
-                        expected: range,
-                        actual: generated,
-                    },
-                    token.range().clone(),
-                ));
+                return Err(ParseError::RandomGeneratedValueOutOfRange {
+                    expected: range,
+                    actual: generated,
+                }
+                .into_wrapper_range(token.range().clone()));
             }
             self.state_stack.borrow_mut().push(ProcessState::Random {
                 generated,
@@ -280,10 +274,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>| {
             let generated: BigUint = match args.parse().map_err(|_| {
-                SourceRangeMixin::new(
-                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
-                    token.range().clone(),
-                )
+                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                    .into_wrapper_range(token.range().clone())
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
@@ -321,10 +313,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>, generated: BigUint| {
             let cond = match args.parse().map_err(|_| {
-                SourceRangeMixin::new(
-                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
-                    token.range().clone(),
-                )
+                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                    .into_wrapper_range(token.range().clone())
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
@@ -348,18 +338,18 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 let generated = match self.state_stack.borrow().last().cloned() {
                     Some(ProcessState::Random { generated, .. }) => generated,
                     _ => {
-                        return Err(SourceRangeMixin::new(
-                            ParseError::UnexpectedControlFlow("#IF must be on a random scope"),
-                            token.range().clone(),
-                        ));
+                        return Err(ParseError::UnexpectedControlFlow(
+                            "#IF must be on a random scope",
+                        )
+                        .into_wrapper_range(token.range().clone()));
                     }
                 };
                 push_new_one(collector, generated)
             }
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#IF must be on a random scope"),
-                token.range().clone(),
-            )),
+            _ => Err(
+                ParseError::UnexpectedControlFlow("#IF must be on a random scope")
+                    .into_wrapper_range(token.range().clone()),
+            ),
         }
     }
 
@@ -380,20 +370,18 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 let generated = match self.state_stack.borrow().last().cloned() {
                     Some(ProcessState::Random { generated, .. }) => generated,
                     _ => {
-                        return Err(SourceRangeMixin::new(
-                            ParseError::UnexpectedControlFlow("#ELSEIF must be on a random scope"),
-                            token.range().clone(),
-                        ));
+                        return Err(ParseError::UnexpectedControlFlow(
+                            "#ELSEIF must be on a random scope",
+                        )
+                        .into_wrapper_range(token.range().clone()));
                     }
                 };
 
                 self.finish_current_branch(collector, prompter)?;
 
                 let cond = match args.parse().map_err(|_| {
-                    SourceRangeMixin::new(
-                        ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
-                        token.range().clone(),
-                    )
+                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                        .into_wrapper_range(token.range().clone())
                 }) {
                     Ok(max) => max,
                     Err(warning) => return Ok(Some(warning)),
@@ -416,10 +404,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
                 Ok(None)
             }
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#ELSEIF must come after of a #IF"),
-                token.range().clone(),
-            )),
+            _ => Err(
+                ParseError::UnexpectedControlFlow("#ELSEIF must come after of a #IF")
+                    .into_wrapper_range(token.range().clone()),
+            ),
         }
     }
 
@@ -464,10 +452,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
                 Ok(())
             }
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#ELSE must come after #IF or #ELSEIF"),
-                token.range().clone(),
-            )),
+            _ => Err(
+                ParseError::UnexpectedControlFlow("#ELSE must come after #IF or #ELSEIF")
+                    .into_wrapper_range(token.range().clone()),
+            ),
         }
     }
 
@@ -484,10 +472,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 self.finish_current_branch(collector, prompter)?;
                 Ok(())
             }
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#ENDIF must come after #IF, #ELSEIF or #ELSE"),
-                token.range().clone(),
-            )),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#ENDIF must come after #IF, #ELSEIF or #ELSE",
+            )
+            .into_wrapper_range(token.range().clone())),
         }
     }
 
@@ -517,10 +505,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
                 Ok(())
             }
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#ENDRANDOM must come after #RANDOM"),
-                token.range().clone(),
-            )),
+            _ => Err(
+                ParseError::UnexpectedControlFlow("#ENDRANDOM must come after #RANDOM")
+                    .into_wrapper_range(token.range().clone()),
+            ),
         }
     }
 
@@ -533,10 +521,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>| {
             let max: BigUint = match args.parse().map_err(|_| {
-                SourceRangeMixin::new(
-                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
-                    token.range().clone(),
-                )
+                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                    .into_wrapper_range(token.range().clone())
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
@@ -546,13 +532,11 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             let activated = self.is_activated();
             if activated {
                 if !range.contains(&generated) {
-                    return Err(SourceRangeMixin::new(
-                        ParseError::SwitchGeneratedValueOutOfRange {
-                            expected: range,
-                            actual: generated,
-                        },
-                        token.range().clone(),
-                    ));
+                    return Err(ParseError::SwitchGeneratedValueOutOfRange {
+                        expected: range,
+                        actual: generated,
+                    }
+                    .into_wrapper_range(token.range().clone()));
                 }
                 self.state_stack
                     .borrow_mut()
@@ -587,10 +571,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let push_new_one = |collector_mut: &mut Collector<'t>| {
             let generated: BigUint = match args.parse().map_err(|_| {
-                SourceRangeMixin::new(
-                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
-                    token.range().clone(),
-                )
+                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                    .into_wrapper_range(token.range().clone())
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
@@ -631,10 +613,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let cond = match args.parse().map_err(|_| {
-            SourceRangeMixin::new(
-                ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
-                token.range().clone(),
-            )
+            ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                .into_wrapper_range(token.range().clone())
         }) {
             Ok(max) => max,
             Err(warning) => return Ok(Some(warning)),
@@ -697,10 +677,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 collector.start_branch(cond);
                 Ok(None)
             }
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#CASE must be on a switch block"),
-                token.range().clone(),
-            )),
+            _ => Err(
+                ParseError::UnexpectedControlFlow("#CASE must be on a switch block")
+                    .into_wrapper_range(token.range().clone()),
+            ),
         }
     }
 
@@ -722,10 +702,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchAfterActive { .. }
             | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#SKIP must be on a switch block"),
-                token.range().clone(),
-            )),
+            _ => Err(
+                ParseError::UnexpectedControlFlow("#SKIP must be on a switch block")
+                    .into_wrapper_range(token.range().clone()),
+            ),
         }
     }
 
@@ -754,10 +734,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 Ok(())
             }
             ProcessState::SwitchAfterActive { .. } | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#DEF must be on a switch block"),
-                token.range().clone(),
-            )),
+            _ => Err(
+                ParseError::UnexpectedControlFlow("#DEF must be on a switch block")
+                    .into_wrapper_range(token.range().clone()),
+            ),
         }
         .map(|()| {
             if let Some(scope) = collector.current_scope_mut()
@@ -808,10 +788,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
                 Ok(())
             }
-            _ => Err(SourceRangeMixin::new(
-                ParseError::UnexpectedControlFlow("#ENDSWITCH must come after #SWITCH"),
-                token.range().clone(),
-            )),
+            _ => Err(
+                ParseError::UnexpectedControlFlow("#ENDSWITCH must come after #SWITCH")
+                    .into_wrapper_range(token.range().clone()),
+            ),
         }
     }
 

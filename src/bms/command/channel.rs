@@ -9,11 +9,6 @@ use super::{base62_to_byte, char_to_base62};
 use std::str::FromStr;
 use thiserror::Error;
 
-use self::mapper::KeyLayoutMapper;
-
-pub mod converter;
-pub mod mapper;
-
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -183,7 +178,7 @@ pub enum ChannelIdParseError {
 /// A channel ID of notes playing sound.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct NoteChannelId([u8; 2]);
+pub struct NoteChannelId(pub(crate) [u8; 2]);
 
 impl std::fmt::Debug for NoteChannelId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -262,10 +257,65 @@ impl NoteChannelId {
         Self([b'0', b'1'])
     }
 
-    /// Converts the channel into a key mapping.
+    /// Derives the [`NoteKind`] from the first character. Returns `None` for non-note channels.
     #[must_use]
-    pub fn try_into_map<T: KeyLayoutMapper>(self) -> Option<T> {
-        T::from_channel_id(self)
+    pub const fn note_kind(self) -> Option<NoteKind> {
+        match self.0[0] {
+            b'1' | b'2' => Some(NoteKind::Visible),
+            b'3' | b'4' => Some(NoteKind::Invisible),
+            b'5' | b'6' => Some(NoteKind::Long),
+            b'D' | b'E' => Some(NoteKind::Landmine),
+            _ => None,
+        }
+    }
+
+    /// Derives the [`PlayerSide`] from the first character. Returns `None` for non-note channels.
+    #[must_use]
+    pub const fn player_side(self) -> Option<PlayerSide> {
+        match self.0[0] {
+            b'1' | b'3' | b'5' | b'D' => Some(PlayerSide::Player1),
+            b'2' | b'4' | b'6' | b'E' => Some(PlayerSide::Player2),
+            _ => None,
+        }
+    }
+
+    /// Replaces the [`NoteKind`] encoding while preserving the second character and [`PlayerSide`].
+    /// Returns `None` for non-note channels.
+    #[must_use]
+    pub fn with_note_kind(self, kind: NoteKind) -> Option<NoteChannelId> {
+        let side = self.player_side()?;
+        let new_first = match (kind, side) {
+            (NoteKind::Visible, PlayerSide::Player1) => b'1',
+            (NoteKind::Visible, PlayerSide::Player2) => b'2',
+            (NoteKind::Invisible, PlayerSide::Player1) => b'3',
+            (NoteKind::Invisible, PlayerSide::Player2) => b'4',
+            (NoteKind::Long, PlayerSide::Player1) => b'5',
+            (NoteKind::Long, PlayerSide::Player2) => b'6',
+            (NoteKind::Landmine, PlayerSide::Player1) => b'D',
+            (NoteKind::Landmine, PlayerSide::Player2) => b'E',
+        };
+        Some(NoteChannelId([new_first, self.0[1]]))
+    }
+
+    /// Returns `true` if the first character encodes a note channel (`'1'`-`'6'`, `'D'`, `'E'`).
+    #[must_use]
+    pub const fn is_note_channel(self) -> bool {
+        matches!(self.0[0], b'1'..=b'6' | b'D' | b'E')
+    }
+
+    /// Returns the raw second byte (lane identifier) of this channel ID.
+    ///
+    /// The lane byte is layout-dependent: in Beat layout, `'1'`-`'5'` are keys 1-5,
+    /// `'6'` is scratch, `'7'` is free zone, `'8'`-`'9'` are keys 6-7.
+    #[must_use]
+    pub const fn lane_byte(self) -> u8 {
+        self.0[1]
+    }
+
+    /// Returns the raw bytes `[first, second]` of this channel ID.
+    #[must_use]
+    pub const fn into_bytes(self) -> [u8; 2] {
+        self.0
     }
 }
 
@@ -449,4 +499,104 @@ pub fn read_channel(channel: &str) -> Option<Channel> {
     }
     let channel_id = channel.parse::<NoteChannelId>().ok()?;
     Some(Channel::Note { channel_id })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_note_kind_visible() {
+        let id = NoteChannelId::try_from([b'1', b'1']).unwrap();
+        assert_eq!(id.note_kind(), Some(NoteKind::Visible));
+    }
+
+    #[test]
+    fn test_note_kind_long() {
+        let id = NoteChannelId::try_from([b'5', b'1']).unwrap();
+        assert_eq!(id.note_kind(), Some(NoteKind::Long));
+    }
+
+    #[test]
+    fn test_note_kind_landmine() {
+        let id = NoteChannelId::try_from([b'D', b'1']).unwrap();
+        assert_eq!(id.note_kind(), Some(NoteKind::Landmine));
+    }
+
+    #[test]
+    fn test_note_kind_invisible() {
+        let id = NoteChannelId::try_from([b'3', b'1']).unwrap();
+        assert_eq!(id.note_kind(), Some(NoteKind::Invisible));
+    }
+
+    #[test]
+    fn test_note_kind_bgm() {
+        let id = NoteChannelId::bgm();
+        assert_eq!(id.note_kind(), None);
+    }
+
+    #[test]
+    fn test_player_side_p1() {
+        let id = NoteChannelId::try_from([b'1', b'1']).unwrap();
+        assert_eq!(id.player_side(), Some(PlayerSide::Player1));
+    }
+
+    #[test]
+    fn test_player_side_p2() {
+        let id = NoteChannelId::try_from([b'2', b'1']).unwrap();
+        assert_eq!(id.player_side(), Some(PlayerSide::Player2));
+    }
+
+    #[test]
+    fn test_player_side_bgm() {
+        assert_eq!(NoteChannelId::bgm().player_side(), None);
+    }
+
+    #[test]
+    fn test_is_note_channel() {
+        assert!(
+            NoteChannelId::try_from([b'1', b'1'])
+                .unwrap()
+                .is_note_channel()
+        );
+        assert!(
+            NoteChannelId::try_from([b'5', b'6'])
+                .unwrap()
+                .is_note_channel()
+        );
+        assert!(
+            NoteChannelId::try_from([b'D', b'1'])
+                .unwrap()
+                .is_note_channel()
+        );
+        assert!(
+            NoteChannelId::try_from([b'E', b'1'])
+                .unwrap()
+                .is_note_channel()
+        );
+        assert!(!NoteChannelId::bgm().is_note_channel());
+    }
+
+    #[test]
+    fn test_with_note_kind_visible_to_long() {
+        let id = NoteChannelId::try_from([b'1', b'1']).unwrap();
+        let long_id = id.with_note_kind(NoteKind::Long).unwrap();
+        assert_eq!(long_id.note_kind(), Some(NoteKind::Long));
+        assert_eq!(long_id.player_side(), Some(PlayerSide::Player1));
+        assert_eq!(long_id.0[1], b'1');
+    }
+
+    #[test]
+    fn test_with_note_kind_preserves_side_p2() {
+        let id = NoteChannelId::try_from([b'2', b'3']).unwrap();
+        let long_id = id.with_note_kind(NoteKind::Long).unwrap();
+        assert_eq!(long_id.player_side(), Some(PlayerSide::Player2));
+        assert_eq!(long_id.note_kind(), Some(NoteKind::Long));
+    }
+
+    #[test]
+    fn test_with_note_kind_bgm_returns_none() {
+        let id = NoteChannelId::bgm();
+        assert!(id.with_note_kind(NoteKind::Long).is_none());
+    }
 }

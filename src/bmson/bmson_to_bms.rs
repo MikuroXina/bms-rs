@@ -11,6 +11,7 @@ use thiserror::Error;
 use crate::{
     bms::{command::string_value::StringValue, prelude::*},
     bmson::{BgaId, Bmson, pulse::PulseNumber},
+    chart::key_mapping::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
 };
 
 /// Warnings that occur during conversion from `Bmson` to `Bms`.
@@ -306,7 +307,7 @@ impl Bms {
         let PlayingCheckOutput {
             playing_warnings,
             playing_errors,
-        } = bms.check_playing::<KeyLayoutBeat>();
+        } = bms.check_playing();
 
         BmsonToBmsOutput {
             bms,

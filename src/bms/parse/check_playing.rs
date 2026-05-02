@@ -3,8 +3,6 @@
 use thiserror::Error;
 
 use crate::bms::command::ObjId;
-use crate::bms::command::channel::mapper::KeyLayoutMapper;
-
 use crate::bms::model::Bms;
 
 #[cfg(feature = "diagnostics")]
@@ -150,7 +148,7 @@ pub struct PlayingCheckOutput {
 
 impl Bms {
     /// Check for playing warnings and errors based on the parsed BMS data.
-    pub fn check_playing<T: KeyLayoutMapper>(&self) -> PlayingCheckOutput {
+    pub fn check_playing(&self) -> PlayingCheckOutput {
         let mut playing_warnings = Vec::new();
         let mut playing_errors = Vec::new();
 
@@ -173,13 +171,13 @@ impl Bms {
             playing_errors.push(PlayingError::NoNotes);
         } else {
             // Check for displayable notes (Visible, Long, Landmine)
-            let has_displayable = self.wav.notes.displayables::<T>().next().is_some();
+            let has_displayable = self.wav.notes.displayable_notes().next().is_some();
             if !has_displayable {
                 playing_warnings.push(PlayingWarning::NoDisplayableNotes);
             }
 
             // Check for playable notes (all except Invisible)
-            let has_playable = self.wav.notes.playables::<T>().next().is_some();
+            let has_playable = self.wav.notes.playable_notes().next().is_some();
             if !has_playable {
                 playing_warnings.push(PlayingWarning::NoPlayableNotes);
             }

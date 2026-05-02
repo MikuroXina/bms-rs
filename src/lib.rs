@@ -17,7 +17,7 @@
 //! use bms_rs::bms::{BmsOutput, rng::RngMock, default_config_with_rng, parse_bms};
 //! #[cfg(not(feature = "rand"))]
 //! use num::BigUint;
-//! use bms_rs::bms::{command::channel::mapper::KeyLayoutBeat, BmsWarning};
+//! use bms_rs::bms::BmsWarning;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
@@ -40,7 +40,6 @@
 //! #[cfg(feature = "rand")]
 //! use rand::{rngs::StdRng, SeedableRng};
 //! use bms_rs::bms::prelude::*;
-//! use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 //! use num::BigUint;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
@@ -58,7 +57,7 @@
 //! );
 //! let bms = parse_output.bms.expect("must be parsed");
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
-//! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing::<KeyLayoutBeat>();
+//! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing();
 //! assert_eq!(playing_warnings, vec![]);
 //! assert_eq!(playing_errors, vec![]);
 //! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
