@@ -14,11 +14,6 @@ pub use super::{
         JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{
             Channel, Key, NoteChannelId, NoteKind, PlayerSide,
-            converter::{
-                KeyConverter, KeyMappingConvertFlip, KeyMappingConvertLaneRandomShuffle,
-                KeyMappingConvertLaneRotateShuffle, KeyMappingConvertMirror,
-                PlayerSideKeyConverter,
-            },
             mapper::{
                 KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
                 KeyLayoutPms, KeyLayoutPmsBmeType, KeyMapping,

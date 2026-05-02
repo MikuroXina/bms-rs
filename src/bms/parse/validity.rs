@@ -4,18 +4,12 @@
 //! the parsing process. It can be used after editing `Bms` in-memory to ensure
 //! referential integrity and basic invariants required for correct playback.
 
-use std::collections::{HashMap, HashSet};
-
 use thiserror::Error;
 
 use crate::bms::{
-    command::{
-        ObjId,
-        channel::{Key, NoteKind, PlayerSide},
-        time::ObjTime,
-    },
-    model::{Bms, obj::WavObj},
-    prelude::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
+    command::ObjId,
+    command::channel::{Key, PlayerSide},
+    command::time::ObjTime,
 };
 
 /// Missing-related validity entries.
@@ -27,6 +21,9 @@ pub enum ValidityMissing {
     #[error("Missing WAV definition for note object id: {0:?}")]
     WavForNote(ObjId),
     /// A BGM references an [`ObjId`] without a corresponding `#WAV` definition.
+    ///
+    /// Note: This variant is currently not produced by [`BmsProcessor::check_validity`](crate::chart::process::bms::BmsProcessor::check_validity).
+    /// It is reserved for future use when BGM-specific WAV missing checks are implemented.
     #[error("Missing WAV definition for BGM object id: {0:?}")]
     WavForBgm(ObjId),
     /// A BGA change references an [`ObjId`] without a corresponding `#BMP`/`#EXBMP` definition.
@@ -118,206 +115,6 @@ pub struct ValidityCheckOutput {
     pub invalid: Vec<ValidityInvalid>,
 }
 
-impl Bms {
-    /// Validate the internal consistency of `Bms` after parsing or manual edits.
-    ///
-    /// This performs basic referential integrity checks and data invariants that
-    /// are required for correct playback, separate from parse-time checks.
-    pub fn check_validity(&self) -> ValidityCheckOutput {
-        let missing = self.check_missing();
-        let invalid = self.check_invalid();
-        ValidityCheckOutput { missing, invalid }
-    }
-
-    fn check_missing(&self) -> Vec<ValidityMissing> {
-        let mut missing = vec![];
-        // 1) Check notes reference valid WAV ids.
-        for obj_id in self.wav.notes.all_notes().map(|obj| &obj.wav_id) {
-            if !self.wav.wav_files.contains_key(obj_id) {
-                missing.push(ValidityMissing::WavForNote(*obj_id));
-            }
-        }
-
-        // 2) Check BGAs reference valid BMP ids.
-        for bga_obj in self.bmp.bga_changes.values() {
-            if !self.bmp.bmp_files.contains_key(&bga_obj.id) {
-                missing.push(ValidityMissing::BmpForBga(bga_obj.id));
-            }
-        }
-
-        // 3) Check BPM change ids used in messages have corresponding #BPMxx definitions.
-        for id in &self.bpm.bpm_change_ids_used {
-            if !self.bpm.bpm_defs.contains_key(id) {
-                missing.push(ValidityMissing::BpmChangeDef(*id));
-            }
-        }
-
-        // 4) Check STOP ids used in messages have corresponding #STOPxx definitions.
-        for id in &self.stop.stop_ids_used {
-            if !self.stop.stop_defs.contains_key(id) {
-                missing.push(ValidityMissing::StopDef(*id));
-            }
-        }
-        missing
-    }
-
-    fn check_invalid(&self) -> Vec<ValidityInvalid> {
-        let mut invalid = vec![];
-
-        // Placement/overlap checks for notes on lanes.
-        //      - Playable notes in section 000
-        //      - Overlap: visible single vs single (same time, same lane)
-        //      - Overlap: visible single within long interval (same lane)
-        //      - Overlap: landmine vs single (same time, same lane)
-        //      - Overlap: landmine within long interval -> warn once at long start
-        let mut lane_to_notes: HashMap<Key, Vec<&WavObj>> = HashMap::new();
-        for obj in self.wav.notes.all_notes() {
-            // Visible note in section 000 (track index 0)
-            let Some(map) = KeyLayoutBeat::from_channel_id(obj.channel_id) else {
-                continue;
-            };
-            if map.kind().is_playable() && obj.offset.track().0 == 0 {
-                invalid.push(ValidityInvalid::PlayableNoteInTrackZero {
-                    side: map.side(),
-                    key: map.key(),
-                    time: obj.offset,
-                });
-            }
-            lane_to_notes.entry(map.key()).or_default().push(obj);
-        }
-        for (key, objs) in lane_to_notes {
-            if objs.is_empty() {
-                continue;
-            }
-            // Sort by time
-            let mut lane_objs = objs;
-            lane_objs.sort_unstable_by_key(|o| o.offset);
-
-            // Build LN intervals by pairing consecutive Long notes
-            let long_times: Vec<ObjTime> = lane_objs
-                .iter()
-                .filter_map(|o| {
-                    let map = KeyLayoutBeat::from_channel_id(o.channel_id)?;
-                    (map.kind() == NoteKind::Long).then_some(o.offset)
-                })
-                .collect();
-
-            // Overlap single vs single at the same time
-            let mut single_offsets = HashSet::new();
-            for (single_obj, map) in lane_objs
-                .iter()
-                .filter_map(|obj| {
-                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
-                })
-                .filter(|(_, map)| map.kind() == NoteKind::Visible)
-            {
-                if !single_offsets.insert(single_obj.offset) {
-                    invalid.push(ValidityInvalid::OverlapVisibleSingleWithSingle {
-                        side: map.side(),
-                        key,
-                        time: single_obj.offset,
-                    });
-                }
-            }
-
-            // Overlap landmine vs single at the same time
-            for (landmine_obj, map) in lane_objs
-                .iter()
-                .filter_map(|obj| {
-                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
-                })
-                .filter(|(_, map)| map.kind() == NoteKind::Landmine)
-            {
-                if single_offsets.contains(&landmine_obj.offset) {
-                    invalid.push(ValidityInvalid::OverlapLandmineWithSingle {
-                        side: map.side(),
-                        key,
-                        time: landmine_obj.offset,
-                    });
-                }
-            }
-
-            // Helper: check if a time is within [s, e]
-            let time_overlaps_any_ln = |t: ObjTime| -> Option<(ObjTime, ObjTime)> {
-                // Early return if no long notes exist
-                if long_times.is_empty() {
-                    return None;
-                }
-                // Use binary search on sorted long_times to find the insertion point for t
-                let pos = long_times.partition_point(|&x| x < t);
-
-                // Check if we're exactly at a long note time
-                if long_times.get(pos).copied() == Some(t) {
-                    if pos % 2 == 0 {
-                        let end = long_times.get(pos + 1).copied()?;
-                        return Some((t, end));
-                    }
-
-                    if pos > 0 {
-                        let start = long_times.get(pos - 1).copied()?;
-                        if start == t {
-                            return Some((start, t));
-                        }
-                    }
-                    return None;
-                }
-
-                if pos % 2 == 1 {
-                    let start = long_times.get(pos - 1).copied()?;
-                    let end = long_times.get(pos).copied()?;
-                    if start <= t {
-                        return Some((start, end));
-                    }
-                }
-
-                None
-            };
-
-            // Overlap single vs long: any visible single inside any LN interval
-            for (single_obj, map) in lane_objs
-                .iter()
-                .filter_map(|obj| {
-                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
-                })
-                .filter(|(_, map)| map.kind() == NoteKind::Visible)
-            {
-                if let Some((start, end)) = time_overlaps_any_ln(single_obj.offset) {
-                    invalid.push(ValidityInvalid::OverlapVisibleSingleWithLong {
-                        side: map.side(),
-                        key,
-                        time: single_obj.offset,
-                        ln_start: start,
-                        ln_end: end,
-                    });
-                }
-            }
-
-            // Landmine vs long: warn once per LN interval at the long start
-            // if any landmine appears inside that interval (including at start).
-            let mut warned_ln_intervals: HashSet<(ObjTime, ObjTime)> = HashSet::new();
-            for (landmine_obj, map) in lane_objs
-                .iter()
-                .filter_map(|obj| {
-                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
-                })
-                .filter(|(_, map)| map.kind() == NoteKind::Landmine)
-            {
-                if let Some((start, end)) = time_overlaps_any_ln(landmine_obj.offset)
-                    && warned_ln_intervals.insert((start, end))
-                {
-                    invalid.push(ValidityInvalid::OverlapsLandmineLongAtStart {
-                        side: map.side(),
-                        key,
-                        ln_start: start,
-                        ln_end: end,
-                    });
-                }
-            }
-        }
-        invalid
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -325,14 +122,19 @@ mod tests {
     use crate::bms::{
         command::{
             ObjId,
-            channel::{Key, NoteKind, PlayerSide},
+            channel::{
+                Key, NoteKind, PlayerSide,
+                mapper::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
+            },
             time::ObjTime,
         },
         model::{
+            Bms,
             notes::Notes,
             obj::{BgaLayer, BgaObj, WavObj},
         },
     };
+    use crate::chart::process::bms::BmsProcessor;
 
     fn t(track: u64, num: u64, den: u64) -> ObjTime {
         ObjTime::new(track, num, den).expect("denominator should be non-zero")
@@ -350,10 +152,11 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id,
+            ln_end_for: None,
         });
         bms.wav.notes = notes;
         // No WAV defined for id
-        let out = bms.check_validity();
+        let out = BmsProcessor::check_validity::<KeyLayoutBeat>(&bms);
         assert!(out.missing.contains(&ValidityMissing::WavForNote(id)));
     }
 
@@ -370,7 +173,7 @@ mod tests {
                 layer: BgaLayer::Base,
             },
         );
-        let out = bms.check_validity();
+        let out = BmsProcessor::check_validity::<KeyLayoutBeat>(&bms);
         assert!(out.missing.contains(&ValidityMissing::BmpForBga(id)));
     }
 
@@ -385,10 +188,11 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id,
+            ln_end_for: None,
         });
         bms.wav.notes = notes;
 
-        let out = bms.check_validity();
+        let out = BmsProcessor::check_validity::<KeyLayoutBeat>(&bms);
         assert!(out.invalid.iter().any(|e| matches!(
             e,
             ValidityInvalid::PlayableNoteInTrackZero { time: t0, side: PlayerSide::Player1, key: Key::Key(1) } if *t0 == time
@@ -407,16 +211,18 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id1,
+            ln_end_for: None,
         });
         notes.push_note(WavObj {
             offset: time,
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id2,
+            ln_end_for: None,
         });
         bms.wav.notes = notes;
 
-        let out = bms.check_validity();
+        let out = BmsProcessor::check_validity::<KeyLayoutBeat>(&bms);
         assert!(out.invalid.iter().any(|e| matches!(
             e,
             ValidityInvalid::OverlapVisibleSingleWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key(1) } if *t0 == time
@@ -439,6 +245,7 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_s,
+            ln_end_for: None,
         });
         // LN end
         notes.push_note(WavObj {
@@ -446,6 +253,7 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_e,
+            ln_end_for: None,
         });
         // Visible inside LN interval
         notes.push_note(WavObj {
@@ -453,10 +261,11 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_vis,
+            ln_end_for: None,
         });
         bms.wav.notes = notes;
 
-        let out = bms.check_validity();
+        let out = BmsProcessor::check_validity::<KeyLayoutBeat>(&bms);
         assert!(out.invalid.iter().any(|e| matches!(
             e,
             ValidityInvalid::OverlapVisibleSingleWithLong { side: PlayerSide::Player1, key: Key::Key(1), time: t0, ln_start: s, ln_end: e } if *t0 == vis_time && *s == ln_start && *e == ln_end
@@ -479,12 +288,14 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_s,
+            ln_end_for: None,
         });
         notes.push_note(WavObj {
             offset: ln_end,
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_e,
+            ln_end_for: None,
         });
         // Landmine inside the LN
         notes.push_note(WavObj {
@@ -492,10 +303,11 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_mine,
+            ln_end_for: None,
         });
         bms.wav.notes = notes;
 
-        let out = bms.check_validity();
+        let out = BmsProcessor::check_validity::<KeyLayoutBeat>(&bms);
         assert!(out.invalid.iter().any(|e| matches!(
             e,
             ValidityInvalid::OverlapsLandmineLongAtStart { side: PlayerSide::Player1, key: Key::Key(1), ln_start: s, ln_end: e } if *s == ln_start && *e == ln_end
@@ -514,16 +326,18 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_vis,
+            ln_end_for: None,
         });
         notes.push_note(WavObj {
             offset: time,
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_mine,
+            ln_end_for: None,
         });
         bms.wav.notes = notes;
 
-        let out = bms.check_validity();
+        let out = BmsProcessor::check_validity::<KeyLayoutBeat>(&bms);
         assert!(out.invalid.iter().any(|e| matches!(
             e,
             ValidityInvalid::OverlapLandmineWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key(1) } if *t0 == time
@@ -546,12 +360,14 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_start,
+            ln_end_for: None,
         });
         notes.push_note(WavObj {
             offset: zero_length_time, // Same time - zero length
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_end,
+            ln_end_for: None,
         });
 
         // Visible note at the same time as zero-length LN
@@ -560,12 +376,12 @@ mod tests {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_vis,
+            ln_end_for: None,
         });
 
         bms.wav.notes = notes;
 
-        let out = bms.check_validity();
-        // This should detect the overlap, but currently fails due to the bug
+        let out = BmsProcessor::check_validity::<KeyLayoutBeat>(&bms);
         assert!(
             out.invalid.iter().any(|e| matches!(
                 e,

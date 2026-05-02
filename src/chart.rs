@@ -64,6 +64,8 @@
 
 pub mod event;
 
+pub mod key;
+
 pub mod player;
 
 pub mod prelude;

@@ -23,6 +23,17 @@ pub use strict_num_extended::NonNegativeF64;
 // Re-export event types
 pub use super::event::{ChartEvent, PlayheadEvent};
 
+// Re-export key converter types
+pub use super::key::converter::{
+    KeyConverter, KeyMappingConvertFlip, KeyMappingConvertLaneRandomShuffle,
+    KeyMappingConvertLaneRotateShuffle, KeyMappingConvertMirror, PlayerSideKeyConverter,
+};
+
+// Re-export key layout types
+pub use crate::bms::command::channel::mapper::{
+    KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutPms, KeyLayoutPmsBmeType,
+};
+
 // Re-export common types from bms module
 pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 

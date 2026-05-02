@@ -78,6 +78,7 @@ fn test_nested_random_structure() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                 .to_channel_id(),
             wav_id: ObjId::try_from("22", false).unwrap(),
+            ln_end_for: None,
         }]
     );
     assert_eq!(branch1.sub.randomized.len(), 1);
@@ -111,6 +112,7 @@ fn test_nested_random_structure() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                 .to_channel_id(),
             wav_id: ObjId::try_from("55", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -130,6 +132,7 @@ fn test_nested_random_structure() {
             offset: ObjTime::new(1, 2, 4).unwrap(),
             channel_id: NoteChannelId::try_from(['1', '6']).unwrap(),
             wav_id: ObjId::try_from("66", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -145,6 +148,7 @@ fn test_nested_random_structure() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -295,6 +299,7 @@ fn test_nested_switch_structure() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                 .to_channel_id(),
             wav_id: ObjId::try_from("22", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -327,6 +332,7 @@ fn test_nested_switch_structure() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                 .to_channel_id(),
             wav_id: ObjId::try_from("55", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -346,6 +352,7 @@ fn test_nested_switch_structure() {
             offset: ObjTime::new(1, 2, 4).unwrap(),
             channel_id: NoteChannelId::try_from(['1', '6']).unwrap(),
             wav_id: ObjId::try_from("66", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -361,6 +368,7 @@ fn test_nested_switch_structure() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -659,6 +667,7 @@ fn test_switch_fallthrough_one_skip() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                 .to_channel_id(),
             wav_id: ObjId::try_from("22", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -673,6 +682,7 @@ fn test_switch_fallthrough_one_skip() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -766,6 +776,7 @@ fn test_switch_default_then_case_override() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                 .to_channel_id(),
             wav_id: ObjId::try_from("22", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 
@@ -780,6 +791,7 @@ fn test_switch_default_then_case_override() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
+            ln_end_for: None,
         }]
     );
 

@@ -50,24 +50,28 @@ fn nested_random() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
+                ln_end_for: None,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 wav_id: id22,
+                ln_end_for: None,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                     .to_channel_id(),
                 wav_id: id55,
+                ln_end_for: None,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
+                ln_end_for: None,
             },
         ],
     );
@@ -81,12 +85,14 @@ fn nested_random() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
+                ln_end_for: None,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 wav_id: id22,
+                ln_end_for: None,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
@@ -97,12 +103,14 @@ fn nested_random() {
                 )
                 .to_channel_id(),
                 wav_id: id66,
+                ln_end_for: None,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
+                ln_end_for: None,
             },
         ],
     );
@@ -116,18 +124,21 @@ fn nested_random() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
+                ln_end_for: None,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: id33,
+                ln_end_for: None,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
+                ln_end_for: None,
             },
         ],
     );

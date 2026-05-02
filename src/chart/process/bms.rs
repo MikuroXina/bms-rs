@@ -9,8 +9,15 @@ use std::{
 use itertools::Itertools;
 use strict_num_extended::{FinF64, PositiveF64};
 
+use std::collections::HashSet;
+
+use crate::bms::command::channel::mapper::KeyLayoutMapper;
+use crate::bms::command::channel::{Key, NoteKind, PlayerSide};
 use crate::bms::command::string_value::StringValue;
-use crate::bms::parse::check_playing::PlayingError;
+use crate::bms::command::time::ObjTime;
+use crate::bms::model::obj::WavObj;
+use crate::bms::parse::check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning};
+use crate::bms::parse::validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing};
 use crate::bms::prelude::*;
 use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent};
 use crate::chart::process::{
@@ -198,6 +205,208 @@ impl BmsProcessor {
         let kind = map.kind();
         Some((side, key, kind))
     }
+
+    /// Validate the internal consistency of `Bms` after parsing or manual edits.
+    ///
+    /// This performs basic referential integrity checks and data invariants that
+    /// are required for correct playback, separate from parse-time checks.
+    pub fn check_validity<T: KeyLayoutMapper>(bms: &Bms) -> ValidityCheckOutput {
+        let missing = check_missing(bms);
+        let invalid = check_invalid::<T>(bms);
+        ValidityCheckOutput { missing, invalid }
+    }
+
+    /// Check for playing warnings and errors based on the parsed BMS data.
+    pub fn check_playing<T: KeyLayoutMapper>(bms: &Bms) -> PlayingCheckOutput {
+        let mut playing_warnings = Vec::new();
+        let mut playing_errors = Vec::new();
+
+        if bms.judge.total.is_none() {
+            playing_warnings.push(PlayingWarning::TotalUndefined);
+        }
+
+        if bms.bpm.bpm.is_none() {
+            if bms.bpm.bpm_changes.is_empty() {
+                playing_errors.push(PlayingError::BpmUndefined);
+            } else {
+                playing_warnings.push(PlayingWarning::StartBpmUndefined);
+            }
+        }
+
+        if bms.wav.notes.is_empty() {
+            playing_errors.push(PlayingError::NoNotes);
+        } else {
+            let has_displayable = notes_displayables::<T>(&bms.wav.notes).next().is_some();
+            if !has_displayable {
+                playing_warnings.push(PlayingWarning::NoDisplayableNotes);
+            }
+
+            let has_playable = notes_playables::<T>(&bms.wav.notes).next().is_some();
+            if !has_playable {
+                playing_warnings.push(PlayingWarning::NoPlayableNotes);
+            }
+        }
+
+        PlayingCheckOutput {
+            playing_warnings,
+            playing_errors,
+        }
+    }
+}
+
+fn check_missing(bms: &Bms) -> Vec<ValidityMissing> {
+    let mut missing = vec![];
+    for obj_id in bms.wav.notes.all_notes().map(|obj| &obj.wav_id) {
+        if !bms.wav.wav_files.contains_key(obj_id) {
+            missing.push(ValidityMissing::WavForNote(*obj_id));
+        }
+    }
+
+    for bga_obj in bms.bmp.bga_changes.values() {
+        if !bms.bmp.bmp_files.contains_key(&bga_obj.id) {
+            missing.push(ValidityMissing::BmpForBga(bga_obj.id));
+        }
+    }
+
+    for id in &bms.bpm.bpm_change_ids_used {
+        if !bms.bpm.bpm_defs.contains_key(id) {
+            missing.push(ValidityMissing::BpmChangeDef(*id));
+        }
+    }
+
+    for id in &bms.stop.stop_ids_used {
+        if !bms.stop.stop_defs.contains_key(id) {
+            missing.push(ValidityMissing::StopDef(*id));
+        }
+    }
+    missing
+}
+
+fn check_invalid<T: KeyLayoutMapper>(bms: &Bms) -> Vec<ValidityInvalid> {
+    let mut invalid = vec![];
+
+    let mut lane_to_notes: HashMap<Key, Vec<&WavObj>> = HashMap::new();
+    for obj in bms.wav.notes.all_notes() {
+        let Some(map) = T::from_channel_id(obj.channel_id) else {
+            continue;
+        };
+        if map.kind().is_playable() && obj.offset.track().0 == 0 {
+            invalid.push(ValidityInvalid::PlayableNoteInTrackZero {
+                side: map.side(),
+                key: map.key(),
+                time: obj.offset,
+            });
+        }
+        lane_to_notes.entry(map.key()).or_default().push(obj);
+    }
+    for (key, objs) in lane_to_notes {
+        if objs.is_empty() {
+            continue;
+        }
+        let mut lane_objs = objs;
+        lane_objs.sort_unstable_by_key(|o| o.offset);
+
+        // Single pass: bucket by kind, collect long times
+        let mut long_times: Vec<ObjTime> = Vec::new();
+        let mut visibles: Vec<(&WavObj, PlayerSide)> = Vec::new();
+        let mut landmines: Vec<(&WavObj, PlayerSide)> = Vec::new();
+        for obj in &lane_objs {
+            let Some(map) = T::from_channel_id(obj.channel_id) else {
+                continue;
+            };
+            match map.kind() {
+                NoteKind::Long => long_times.push(obj.offset),
+                NoteKind::Visible => visibles.push((obj, map.side())),
+                NoteKind::Landmine => landmines.push((obj, map.side())),
+                NoteKind::Invisible => {}
+            }
+        }
+
+        // Check visible single overlap with single
+        let mut single_offsets = HashSet::new();
+        for (obj, side) in &visibles {
+            if !single_offsets.insert(obj.offset) {
+                invalid.push(ValidityInvalid::OverlapVisibleSingleWithSingle {
+                    side: *side,
+                    key,
+                    time: obj.offset,
+                });
+            }
+        }
+
+        // Check landmine overlap with single
+        for (obj, side) in &landmines {
+            if single_offsets.contains(&obj.offset) {
+                invalid.push(ValidityInvalid::OverlapLandmineWithSingle {
+                    side: *side,
+                    key,
+                    time: obj.offset,
+                });
+            }
+        }
+
+        // LN overlap helper
+        let time_overlaps_any_ln = |t: ObjTime| -> Option<(ObjTime, ObjTime)> {
+            if long_times.is_empty() {
+                return None;
+            }
+            let pos = long_times.partition_point(|&x| x < t);
+
+            if long_times.get(pos).copied() == Some(t) {
+                if pos % 2 == 0 {
+                    let end = long_times.get(pos + 1).copied()?;
+                    return Some((t, end));
+                }
+
+                if pos > 0 {
+                    let start = long_times.get(pos - 1).copied()?;
+                    if start == t {
+                        return Some((start, t));
+                    }
+                }
+                return None;
+            }
+
+            if pos % 2 == 1 {
+                let start = long_times.get(pos - 1).copied()?;
+                let end = long_times.get(pos).copied()?;
+                if start <= t {
+                    return Some((start, end));
+                }
+            }
+
+            None
+        };
+
+        // Check visible overlap with LN
+        for (obj, side) in &visibles {
+            if let Some((start, end)) = time_overlaps_any_ln(obj.offset) {
+                invalid.push(ValidityInvalid::OverlapVisibleSingleWithLong {
+                    side: *side,
+                    key,
+                    time: obj.offset,
+                    ln_start: start,
+                    ln_end: end,
+                });
+            }
+        }
+
+        // Check landmine overlap with LN
+        let mut warned_ln_intervals: HashSet<(ObjTime, ObjTime)> = HashSet::new();
+        for (obj, side) in &landmines {
+            if let Some((start, end)) = time_overlaps_any_ln(obj.offset)
+                && warned_ln_intervals.insert((start, end))
+            {
+                invalid.push(ValidityInvalid::OverlapsLandmineLongAtStart {
+                    side: *side,
+                    key,
+                    ln_start: start,
+                    ln_end: end,
+                });
+            }
+        }
+    }
+    invalid
 }
 
 /// Y coordinate memoization for efficient position calculation.
@@ -376,6 +585,14 @@ impl AllEventsIndex {
             .sorted_by(|(y1, _), (y2, _)| y1.cmp(y2))
             .collect();
 
+        let ln_end_markers: HashSet<(ObjTime, NoteChannelId)> = note_events
+            .iter()
+            .filter_map(|(_, obj)| {
+                obj.ln_end_for
+                    .map(|end_offset| (end_offset, obj.channel_id))
+            })
+            .collect();
+
         // Use ordered Vec instead of HashMap since f64 doesn't implement Hash
         // and NonNegativeF64 doesn't implement Hash either
         let mut zero_length_key_tracker: Vec<(YCoordinate, PlayerSide, Key, usize)> = Vec::new();
@@ -413,6 +630,10 @@ impl AllEventsIndex {
             std::collections::HashSet::new();
 
         for (i, (y, obj)) in note_events.iter().enumerate() {
+            if obj.ln_end_for.is_none() && ln_end_markers.contains(&(obj.offset, obj.channel_id)) {
+                continue;
+            }
+
             let is_zero_length_section = y_memo.zero_length_tracks.contains(&obj.offset.track());
             let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
             let should_include = match lane {
@@ -753,6 +974,121 @@ pub fn precompute_activate_times(
     Ok(AllEventsIndex::new(new_map))
 }
 
+/// Returns all the playable notes in the score for the given key layout.
+///
+/// # Note
+/// This iterator may include dangling objects (objects with null `wav_id`) that reference
+/// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+/// and do not affect musical playback.
+/// They may originate from parsing issues in the original BMS file or from user modifications
+/// to the Notes object.
+///
+/// To filter out dangling objects, use:
+/// ```rust
+/// # use bms_rs::bms::prelude::*;
+/// # use bms_rs::chart::process::bms::notes_playables;
+/// # use bms_rs::chart::prelude::KeyLayoutBeat;
+/// # let notes = Notes::default();
+/// notes_playables::<KeyLayoutBeat>(&notes).filter(|obj| !obj.wav_id.is_null())
+/// # ;
+/// ```
+pub fn notes_playables<T: KeyLayoutMapper>(notes: &Notes) -> impl Iterator<Item = &WavObj> {
+    notes.all_notes().filter(|obj| {
+        obj.channel_id
+            .try_into_map::<T>()
+            .is_some_and(|map| map.kind().is_playable())
+    })
+}
+
+/// Returns all the displayable notes in the score for the given key layout.
+///
+/// # Note
+/// This iterator may include dangling objects (objects with null `wav_id`) that reference
+/// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+/// and do not affect musical playback.
+/// They may originate from parsing issues in the original BMS file or from user modifications
+/// to the Notes object.
+///
+/// To filter out dangling objects, use:
+/// ```rust
+/// # use bms_rs::bms::prelude::*;
+/// # use bms_rs::chart::process::bms::notes_displayables;
+/// # use bms_rs::chart::prelude::KeyLayoutBeat;
+/// # let notes = Notes::default();
+/// notes_displayables::<KeyLayoutBeat>(&notes).filter(|obj| !obj.wav_id.is_null())
+/// # ;
+/// ```
+pub fn notes_displayables<T: KeyLayoutMapper>(notes: &Notes) -> impl Iterator<Item = &WavObj> {
+    notes.all_notes().filter(|obj| {
+        obj.channel_id
+            .try_into_map::<T>()
+            .is_some_and(|map| map.kind().is_displayable())
+    })
+}
+
+/// Returns all the BGM notes in the score for the given key layout.
+///
+/// BGM notes are defined as notes whose channel is either:
+/// - The BGM channel (`01`), or
+/// - Not recognized by the current `KeyLayoutMapper` (treated as BGM by default).
+///
+/// This means unrecognized channels from a custom `KeyLayoutMapper` will also be
+/// included. If you need strict BGM-only filtering, check `NoteChannelId::bgm()` directly.
+///
+/// # Note
+/// This iterator may include dangling objects (objects with null `wav_id`) that reference
+/// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+/// and do not affect musical playback.
+/// They may originate from parsing issues in the original BMS file or from user modifications
+/// to the Notes object.
+///
+/// To filter out dangling objects, use:
+/// ```rust
+/// # use bms_rs::bms::prelude::*;
+/// # use bms_rs::chart::process::bms::notes_bgms;
+/// # use bms_rs::chart::prelude::KeyLayoutBeat;
+/// # let notes = Notes::default();
+/// notes_bgms::<KeyLayoutBeat>(&notes).filter(|obj| !obj.wav_id.is_null())
+/// # ;
+/// ```
+pub fn notes_bgms<T: KeyLayoutMapper>(notes: &Notes) -> impl Iterator<Item = &WavObj> {
+    notes.all_notes().filter(|obj| {
+        obj.channel_id
+            .try_into_map::<T>()
+            .is_none_or(|map| !map.kind().is_displayable())
+    })
+}
+
+/// Gets the time of last playable object for the given key layout.
+#[must_use]
+pub fn last_playable_time<T: KeyLayoutMapper>(notes: &Notes) -> Option<ObjTime> {
+    notes
+        .notes_in(..)
+        .rev()
+        .find(|(_, obj)| {
+            obj.channel_id
+                .try_into_map::<T>()
+                .is_some_and(|map| map.kind().is_displayable())
+        })
+        .map(|(_, obj)| obj.offset)
+}
+
+/// Gets the time of last BGM object for the given key layout.
+///
+/// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
+#[must_use]
+pub fn last_bgm_time<T: KeyLayoutMapper>(notes: &Notes) -> Option<ObjTime> {
+    notes
+        .notes_in(..)
+        .rev()
+        .find(|(_, obj)| {
+            obj.channel_id
+                .try_into_map::<T>()
+                .is_none_or(|map| !map.kind().is_displayable())
+        })
+        .map(|(_, obj)| obj.offset)
+}
+
 /// Generate a static chart event for a BMS note object.
 ///
 /// This function converts a BMS `WavObj` into a `ChartEvent` with all necessary
@@ -776,11 +1112,33 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
     obj: &WavObj,
 ) -> ChartEvent {
     let y = y_memo.get_y(obj.offset);
-    let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
     let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+
+    if let Some(end_offset) = obj.ln_end_for {
+        let lane = match T::from_channel_id(obj.channel_id) {
+            Some(l) => l,
+            None => return ChartEvent::Bgm { wav_id },
+        };
+        let side = lane.side();
+        let key = lane.key();
+        let end_y = y_memo.get_y(end_offset);
+        let length = NonNegativeF64::new((end_y - y).as_f64()).unwrap_or(NonNegativeF64::ZERO);
+        return ChartEvent::Note {
+            side,
+            key,
+            kind: NoteKind::Long,
+            wav_id,
+            length: Some(length),
+            continue_play: None,
+        };
+    }
+
+    let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
     let Some((side, key, kind)) = lane else {
         return ChartEvent::Bgm { wav_id };
     };
+    // TODO: After all WavObj construction paths populate `ln_end_for`, this fallback
+    // path (looking up the next note in the same channel) can be removed.
     let length = (kind == NoteKind::Long)
         .then(|| {
             bms.notes()

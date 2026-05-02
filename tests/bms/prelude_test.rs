@@ -21,6 +21,7 @@ fn test_prelude_imports() {
         offset: _obj_time,
         channel_id: NoteChannelId::bgm(),
         wav_id: _obj_id,
+        ln_end_for: None,
     };
     let _bga_obj = BgaObj {
         time: _obj_time,

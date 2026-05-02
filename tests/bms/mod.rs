@@ -34,7 +34,7 @@ pub fn test_bms_assert_objs(src: &str, rng: impl Rng, expect_objs: impl AsRef<[W
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
+    } = Bms::from_token_stream::<'_, _, _, _>(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );

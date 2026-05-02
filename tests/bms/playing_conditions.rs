@@ -1,4 +1,5 @@
 use bms_rs::bms::prelude::*;
+use bms_rs::chart::process::bms::BmsProcessor;
 
 #[test]
 fn test_playing_conditions_empty_bms() {
@@ -20,7 +21,7 @@ fn test_playing_conditions_empty_bms() {
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing::<KeyLayoutBeat>();
+    } = BmsProcessor::check_playing::<KeyLayoutBeat>(&bms);
 
     // Should have warnings and errors for empty BMS
     assert!(playing_warnings.contains(&PlayingWarning::TotalUndefined));
@@ -50,7 +51,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing::<KeyLayoutBeat>();
+    } = BmsProcessor::check_playing::<KeyLayoutBeat>(&bms);
 
     // Should not have any warnings or errors for valid BMS
     assert_eq!(playing_warnings, vec![]);
@@ -88,7 +89,7 @@ fn test_playing_conditions_with_bpm_change_only() {
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing::<KeyLayoutBeat>();
+    } = BmsProcessor::check_playing::<KeyLayoutBeat>(&bms);
 
     // Should have StartBpmUndefined warning but no BpmUndefined error
     assert_eq!(bms.bpm.bpm, None);
@@ -119,7 +120,7 @@ fn test_playing_conditions_invisible_notes_only() {
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing::<KeyLayoutBeat>();
+    } = BmsProcessor::check_playing::<KeyLayoutBeat>(&bms);
 
     // Should have both NoDisplayableNotes and NoPlayableNotes warnings
     assert!(playing_warnings.contains(&PlayingWarning::NoDisplayableNotes));

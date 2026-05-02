@@ -16,10 +16,7 @@ fn test_not_base_62() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
-        &tokens,
-        default_config().prompter(AlwaysUseNewer),
-    );
+    } = Bms::from_token_stream::<'_, _, _, _>(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.expect("no errors");
     eprintln!("{bms:?}");
@@ -47,10 +44,7 @@ fn test_base_62() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
-        &tokens,
-        default_config().prompter(AlwaysUseNewer),
-    );
+    } = Bms::from_token_stream::<'_, _, _, _>(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.expect("no errors");
     eprintln!("{bms:?}");

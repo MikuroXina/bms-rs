@@ -11,7 +11,6 @@ use thiserror::Error;
 
 use self::mapper::KeyLayoutMapper;
 
-pub mod converter;
 pub mod mapper;
 
 /// The channel, or lane, where the note will be on.

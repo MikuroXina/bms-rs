@@ -20,6 +20,9 @@ pub struct WavObj {
     pub channel_id: NoteChannelId,
     /// The `#WAVxx` id to be rung on play.
     pub wav_id: ObjId,
+    /// For LN begin notes: the end note's offset time. `None` for non-LN or LN end notes.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub ln_end_for: Option<ObjTime>,
 }
 
 impl PartialOrd for WavObj {
@@ -33,6 +36,7 @@ impl Ord for WavObj {
         self.offset
             .cmp(&other.offset)
             .then(self.wav_id.cmp(&other.wav_id))
+            .then(self.ln_end_for.cmp(&other.ln_end_for))
     }
 }
 
@@ -42,6 +46,7 @@ impl WavObj {
             offset: ObjTime::start_of(1.into()),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::null(),
+            ln_end_for: None,
         }
     }
 }

@@ -41,7 +41,7 @@ pub struct Notes {
     arena: WavObjArena,
     /// Note objects index for each wav sound of [`ObjId`].
     idx_by_wav_id: HashMap<ObjId, Vec<WavObjArenaIndex>>,
-    /// Note objects index for each channel from the mapping `T`.
+    /// Note objects index for each channel.
     idx_by_channel: HashMap<NoteChannelId, Vec<WavObjArenaIndex>>,
     /// Note objects index sorted by its time.
     idx_by_time: BTreeMap<ObjTime, Vec<WavObjArenaIndex>>,
@@ -130,88 +130,7 @@ impl Notes {
         self.arena.0.iter()
     }
 
-    /// Returns all the playable notes in the score.
-    ///
-    /// # Note
-    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
-    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
-    /// and do not affect musical playback.
-    /// They may originate from parsing issues in the original BMS file or from user modifications
-    /// to the Notes object.
-    ///
-    /// To filter out dangling objects, use:
-    /// ```rust
-    /// # use bms_rs::bms::prelude::*;
-    /// # let notes = Notes::default();
-    /// notes.playables::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
-    /// # ;
-    /// ```
-    pub fn playables<T>(&self) -> impl Iterator<Item = &WavObj>
-    where
-        T: KeyLayoutMapper,
-    {
-        self.arena.0.iter().sorted().filter(|obj| {
-            obj.channel_id
-                .try_into_map::<T>()
-                .is_some_and(|map| map.kind().is_playable())
-        })
-    }
-
-    /// Returns all the displayable notes in the score.
-    ///
-    /// # Note
-    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
-    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
-    /// and do not affect musical playback.
-    /// They may originate from parsing issues in the original BMS file or from user modifications
-    /// to the Notes object.
-    ///
-    /// To filter out dangling objects, use:
-    /// ```rust
-    /// # use bms_rs::bms::prelude::*;
-    /// # let notes = Notes::default();
-    /// notes.displayables::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
-    /// # ;
-    /// ```
-    pub fn displayables<T>(&self) -> impl Iterator<Item = &WavObj>
-    where
-        T: KeyLayoutMapper,
-    {
-        self.arena.0.iter().sorted().filter(|obj| {
-            obj.channel_id
-                .try_into_map::<T>()
-                .is_some_and(|map| map.kind().is_displayable())
-        })
-    }
-
-    /// Returns all the bgms in the score.
-    ///
-    /// # Note
-    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
-    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
-    /// and do not affect musical playback.
-    /// They may originate from parsing issues in the original BMS file or from user modifications
-    /// to the Notes object.
-    ///
-    /// To filter out dangling objects, use:
-    /// ```rust
-    /// # use bms_rs::bms::prelude::*;
-    /// # let notes = Notes::default();
-    /// notes.bgms::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
-    /// # ;
-    /// ```
-    pub fn bgms<T>(&self) -> impl Iterator<Item = &WavObj>
-    where
-        T: KeyLayoutMapper,
-    {
-        self.arena.0.iter().sorted().filter(|obj| {
-            obj.channel_id
-                .try_into_map::<T>()
-                .is_none_or(|map| !map.kind().is_displayable())
-        })
-    }
-
-    /// Retrieves notes on the specified channel id by the key mapping `T`.
+    /// Retrieves notes on the specified channel id.
     ///
     /// # Note
     /// This iterator may include dangling objects (objects with null `wav_id`) that reference
@@ -225,15 +144,12 @@ impl Notes {
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
     /// let channel_id = NoteChannelId::try_from(['0', '1']).unwrap();
-    /// notes.notes_on::<KeyLayoutBeat>(channel_id).filter(|(_, obj)| !obj.wav_id.is_null());
+    /// notes.notes_on(channel_id).filter(|(_, obj)| !obj.wav_id.is_null());
     /// ```
-    pub fn notes_on<T>(
+    pub fn notes_on(
         &self,
         channel_id: NoteChannelId,
-    ) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)>
-    where
-        T: KeyLayoutMapper,
-    {
+    ) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)> {
         self.idx_by_channel
             .get(&channel_id)
             .into_iter()
@@ -291,42 +207,6 @@ impl Notes {
     pub fn last_obj_time(&self) -> Option<ObjTime> {
         let (&time, _) = self.idx_by_time.last_key_value()?;
         Some(time)
-    }
-
-    /// Gets the time of last playable object.
-    #[must_use]
-    pub fn last_playable_time<T>(&self) -> Option<ObjTime>
-    where
-        T: KeyLayoutMapper,
-    {
-        self.notes_in(..)
-            .map(|(_, obj)| obj)
-            .rev()
-            .find(|obj| {
-                obj.channel_id
-                    .try_into_map::<T>()
-                    .is_some_and(|map| map.kind().is_displayable())
-            })
-            .map(|obj| obj.offset)
-    }
-
-    /// Gets the time of last BGM object.
-    ///
-    /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
-    #[must_use]
-    pub fn last_bgm_time<T>(&self) -> Option<ObjTime>
-    where
-        T: KeyLayoutMapper,
-    {
-        self.notes_in(..)
-            .map(|(_, obj)| obj)
-            .rev()
-            .find(|obj| {
-                obj.channel_id
-                    .try_into_map::<T>()
-                    .is_none_or(|map| !map.kind().is_displayable())
-            })
-            .map(|obj| obj.offset)
     }
 }
 
@@ -388,10 +268,7 @@ impl Notes {
     }
 
     /// Removes notes belonging to the wav id.
-    pub fn remove_note<T>(&mut self, wav_id: ObjId) -> Vec<WavObj>
-    where
-        T: KeyLayoutMapper,
-    {
+    pub fn remove_note(&mut self, wav_id: ObjId) -> Vec<WavObj> {
         let Some(indexes) = self.idx_by_wav_id.remove(&wav_id) else {
             return vec![];
         };
@@ -415,10 +292,7 @@ impl Notes {
     }
 
     /// Removes the latest note using the wav of `wav_id`.
-    pub fn pop_latest_of<T>(&mut self, wav_id: ObjId) -> Option<WavObj>
-    where
-        T: KeyLayoutMapper,
-    {
+    pub fn pop_latest_of(&mut self, wav_id: ObjId) -> Option<WavObj> {
         let &WavObjArenaIndex(to_pop) = self.idx_by_wav_id.get(&wav_id)?.last()?;
         let removing = std::mem::replace(self.arena.0.get_mut(to_pop)?, WavObj::dangling());
         self.remove_index(to_pop, &removing);
@@ -426,22 +300,17 @@ impl Notes {
     }
 
     /// Adds the BGM (auto-played) note of `wav_id` at `time`.
-    pub fn push_bgm<T>(&mut self, time: ObjTime, wav_id: ObjId)
-    where
-        T: KeyLayoutMapper,
-    {
+    pub fn push_bgm(&mut self, time: ObjTime, wav_id: ObjId) {
         self.push_note(WavObj {
             offset: time,
             channel_id: NoteChannelId::bgm(),
             wav_id,
+            ln_end_for: None,
         });
     }
 
     /// Retains note objects with the condition `cond`. It keeps only the [`WavObj`]s which `cond` returned `true`.
-    pub fn retain_notes<T, F: FnMut(&WavObj) -> bool>(&mut self, mut cond: F)
-    where
-        T: KeyLayoutMapper,
-    {
+    pub fn retain_notes<F: FnMut(&WavObj) -> bool>(&mut self, mut cond: F) {
         let removing_indexes: Vec<_> = self
             .arena
             .0
@@ -540,6 +409,7 @@ mod tests {
             offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::try_from("01", false).unwrap(),
+            ln_end_for: None,
         };
 
         assert!(notes.pop_note().is_none());
@@ -558,6 +428,7 @@ mod tests {
             offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::try_from("01", false).unwrap(),
+            ln_end_for: None,
         };
 
         assert!(notes.pop_note().is_none());
@@ -576,6 +447,7 @@ mod tests {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: ObjId::try_from("01", false).unwrap(),
+                ln_end_for: None,
             })
         );
     }
@@ -587,6 +459,7 @@ mod tests {
             offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::try_from("01", false).unwrap(),
+            ln_end_for: None,
         };
 
         assert!(notes.pop_note().is_none());
@@ -604,6 +477,7 @@ mod tests {
                 offset: ObjTime::new(1, 1, 4,).expect("4 should be a valid denominator"),
                 channel_id: NoteChannelId::bgm(),
                 wav_id: ObjId::try_from("01", false).unwrap(),
+                ln_end_for: None,
             })
         );
     }

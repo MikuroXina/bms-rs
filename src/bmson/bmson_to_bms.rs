@@ -11,6 +11,7 @@ use thiserror::Error;
 use crate::{
     bms::{command::string_value::StringValue, prelude::*},
     bmson::{BgaId, Bmson, pulse::PulseNumber},
+    chart::process::bms::BmsProcessor,
 };
 
 /// Warnings that occur during conversion from `Bmson` to `Bms`.
@@ -187,6 +188,7 @@ impl Bms {
                     offset: time,
                     channel_id: KeyLayoutBeat::new(side, kind, key).to_channel_id(),
                     wav_id: obj_id,
+                    ln_end_for: None,
                 };
                 bms.wav.notes.push_note(obj);
             }
@@ -209,6 +211,7 @@ impl Bms {
                     offset: time,
                     channel_id: KeyLayoutBeat::new(side, NoteKind::Landmine, key).to_channel_id(),
                     wav_id: obj_id,
+                    ln_end_for: None,
                 };
                 bms.wav.notes.push_note(obj);
             }
@@ -231,6 +234,7 @@ impl Bms {
                     offset: time,
                     channel_id: KeyLayoutBeat::new(side, NoteKind::Invisible, key).to_channel_id(),
                     wav_id: obj_id,
+                    ln_end_for: None,
                 };
                 bms.wav.notes.push_note(obj);
             }
@@ -306,7 +310,7 @@ impl Bms {
         let PlayingCheckOutput {
             playing_warnings,
             playing_errors,
-        } = bms.check_playing::<KeyLayoutBeat>();
+        } = BmsProcessor::check_playing::<KeyLayoutBeat>(&bms);
 
         BmsonToBmsOutput {
             bms,
