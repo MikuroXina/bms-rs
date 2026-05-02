@@ -148,6 +148,12 @@ pub struct PlayingCheckOutput {
 
 impl Bms {
     /// Check for playing warnings and errors based on the parsed BMS data.
+    ///
+    /// Classification of notes (playable / displayable) relies on the built-in encoding
+    /// rules of [`NoteChannelId`](crate::bms::command::channel::NoteChannelId) (first byte
+    /// determines `NoteKind`), not on any external `KeyLayoutMapper`. This means the result
+    /// is layout-agnostic and identical regardless of which key layout the caller later
+    /// chooses for chart processing.
     pub fn check_playing(&self) -> PlayingCheckOutput {
         let mut playing_warnings = Vec::new();
         let mut playing_errors = Vec::new();
