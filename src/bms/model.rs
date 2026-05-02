@@ -23,9 +23,6 @@ pub mod volume;
 pub mod wav;
 
 // Re-export commonly used types
-pub use notes::Notes;
-// Re-export StringValue from command module for backward compatibility
-pub use crate::bms::command::StringValue;
 
 use std::fmt::Debug;
 

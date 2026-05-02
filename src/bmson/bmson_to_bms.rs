@@ -9,7 +9,7 @@ use strict_num_extended::{FinF64, NonNegativeF64};
 use thiserror::Error;
 
 use crate::{
-    bms::{command::StringValue, prelude::*},
+    bms::{command::string_value::StringValue, prelude::*},
     bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 

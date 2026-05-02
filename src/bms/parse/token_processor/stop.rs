@@ -13,7 +13,8 @@ use super::{
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        model::{StringValue, stop::StopObjects},
+        command::{channel::Channel, string_value::StringValue},
+        model::stop::StopObjects,
         parse::{ParseWarning, Result},
         prelude::*,
     },

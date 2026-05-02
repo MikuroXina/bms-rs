@@ -9,7 +9,7 @@ use std::{
 use itertools::Itertools;
 use strict_num_extended::{FinF64, PositiveF64};
 
-use crate::bms::command::StringValue;
+use crate::bms::command::string_value::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
 use crate::bms::prelude::*;
 use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent};
@@ -820,8 +820,8 @@ impl Process for Bms {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bms::command::StringValue;
     use crate::bms::command::channel::mapper::KeyLayoutBeat;
+    use crate::bms::command::string_value::StringValue;
 
     /// Test that parsing fails when BPM value is invalid (non-numeric string)
     #[test]
