@@ -1,9 +1,6 @@
 //! Benchmark for `BMS` file parsing and chart conversion.
 
-use bms_rs::{
-    bms::{default_config, parse_bms},
-    chart::process::bms::BmsProcessor,
-};
+use bms_rs::bms::{default_config, parse_bms, process::BmsProcessor};
 use criterion::{Criterion, Throughput};
 use std::{collections::BTreeMap, sync::LazyLock};
 

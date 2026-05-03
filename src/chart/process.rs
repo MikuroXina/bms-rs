@@ -5,14 +5,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::{Bound, Range, RangeBounds};
 use std::path::PathBuf;
 
-use crate::bms::command::channel::NoteKind;
 use crate::chart::event::{ChartEvent, PlayheadEvent, YCoordinate};
+use crate::chart::types::NoteKind;
 use crate::chart::{Chart, TimeSpan};
 use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
-
-pub mod bms;
-pub mod bmson;
 
 /// Trait for types that can be processed into a `Chart`. It's intended that chart types implement this.
 pub trait Process {
@@ -624,9 +621,9 @@ mod tests {
 
     use super::AllEventsIndex;
     use super::ChartEventId;
-    use crate::bms::command::channel::{Key, NoteKind, PlayerSide};
     use crate::chart::TimeSpan;
     use crate::chart::event::{ChartEvent, PlayheadEvent, YCoordinate};
+    use crate::chart::types::{Key, NoteKind, PlayerSide};
     use strict_num_extended::NonNegativeF64;
 
     // Test constants

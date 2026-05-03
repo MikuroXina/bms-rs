@@ -11,6 +11,7 @@ use thiserror::Error;
 use crate::{
     bms::{command::string_value::StringValue, prelude::*},
     bmson::{BgaId, Bmson, pulse::PulseNumber},
+    chart::types::{Argb, BgaLayer},
 };
 
 /// Warnings that occur during conversion from `Bmson` to `Bms`.

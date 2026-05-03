@@ -21,19 +21,11 @@ pub use gametime::TimeSpan;
 pub use strict_num_extended::NonNegativeF64;
 
 // Re-export event types
+pub use super::event::BmsEvent;
 pub use super::event::{ChartEvent, PlayheadEvent};
 
-// Re-export common types from bms module
-pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
-
-pub use crate::bms::prelude::SwBgaEvent;
-
-// Re-export BmsProcessor from bms module
-pub use super::process::bms::BmsProcessor;
-
-// Re-export BmsonProcessor from bmson module
-#[cfg(feature = "bmson")]
-pub use super::process::bmson::BmsonProcessor;
+// Re-export chart types
+pub use crate::chart::types::{Key, NoteKind, PlayerSide};
 
 // Re-export ChartPlayer
 pub use super::player::{ChartPlayer, PlaybackState};

@@ -1,7 +1,8 @@
 use std::time::Duration;
 
-use super::{ObjId, graphics::Argb};
+use super::ObjId;
 use crate::bms::command::time::ObjTime;
+use crate::chart::types::Argb;
 
 /// Pan value for `#EXWAV` sound effect.
 /// Range: \[-10000, 10000]. -10000 is leftmost, 10000 is rightmost.

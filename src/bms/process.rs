@@ -12,13 +12,13 @@ use strict_num_extended::{FinF64, PositiveF64};
 use crate::bms::command::string_value::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
 use crate::bms::prelude::*;
-use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent};
+use crate::chart::event::{BmsEvent, ChartEvent, FlowEvent, PlayheadEvent};
+use crate::chart::prelude::{TimeSpan, YCoordinate};
 use crate::chart::process::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Process, WavId,
+    calculate_cumulative_times,
 };
-use crate::chart::{
-    Chart, DEFAULT_BPM, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, TimeSpan, YCoordinate,
-};
+use crate::chart::{Chart, DEFAULT_BPM, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
 use strict_num_extended::NonNegativeF64;
 
 /// BMS format parser.
@@ -544,10 +544,10 @@ impl AllEventsIndex {
         for (layer, opacity_changes) in &bms.bmp.bga_opacity_changes {
             for opacity_obj in opacity_changes.values() {
                 let y = get_event_y(opacity_obj.time);
-                let event = ChartEvent::BgaOpacityChange {
+                let event = ChartEvent::Bms(BmsEvent::BgaOpacityChange {
                     layer: *layer,
                     opacity: opacity_obj.opacity,
-                };
+                });
                 events_map.entry(y).or_default().push(PlayheadEvent::new(
                     id_gen.next_id(),
                     y,
@@ -561,10 +561,10 @@ impl AllEventsIndex {
         for (layer, argb_changes) in &bms.bmp.bga_argb_changes {
             for argb_obj in argb_changes.values() {
                 let y = get_event_y(argb_obj.time);
-                let event = ChartEvent::BgaArgbChange {
+                let event = ChartEvent::Bms(BmsEvent::BgaArgbChange {
                     layer: *layer,
                     argb: argb_obj.argb,
-                };
+                });
                 events_map.entry(y).or_default().push(PlayheadEvent::new(
                     id_gen.next_id(),
                     y,
@@ -577,9 +577,9 @@ impl AllEventsIndex {
         // BGM volume change events
         for bgm_volume_obj in bms.volume.bgm_volume_changes.values() {
             let y = get_event_y(bgm_volume_obj.time);
-            let event = ChartEvent::BgmVolumeChange {
+            let event = ChartEvent::Bms(BmsEvent::BgmVolumeChange {
                 volume: bgm_volume_obj.volume,
-            };
+            });
             events_map.entry(y).or_default().push(PlayheadEvent::new(
                 id_gen.next_id(),
                 y,
@@ -591,9 +591,9 @@ impl AllEventsIndex {
         // KEY volume change events
         for key_volume_obj in bms.volume.key_volume_changes.values() {
             let y = get_event_y(key_volume_obj.time);
-            let event = ChartEvent::KeyVolumeChange {
+            let event = ChartEvent::Bms(BmsEvent::KeyVolumeChange {
                 volume: key_volume_obj.volume,
-            };
+            });
             events_map.entry(y).or_default().push(PlayheadEvent::new(
                 id_gen.next_id(),
                 y,
@@ -605,9 +605,9 @@ impl AllEventsIndex {
         // Text display events
         for text_obj in bms.text.text_events.values() {
             let y = get_event_y(text_obj.time);
-            let event = ChartEvent::TextDisplay {
+            let event = ChartEvent::Bms(BmsEvent::TextDisplay {
                 text: text_obj.text.clone(),
-            };
+            });
             events_map.entry(y).or_default().push(PlayheadEvent::new(
                 id_gen.next_id(),
                 y,
@@ -619,9 +619,9 @@ impl AllEventsIndex {
         // Judge level change events
         for judge_obj in bms.judge.judge_events.values() {
             let y = get_event_y(judge_obj.time);
-            let event = ChartEvent::JudgeLevelChange {
+            let event = ChartEvent::Bms(BmsEvent::JudgeLevelChange {
                 level: judge_obj.judge_level,
-            };
+            });
             events_map.entry(y).or_default().push(PlayheadEvent::new(
                 id_gen.next_id(),
                 y,
@@ -632,9 +632,9 @@ impl AllEventsIndex {
 
         for seek_obj in bms.video.seek_events.values() {
             let y = get_event_y(seek_obj.time);
-            let event = ChartEvent::VideoSeek {
-                seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
-            };
+            let event = ChartEvent::Bms(BmsEvent::VideoSeek {
+                seek_time: seek_obj.position.as_f64(),
+            });
             events_map.entry(y).or_default().push(PlayheadEvent::new(
                 id_gen.next_id(),
                 y,
@@ -645,9 +645,9 @@ impl AllEventsIndex {
 
         for bga_keybound_obj in bms.bmp.bga_keybound_events.values() {
             let y = get_event_y(bga_keybound_obj.time);
-            let event = ChartEvent::BgaKeybound {
+            let event = ChartEvent::Bms(BmsEvent::BgaKeybound {
                 event: bga_keybound_obj.event.clone(),
-            };
+            });
             events_map.entry(y).or_default().push(PlayheadEvent::new(
                 id_gen.next_id(),
                 y,
@@ -658,9 +658,9 @@ impl AllEventsIndex {
 
         for option_obj in bms.option.option_events.values() {
             let y = get_event_y(option_obj.time);
-            let event = ChartEvent::OptionChange {
+            let event = ChartEvent::Bms(BmsEvent::OptionChange {
                 option: option_obj.option.clone(),
-            };
+            });
             events_map.entry(y).or_default().push(PlayheadEvent::new(
                 id_gen.next_id(),
                 y,
@@ -727,8 +727,7 @@ pub fn precompute_activate_times(
         .sorted_by_key(|(y, _)| *y)
         .collect();
 
-    let cum_map =
-        super::calculate_cumulative_times(&points, init_bpm_value, &bpm_changes, &stop_list);
+    let cum_map = calculate_cumulative_times(&points, init_bpm_value, &bpm_changes, &stop_list);
 
     let new_map: std::collections::BTreeMap<YCoordinate, Vec<PlayheadEvent>> = all_events
         .as_by_y()
@@ -814,6 +813,52 @@ impl Process for Bms {
 
     fn process(self) -> Result<Chart, Self::Error> {
         BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&self)
+    }
+}
+
+// ---- BaseBpmGenerator implementations for BMS ----
+
+use crate::chart::player::base_bpm::{
+    BaseBpm, BaseBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator,
+};
+
+impl BaseBpmGenerator<Bms> for StartBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        bms.bpm
+            .bpm
+            .as_ref()
+            .and_then(|bpm| bpm.value().as_ref().ok().copied())
+            .map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for MinBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        bms.bpm
+            .bpm
+            .iter()
+            .filter_map(|bpm| bpm.value().as_ref().ok().copied())
+            .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
+            .min()
+            .map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        bms.bpm
+            .bpm
+            .iter()
+            .filter_map(|bpm| bpm.value().as_ref().ok().copied())
+            .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
+            .max()
+            .map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for crate::chart::player::base_bpm::ManualBpmGenerator {
+    fn generate(&self, _bms: &Bms) -> Option<BaseBpm> {
+        Some(self.0)
     }
 }
 

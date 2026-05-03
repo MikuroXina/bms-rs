@@ -1,8 +1,7 @@
 //! Chart event types
 
-use crate::bms::prelude::SwBgaEvent;
-use crate::bms::prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
 use crate::chart::process::{BmpId, ChartEventId, WavId};
+use crate::chart::types::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
 use gametime::TimeSpan;
 use strict_num_extended::FinF64;
 use strict_num_extended::NonNegativeF64;
@@ -109,6 +108,61 @@ impl std::ops::Div<FinF64> for YCoordinate {
     }
 }
 
+/// BMS-specific events enum.
+/// Contains all BMS-specific events that don't apply to BMSON.
+#[derive(Debug, Clone)]
+pub enum BmsEvent {
+    /// BGA opacity change event.
+    BgaOpacityChange {
+        /// Target BGA layer.
+        layer: BgaLayer,
+        /// Opacity value (0-255).
+        opacity: u8,
+    },
+    /// BGA ARGB color change event.
+    BgaArgbChange {
+        /// Target BGA layer.
+        layer: BgaLayer,
+        /// ARGB color value.
+        argb: Argb,
+    },
+    /// BGM volume change event.
+    BgmVolumeChange {
+        /// Volume value (0-255).
+        volume: u8,
+    },
+    /// Key volume change event.
+    KeyVolumeChange {
+        /// Volume value (0-255).
+        volume: u8,
+    },
+    /// Text display event.
+    TextDisplay {
+        /// Display text content.
+        text: String,
+    },
+    /// Judge level change event.
+    JudgeLevelChange {
+        /// New judge level.
+        level: crate::bms::command::JudgeLevel,
+    },
+    /// Video seek event.
+    VideoSeek {
+        /// Seek time point (seconds)
+        seek_time: f64,
+    },
+    /// BGA key binding event.
+    BgaKeybound {
+        /// BGA event to bind.
+        event: crate::bms::command::minor_command::SwBgaEvent,
+    },
+    /// Option change event.
+    OptionChange {
+        /// Option name.
+        option: String,
+    },
+}
+
 /// Events generated during playback (Elm style).
 ///
 /// These events represent actual events during chart playback, such as note triggers, BGM playback,
@@ -168,73 +222,8 @@ pub enum ChartEvent {
         /// BGA/BMP resource ID, get the corresponding file path through the `bmp_files()` method (if any)
         bmp_id: Option<BmpId>,
     },
-    /// BGA opacity change event (requires minor-command feature)
-    ///
-    /// Dynamically adjust the opacity of the specified BGA layer to achieve fade-in/fade-out effects.
-    BgaOpacityChange {
-        /// BGA layer
-        layer: BgaLayer,
-        /// Opacity value (0x01-0xFF, 0x01 means almost transparent, 0xFF means completely opaque)
-        opacity: u8,
-    },
-    /// BGA ARGB color change event (requires minor-command feature)
-    ///
-    /// Dynamically adjust the color of the specified BGA layer through ARGB values to achieve color filter effects.
-    BgaArgbChange {
-        /// BGA layer
-        layer: BgaLayer,
-        /// ARGB color value (format: 0xAARRGGBB)
-        argb: Argb,
-    },
-    /// BGM volume change event
-    ///
-    /// Triggered when playback position reaches BGM volume change time point, used to adjust background music volume.
-    BgmVolumeChange {
-        /// Volume value (0x01-0xFF, 0x01 means minimum volume, 0xFF means maximum volume)
-        volume: u8,
-    },
-    /// KEY volume change event
-    ///
-    /// Triggered when playback position reaches KEY volume change time point, used to adjust key sound effect volume.
-    KeyVolumeChange {
-        /// Volume value (0x01-0xFF, 0x01 means minimum volume, 0xFF means maximum volume)
-        volume: u8,
-    },
-    /// Text display event
-    ///
-    /// Triggered when playback position reaches text display time point, used to display text information in the chart.
-    TextDisplay {
-        /// Text content to display
-        text: String,
-    },
-    /// Judge level change event
-    ///
-    /// Triggered when playback position reaches judge level change time point, used to adjust the strictness of the judgment window.
-    JudgeLevelChange {
-        /// Judge level (`VeryHard`, Hard, Normal, Easy, `OtherInt`)
-        level: crate::bms::command::JudgeLevel,
-    },
-    /// Video seek event (requires minor-command feature)
-    ///
-    /// Triggered when playback position reaches video seek time point, used for video playback control.
-    VideoSeek {
-        /// Seek time point (seconds)
-        seek_time: f64,
-    },
-    /// BGA key binding event (requires minor-command feature)
-    ///
-    /// Triggered when playback position reaches BGA key binding time point, used for BGA and key binding control.
-    BgaKeybound {
-        /// BGA key binding event type
-        event: SwBgaEvent,
-    },
-    /// Option change event (requires minor-command feature)
-    ///
-    /// Triggered when playback position reaches option change time point, used for dynamic game option adjustment.
-    OptionChange {
-        /// Option content
-        option: String,
-    },
+    /// BMS-specific event (BMS only, not applicable to BMSON)
+    Bms(BmsEvent),
     /// Measure line event
     ///
     /// Triggered when playback position reaches measure line position, used for chart structure display.
@@ -242,7 +231,6 @@ pub enum ChartEvent {
 }
 
 /// Timeline event and position wrapper type.
-///
 /// Represents an event in chart playback and its position on the timeline.
 #[derive(Debug, Clone)]
 pub struct PlayheadEvent {

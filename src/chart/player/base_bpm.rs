@@ -1,8 +1,5 @@
 //! Module for base BPM generation strategies and types.
 
-use crate::bms::prelude::Bms;
-#[cfg(feature = "bmson")]
-use crate::bmson::prelude::Bmson;
 use strict_num_extended::PositiveF64;
 
 /// Base BPM wrapper type.
@@ -126,81 +123,5 @@ impl ManualBpmGenerator {
     #[must_use]
     pub const fn into_value(self) -> BaseBpm {
         self.0
-    }
-}
-
-// ---- Generators for BMS ----
-impl BaseBpmGenerator<Bms> for StartBpmGenerator {
-    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
-        bms.bpm
-            .bpm
-            .as_ref()
-            .and_then(|bpm| bpm.value().as_ref().ok().copied())
-            .map(BaseBpm::new)
-    }
-}
-
-impl BaseBpmGenerator<Bms> for MinBpmGenerator {
-    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
-        bms.bpm
-            .bpm
-            .iter()
-            .filter_map(|bpm| bpm.value().as_ref().ok().copied())
-            .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
-            .min()
-            .map(BaseBpm::new)
-    }
-}
-
-impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
-    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
-        bms.bpm
-            .bpm
-            .iter()
-            .filter_map(|bpm| bpm.value().as_ref().ok().copied())
-            .chain(bms.bpm.bpm_changes.values().map(|change| change.bpm))
-            .max()
-            .map(BaseBpm::new)
-    }
-}
-
-impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
-    fn generate(&self, _bms: &Bms) -> Option<BaseBpm> {
-        Some(self.0)
-    }
-}
-
-// ---- Generators for BMSON ----
-#[cfg(feature = "bmson")]
-impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
-    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        Some(BaseBpm::new(bmson.info.init_bpm))
-    }
-}
-
-#[cfg(feature = "bmson")]
-impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
-    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        std::iter::once(bmson.info.init_bpm)
-            .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
-            .min()
-            .map(BaseBpm::new)
-    }
-}
-
-#[cfg(feature = "bmson")]
-impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
-    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        std::iter::once(bmson.info.init_bpm)
-            .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
-            .max()
-            .map(BaseBpm::new)
-    }
-}
-
-#[cfg(feature = "bmson")]
-impl<'a> BaseBpmGenerator<Bmson<'a>> for ManualBpmGenerator {
-    fn generate(&self, _bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        Some(self.0)
     }
 }

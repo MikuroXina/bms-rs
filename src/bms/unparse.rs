@@ -5,7 +5,10 @@ use std::collections::{BTreeMap, HashMap};
 
 use num::Integer;
 
-use crate::bms::prelude::*;
+use crate::{
+    bms::prelude::*,
+    chart::types::{Argb, BgaLayer},
+};
 
 impl Bms {
     /// Convert Bms to `Vec<Token>` (in conventional order: header -> definitions -> resources -> messages).
