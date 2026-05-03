@@ -70,6 +70,8 @@ pub mod prelude;
 
 pub mod process;
 
+pub mod types;
+
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 

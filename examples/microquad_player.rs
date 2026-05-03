@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bms_rs::bms::prelude::*;
+use bms_rs::bmson::prelude::BmsonProcessor;
 use bms_rs::chart::prelude::*;
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};

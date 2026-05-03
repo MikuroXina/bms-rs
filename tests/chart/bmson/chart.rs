@@ -3,6 +3,7 @@
 use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
+use bms_rs::bmson::prelude::BmsonProcessor;
 use bms_rs::chart::prelude::*;
 
 fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {

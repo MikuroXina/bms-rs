@@ -31,3 +31,6 @@ pub use super::{default_mode_hint, default_percentage, default_resolution};
 
 // Re-export BMS types that are dependencies of BMSON types
 pub use crate::bms::command::LnMode;
+
+// Re-export process module
+pub use super::process::BmsonProcessor;

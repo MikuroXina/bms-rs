@@ -13,7 +13,7 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, NoteChannelId, NoteKind, PlayerSide,
+            Channel, NoteChannelId,
             converter::{
                 KeyConverter, KeyMappingConvertFlip, KeyMappingConvertLaneRandomShuffle,
                 KeyMappingConvertLaneRotateShuffle, KeyMappingConvertMirror,
@@ -25,7 +25,7 @@ pub use super::{
             },
             read_channel,
         },
-        graphics::{Argb, PixelPoint, PixelSize, Rgb},
+        graphics::{PixelPoint, PixelSize, Rgb},
         minor_command::{
             ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
             WavCmdParam,
@@ -46,9 +46,9 @@ pub use super::{
         judge::ExRankDef,
         notes::Notes,
         obj::{
-            BgaArgbObj, BgaKeyboundObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj,
-            BpmChangeObj, JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj,
-            SectionLenChangeObj, SeekObj, SpeedObj, StopObj, TextObj, WavObj,
+            BgaArgbObj, BgaKeyboundObj, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj,
+            JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj, SectionLenChangeObj, SeekObj,
+            SpeedObj, StopObj, TextObj, WavObj,
         },
         wav::ExWavDef,
     },
@@ -68,6 +68,15 @@ pub use super::{
     parse_bms,
     rng::{Rng, RngMock},
 };
+
+// Re-export process module
+pub use super::process::BmsProcessor;
+
+// Re-export chart event types (including BmsEvent)
+pub use crate::chart::event::BmsEvent;
+
+// Re-export chart types
+pub use crate::chart::types::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]

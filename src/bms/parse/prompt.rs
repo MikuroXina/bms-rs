@@ -27,12 +27,10 @@ use crate::bms::model::obj::{
 };
 
 use crate::bms::{
-    command::{
-        graphics::Argb,
-        minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
-    },
+    command::minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
     model::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
 };
+use crate::chart::types::Argb;
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait Prompter {

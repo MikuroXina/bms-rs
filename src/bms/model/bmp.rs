@@ -8,10 +8,13 @@ use std::{
     path::PathBuf,
 };
 
-use crate::bms::{
-    command::graphics::{Argb, PixelPoint, PixelSize},
-    parse::{Result, prompt::ChannelDuplication},
-    prelude::*,
+use crate::{
+    bms::{
+        command::graphics::{PixelPoint, PixelSize},
+        parse::{Result, prompt::ChannelDuplication},
+        prelude::*,
+    },
+    chart::types::{Argb, BgaLayer},
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

@@ -14,6 +14,7 @@ use crate::{
         BarLine, Bga, BgaEvent, BgaHeader, BgaId, Bmson, BmsonInfo, BpmEvent, KeyChannel, KeyEvent,
         MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent, pulse::PulseConverter,
     },
+    chart::types::BgaLayer,
 };
 
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};

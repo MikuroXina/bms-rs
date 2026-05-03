@@ -34,6 +34,7 @@ use crate::{
         },
         prelude::*,
     },
+    chart::types::{Argb, BgaLayer},
     util::StrExtension,
 };
 

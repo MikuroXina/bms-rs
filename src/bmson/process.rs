@@ -10,15 +10,15 @@ use std::{
 use itertools::Itertools;
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
-use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::bmson::prelude::*;
 use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent};
+use crate::chart::prelude::{TimeSpan, YCoordinate};
 use crate::chart::process::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Process, WavId,
+    calculate_cumulative_times,
 };
-use crate::chart::{
-    Chart, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGATIVE_F64, TimeSpan, YCoordinate,
-};
+use crate::chart::types::{BgaLayer, Key, NoteKind, PlayerSide};
+use crate::chart::{Chart, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
 use crate::util::StrExtension;
 
 /// BMSON format parser.
@@ -250,8 +250,7 @@ impl AllEventsIndex {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect();
 
-        let cum_map =
-            super::calculate_cumulative_times(&points, init_bpm, &bpm_changes, &stop_list);
+        let cum_map = calculate_cumulative_times(&points, init_bpm, &bpm_changes, &stop_list);
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let to_time_span =
             |secs: f64| TimeSpan::from_duration(std::time::Duration::from_secs_f64(secs));
@@ -449,5 +448,41 @@ impl Process for Bmson<'_> {
 
     fn process(self) -> Result<Chart, Self::Error> {
         Ok(BmsonProcessor::parse(&self))
+    }
+}
+
+// ---- BaseBpmGenerator implementations for BMSON ----
+
+use crate::chart::player::base_bpm::{
+    BaseBpm, BaseBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator,
+};
+
+impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        Some(BaseBpm::new(bmson.info.init_bpm))
+    }
+}
+
+impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        std::iter::once(bmson.info.init_bpm)
+            .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
+            .min()
+            .map(BaseBpm::new)
+    }
+}
+
+impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        std::iter::once(bmson.info.init_bpm)
+            .chain(bmson.bpm_events.iter().map(|ev| ev.bpm))
+            .max()
+            .map(BaseBpm::new)
+    }
+}
+
+impl<'a> BaseBpmGenerator<Bmson<'a>> for crate::chart::player::base_bpm::ManualBpmGenerator {
+    fn generate(&self, _bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        Some(self.0)
     }
 }

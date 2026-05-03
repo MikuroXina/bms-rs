@@ -23,6 +23,7 @@ pub mod lex;
 pub mod model;
 pub mod parse;
 pub mod prelude;
+pub mod process;
 pub mod rng;
 pub mod unparse;
 

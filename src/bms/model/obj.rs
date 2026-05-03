@@ -8,7 +8,9 @@ use crate::bms::command::{
     time::{ObjTime, Track},
 };
 
-use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
+use crate::bms::command::minor_command::SwBgaEvent;
+use crate::chart::types::Argb;
+use crate::chart::types::BgaLayer;
 
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -168,23 +170,6 @@ impl Ord for BgaObj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.time.cmp(&other.time)
     }
-}
-
-/// A layer where the image for BGA to be displayed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[non_exhaustive]
-pub enum BgaLayer {
-    /// The lowest layer.
-    Base,
-    /// Layer which is displayed only if a player missed to play notes.
-    Poor,
-    /// An overlaying layer.
-    Overlay,
-    /// An overlaying layer.
-    ///
-    /// This layer is layered over [`BgaLayer::Overlay`].
-    Overlay2,
 }
 
 impl BgaLayer {

@@ -9,14 +9,11 @@ use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
 use crate::bms::{
-    command::{
-        ObjId,
-        channel::{Key, NoteKind, PlayerSide},
-        time::ObjTime,
-    },
+    command::{ObjId, time::ObjTime},
     model::{Bms, obj::WavObj},
     prelude::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
 };
+use crate::chart::types::{Key, NoteKind, PlayerSide};
 
 /// Missing-related validity entries.
 #[non_exhaustive]
@@ -323,16 +320,13 @@ mod tests {
 
     use super::*;
     use crate::bms::{
-        command::{
-            ObjId,
-            channel::{Key, NoteKind, PlayerSide},
-            time::ObjTime,
-        },
+        command::{ObjId, time::ObjTime},
         model::{
             notes::Notes,
-            obj::{BgaLayer, BgaObj, WavObj},
+            obj::{BgaObj, WavObj},
         },
     };
+    use crate::chart::types::{BgaLayer, Key, NoteKind, PlayerSide};
 
     fn t(track: u64, num: u64, den: u64) -> ObjTime {
         ObjTime::new(track, num, den).expect("denominator should be non-zero")
