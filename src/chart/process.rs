@@ -21,7 +21,7 @@ pub trait Process {
     /// # Errors
     ///
     /// Returns `Self::Error` if processing fails.
-    fn process(self) -> Result<Chart, Self::Error>;
+    fn process(&self) -> Result<Chart, Self::Error>;
 }
 
 /// WAV audio file ID wrapper type

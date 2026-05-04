@@ -811,8 +811,8 @@ impl TryFrom<Bms> for Chart {
 impl Process for Bms {
     type Error = PlayingError;
 
-    fn process(self) -> Result<Chart, Self::Error> {
-        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&self)
+    fn process(&self) -> Result<Chart, Self::Error> {
+        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(self)
     }
 }
 

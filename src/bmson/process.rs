@@ -446,8 +446,8 @@ impl<'a> TryFrom<Bmson<'a>> for Chart {
 impl Process for Bmson<'_> {
     type Error = ();
 
-    fn process(self) -> Result<Chart, Self::Error> {
-        Ok(BmsonProcessor::parse(&self))
+    fn process(&self) -> Result<Chart, Self::Error> {
+        Ok(BmsonProcessor::parse(self))
     }
 }
 
