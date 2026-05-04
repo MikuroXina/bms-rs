@@ -1,7 +1,7 @@
 //! Bms Processor Module.
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     convert::TryFrom,
     path::PathBuf,
 };
@@ -25,7 +25,7 @@ use strict_num_extended::NonNegativeF64;
 ///
 /// This struct serves as a namespace for BMS parsing functions.
 /// It parses BMS files and returns a `Chart` containing all precomputed data.
-pub struct BmsProcessor;
+struct BmsProcessor;
 
 /// Convert STOP duration from 192nd-note units to beats (measure units).
 ///
@@ -45,7 +45,7 @@ impl BmsProcessor {
     /// # Errors
     ///
     /// Returns [`PlayingError::InvalidBpm`] if the BPM value could not be parsed.
-    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> Result<Chart, PlayingError> {
+    fn parse<T: BmsLayoutMapper>(bms: &Bms) -> Result<Chart, PlayingError> {
         // === Validate all StringValue definitions ===
         let mut errors = Vec::new();
 
@@ -156,7 +156,7 @@ impl BmsProcessor {
     }
 
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
-    pub fn generate_barlines_for_bms(
+    fn generate_barlines_for_bms(
         bms: &Bms,
         y_memo: &YMemo,
         events_map: &mut BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
@@ -189,7 +189,7 @@ impl BmsProcessor {
         }
     }
 
-    pub(crate) fn lane_of_channel_id<T: KeyLayoutMapper>(
+    fn lane_of_channel_id<T: BmsLayoutMapper>(
         channel_id: NoteChannelId,
     ) -> Option<(PlayerSide, Key, NoteKind)> {
         let map = channel_id.try_into_map::<T>()?;
@@ -359,31 +359,68 @@ impl YMemo {
     }
 }
 
+struct EventAppender<'a> {
+    bms: &'a Bms,
+    events_map: &'a mut BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
+    id_gen: &'a mut ChartEventIdGenerator,
+    get_event_y: &'a dyn Fn(ObjTime) -> YCoordinate,
+}
+
 impl AllEventsIndex {
     /// Precompute all events, store grouped by Y coordinate
-    /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
     #[must_use]
-    pub fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms, y_memo: &YMemo) -> Self {
+    pub fn precompute_all_events<T: BmsLayoutMapper>(bms: &Bms, y_memo: &YMemo) -> Self {
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
-
         let get_event_y = |time: ObjTime| -> YCoordinate { y_memo.get_y(time) };
 
-        let note_events: Vec<(YCoordinate, WavObj)> = bms
+        {
+            let mut appender = EventAppender {
+                bms,
+                events_map: &mut events_map,
+                id_gen: &mut id_gen,
+                get_event_y: &get_event_y,
+            };
+            appender.append_note_events::<T>(y_memo);
+            appender.append_bpm_events();
+            appender.append_scroll_events();
+            appender.append_speed_events();
+            appender.append_stop_events();
+            appender.append_bga_events();
+            appender.append_volume_events();
+            appender.append_text_events();
+            appender.append_judge_events();
+            appender.append_video_events();
+            appender.append_option_events();
+        }
+
+        BmsProcessor::generate_barlines_for_bms(bms, y_memo, &mut events_map, &mut id_gen);
+        Self::new(events_map)
+    }
+}
+
+impl EventAppender<'_> {
+    fn push_event(&mut self, y: YCoordinate, event: ChartEvent) {
+        let id = self.id_gen.next_id();
+        self.events_map
+            .entry(y)
+            .or_default()
+            .push(PlayheadEvent::new(id, y, event, TimeSpan::ZERO));
+    }
+
+    fn append_note_events<T: BmsLayoutMapper>(&mut self, y_memo: &YMemo) {
+        let note_events: Vec<(YCoordinate, WavObj)> = self
+            .bms
             .notes()
             .all_notes()
-            .map(|obj| (get_event_y(obj.offset), obj.clone()))
+            .map(|obj| (y_memo.get_y(obj.offset), obj.clone()))
             .sorted_by(|(y1, _), (y2, _)| y1.cmp(y2))
             .collect();
 
-        // Use ordered Vec instead of HashMap since f64 doesn't implement Hash
-        // and NonNegativeF64 doesn't implement Hash either
         let mut zero_length_key_tracker: Vec<(YCoordinate, PlayerSide, Key, usize)> = Vec::new();
-
         for (i, (y, obj)) in note_events.iter().enumerate() {
             let is_zero_length_section = y_memo.zero_length_tracks.contains(&obj.offset.track());
             let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
-
             if let Some((side, key, _)) = lane
                 && is_zero_length_section
             {
@@ -391,27 +428,7 @@ impl AllEventsIndex {
             }
         }
 
-        // Track LN start markers to prevent double-triggering (BMS format concern only).
-        //
-        // BMS format represents long notes using two consecutive Long note markers:
-        //   - First marker: start of long note (with length calculated to next marker)
-        //   - Second marker: end of long note (with no length)
-        //
-        // Example in BMS format:
-        //   #00151:11  <- Long note start (Player1, Key1, time=1)
-        //   #00351:22  <- Long note end   (Player1, Key1, time=3)
-        //
-        // Without this fix, both markers would trigger events, causing:
-        //   1. Double-triggering: same long note fires twice (at start and end)
-        //   2. Incorrect playback: end marker creates a zero-length note event
-        //
-        // IMPORTANT: This is purely a BMS FORMAT PARSING concern.
-        // The term "started" here refers to PARSING STATE, not GAMEPLAY STATE.
-        // The actual LN visibility (including LNs whose start has passed)
-        // is handled by AllEventsIndex using precomputed indices.
-        let mut ln_start_markers: std::collections::HashSet<(PlayerSide, Key)> =
-            std::collections::HashSet::new();
-
+        let mut ln_start_markers: HashSet<(PlayerSide, Key)> = HashSet::new();
         for (i, (y, obj)) in note_events.iter().enumerate() {
             let is_zero_length_section = y_memo.zero_length_tracks.contains(&obj.offset.track());
             let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
@@ -423,22 +440,7 @@ impl AllEventsIndex {
             };
 
             if should_include {
-                let event = event_for_note_static::<T>(bms, y_memo, obj);
-
-                // Fix double-triggering by skipping LN end markers.
-                //
-                // Logic:
-                //   - When we encounter a Long note:
-                //     * If its lane already has a start marker → this is the END marker, skip it
-                //     * If its lane has no start marker AND it has length → this is the START marker, track it
-                //     * If its lane has no start marker AND no length → edge case, ignore (no next marker)
-                //
-                // Result: Each long note generates exactly one event with the correct length.
-                //
-                // IMPORTANT: This is purely a BMS FORMAT PARSING concern.
-                // The term "started" here refers to PARSING STATE, not GAMEPLAY STATE.
-                // The actual LN visibility (including LNs whose start has passed)
-                // is handled by AllEventsIndex using precomputed indices.
+                let event = event_for_note_static::<T>(self.bms, y_memo, obj);
                 if let ChartEvent::Note {
                     side,
                     key,
@@ -449,228 +451,153 @@ impl AllEventsIndex {
                 {
                     let lane_key = (*side, *key);
                     if ln_start_markers.contains(&lane_key) {
-                        // This lane already has a start marker.
-                        // This marker is the end of that long note.
-                        // Skip it to prevent double-triggering.
                         ln_start_markers.remove(&lane_key);
                         continue;
                     }
                     if length.is_some() {
-                        // This lane has no start marker.
-                        // This marker is the start of a new long note.
-                        // Track it so we can skip the end marker when we encounter it.
                         ln_start_markers.insert(lane_key);
                     }
-                    // If length is None, this is an orphan end marker or zero-length note.
-                    // Skip it silently as it doesn't represent a valid playable note.
                 }
-
-                let evp = PlayheadEvent::new(id_gen.next_id(), *y, event, TimeSpan::ZERO);
-                events_map.entry(*y).or_default().push(evp);
+                self.push_event(*y, event);
             }
         }
+    }
 
-        for change in bms.bpm.bpm_changes.values() {
-            let y = get_event_y(change.time);
+    fn append_bpm_events(&mut self) {
+        for change in self.bms.bpm.bpm_changes.values() {
+            let y = (self.get_event_y)(change.time);
             let event = ChartEvent::BpmChange { bpm: change.bpm };
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
+            self.push_event(y, event);
         }
+    }
 
-        // Scroll change events
-        for change in bms.scroll.scrolling_factor_changes.values() {
-            let y = get_event_y(change.time);
+    fn append_scroll_events(&mut self) {
+        for change in self.bms.scroll.scrolling_factor_changes.values() {
+            let y = (self.get_event_y)(change.time);
             let event = ChartEvent::ScrollChange {
                 factor: change.factor,
             };
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
+            self.push_event(y, event);
         }
+    }
 
-        // Speed change events
-        for change in bms.speed.speed_factor_changes.values() {
-            let y = get_event_y(change.time);
+    fn append_speed_events(&mut self) {
+        for change in self.bms.speed.speed_factor_changes.values() {
+            let y = (self.get_event_y)(change.time);
             let event = ChartEvent::SpeedChange {
                 factor: change.factor,
             };
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
+            self.push_event(y, event);
         }
+    }
 
-        // Stop events
-        for stop in bms.stop.stops.values() {
-            let y = get_event_y(stop.time);
+    fn append_stop_events(&mut self) {
+        for stop in self.bms.stop.stops.values() {
+            let y = (self.get_event_y)(stop.time);
             let event = ChartEvent::Stop {
                 duration: convert_stop_duration_to_beats(stop.duration),
             };
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
+            self.push_event(y, event);
         }
+    }
 
-        // BGA change events
-        for bga_obj in bms.bmp.bga_changes.values() {
-            let y = get_event_y(bga_obj.time);
+    fn append_bga_events(&mut self) {
+        for bga_obj in self.bms.bmp.bga_changes.values() {
+            let y = (self.get_event_y)(bga_obj.time);
             let bmp_index = bga_obj.id.as_u16() as usize;
             let event = ChartEvent::BgaChange {
                 layer: bga_obj.layer,
                 bmp_id: Some(BmpId::from(bmp_index)),
             };
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
+            self.push_event(y, event);
         }
 
-        // BGA opacity change events (requires minor-command feature)
-
-        for (layer, opacity_changes) in &bms.bmp.bga_opacity_changes {
+        for (layer, opacity_changes) in &self.bms.bmp.bga_opacity_changes {
             for opacity_obj in opacity_changes.values() {
-                let y = get_event_y(opacity_obj.time);
+                let y = (self.get_event_y)(opacity_obj.time);
                 let event = ChartEvent::Bms(BmsEvent::BgaOpacityChange {
                     layer: *layer,
                     opacity: opacity_obj.opacity,
                 });
-                events_map.entry(y).or_default().push(PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y,
-                    event,
-                    TimeSpan::ZERO,
-                ));
+                self.push_event(y, event);
             }
         }
 
-        // BGA ARGB color change events (requires minor-command feature)
-        for (layer, argb_changes) in &bms.bmp.bga_argb_changes {
+        for (layer, argb_changes) in &self.bms.bmp.bga_argb_changes {
             for argb_obj in argb_changes.values() {
-                let y = get_event_y(argb_obj.time);
+                let y = (self.get_event_y)(argb_obj.time);
                 let event = ChartEvent::Bms(BmsEvent::BgaArgbChange {
                     layer: *layer,
                     argb: argb_obj.argb,
                 });
-                events_map.entry(y).or_default().push(PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y,
-                    event,
-                    TimeSpan::ZERO,
-                ));
+                self.push_event(y, event);
             }
         }
 
-        // BGM volume change events
-        for bgm_volume_obj in bms.volume.bgm_volume_changes.values() {
-            let y = get_event_y(bgm_volume_obj.time);
-            let event = ChartEvent::Bms(BmsEvent::BgmVolumeChange {
-                volume: bgm_volume_obj.volume,
-            });
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
-        }
-
-        // KEY volume change events
-        for key_volume_obj in bms.volume.key_volume_changes.values() {
-            let y = get_event_y(key_volume_obj.time);
-            let event = ChartEvent::Bms(BmsEvent::KeyVolumeChange {
-                volume: key_volume_obj.volume,
-            });
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
-        }
-
-        // Text display events
-        for text_obj in bms.text.text_events.values() {
-            let y = get_event_y(text_obj.time);
-            let event = ChartEvent::Bms(BmsEvent::TextDisplay {
-                text: text_obj.text.clone(),
-            });
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
-        }
-
-        // Judge level change events
-        for judge_obj in bms.judge.judge_events.values() {
-            let y = get_event_y(judge_obj.time);
-            let event = ChartEvent::Bms(BmsEvent::JudgeLevelChange {
-                level: judge_obj.judge_level,
-            });
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
-        }
-
-        for seek_obj in bms.video.seek_events.values() {
-            let y = get_event_y(seek_obj.time);
-            let event = ChartEvent::Bms(BmsEvent::VideoSeek {
-                seek_time: seek_obj.position.as_f64(),
-            });
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
-        }
-
-        for bga_keybound_obj in bms.bmp.bga_keybound_events.values() {
-            let y = get_event_y(bga_keybound_obj.time);
+        for bga_keybound_obj in self.bms.bmp.bga_keybound_events.values() {
+            let y = (self.get_event_y)(bga_keybound_obj.time);
             let event = ChartEvent::Bms(BmsEvent::BgaKeybound {
                 event: bga_keybound_obj.event.clone(),
             });
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
+            self.push_event(y, event);
         }
+    }
 
-        for option_obj in bms.option.option_events.values() {
-            let y = get_event_y(option_obj.time);
+    fn append_volume_events(&mut self) {
+        for bgm_volume_obj in self.bms.volume.bgm_volume_changes.values() {
+            let y = (self.get_event_y)(bgm_volume_obj.time);
+            let event = ChartEvent::Bms(BmsEvent::BgmVolumeChange {
+                volume: bgm_volume_obj.volume,
+            });
+            self.push_event(y, event);
+        }
+        for key_volume_obj in self.bms.volume.key_volume_changes.values() {
+            let y = (self.get_event_y)(key_volume_obj.time);
+            let event = ChartEvent::Bms(BmsEvent::KeyVolumeChange {
+                volume: key_volume_obj.volume,
+            });
+            self.push_event(y, event);
+        }
+    }
+
+    fn append_text_events(&mut self) {
+        for text_obj in self.bms.text.text_events.values() {
+            let y = (self.get_event_y)(text_obj.time);
+            let event = ChartEvent::Bms(BmsEvent::TextDisplay {
+                text: text_obj.text.clone(),
+            });
+            self.push_event(y, event);
+        }
+    }
+
+    fn append_judge_events(&mut self) {
+        for judge_obj in self.bms.judge.judge_events.values() {
+            let y = (self.get_event_y)(judge_obj.time);
+            let event = ChartEvent::Bms(BmsEvent::JudgeLevelChange {
+                level: judge_obj.judge_level,
+            });
+            self.push_event(y, event);
+        }
+    }
+
+    fn append_video_events(&mut self) {
+        for seek_obj in self.bms.video.seek_events.values() {
+            let y = (self.get_event_y)(seek_obj.time);
+            let event = ChartEvent::Bms(BmsEvent::VideoSeek {
+                seek_time: seek_obj.position.as_f64(),
+            });
+            self.push_event(y, event);
+        }
+    }
+
+    fn append_option_events(&mut self) {
+        for option_obj in self.bms.option.option_events.values() {
+            let y = (self.get_event_y)(option_obj.time);
             let event = ChartEvent::Bms(BmsEvent::OptionChange {
                 option: option_obj.option.clone(),
             });
-            events_map.entry(y).or_default().push(PlayheadEvent::new(
-                id_gen.next_id(),
-                y,
-                event,
-                TimeSpan::ZERO,
-            ));
+            self.push_event(y, event);
         }
-
-        BmsProcessor::generate_barlines_for_bms(bms, y_memo, &mut events_map, &mut id_gen);
-        Self::new(events_map)
     }
 }
 
@@ -769,7 +696,7 @@ pub fn precompute_activate_times(
 /// - `ChartEvent::Note` for playable notes
 /// - `ChartEvent::Bgm` for BGM/background audio
 #[must_use]
-pub fn event_for_note_static<T: KeyLayoutMapper>(
+pub fn event_for_note_static<T: BmsLayoutMapper>(
     bms: &Bms,
     y_memo: &YMemo,
     obj: &WavObj,
@@ -804,15 +731,15 @@ impl TryFrom<Bms> for Chart {
     type Error = PlayingError;
 
     fn try_from(bms: Bms) -> Result<Self, Self::Error> {
-        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&bms)
+        bms.process()
     }
 }
 
 impl Process for Bms {
     type Error = PlayingError;
 
-    fn process(self) -> Result<Chart, Self::Error> {
-        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&self)
+    fn process(&self) -> Result<Chart, Self::Error> {
+        BmsProcessor::parse::<crate::bms::command::channel::mapper::BmsLayoutBeat>(self)
     }
 }
 
@@ -865,7 +792,7 @@ impl BaseBpmGenerator<Bms> for crate::chart::player::base_bpm::ManualBpmGenerato
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bms::command::channel::mapper::KeyLayoutBeat;
+    use crate::bms::command::channel::mapper::BmsLayoutBeat;
     use crate::bms::command::string_value::StringValue;
 
     /// Test that parsing fails when BPM value is invalid (non-numeric string)
@@ -876,7 +803,7 @@ mod tests {
         bms.bpm.bpm = Some(StringValue::new("invalid_bpm"));
 
         // Try to parse, should return InvalidBpm error
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(result.is_err());
         match result {
@@ -895,7 +822,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new(""));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(result.is_err());
         match result {
@@ -912,7 +839,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new("NaN"));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(result.is_err());
         match result {
@@ -930,7 +857,7 @@ mod tests {
         let bms = Bms::default();
 
         // Parse should succeed with default BPM (120)
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(
             result.is_ok(),
@@ -948,7 +875,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new("150.5"));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(
             result.is_ok(),
@@ -964,7 +891,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new("abc123!@#"));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(result.is_err());
         match result {
@@ -984,7 +911,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new(invalid_value));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         match result {
             Err(PlayingError::InvalidBpm { raw, .. }) => {

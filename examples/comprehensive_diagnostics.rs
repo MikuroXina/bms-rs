@@ -9,37 +9,13 @@ use bms_rs::bms::prelude::*;
 fn main() {
     println!("=== BMS-RS Diagnostics Functionality Demo ===\n");
 
-    // Demonstrate usage of all XXXWarningWithRange types
-    demonstrate_warning_types();
+    // Note: PlayingWarning/PlayingError are no longer part of BmsWarning.
+    // They remain available through Bms::check_playing for direct use.
 
     println!("\n=== Integration Usage Example ===\n");
 
     // Demonstrate complete integration workflow
     demonstrate_integration();
-}
-
-fn demonstrate_warning_types() {
-    println!("1. Demonstrate ToAriadne implementation for all warning types:");
-
-    let source_text = "#TITLE Demo\n#ARTIST Composer\n";
-    let source = SimpleSource::new("demo.bms", source_text);
-
-    // Create various types of warnings
-    let warnings = [
-        BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined),
-        BmsWarning::PlayingWarning(PlayingWarning::NoDisplayableNotes),
-        BmsWarning::PlayingWarning(PlayingWarning::NoPlayableNotes),
-    ];
-
-    println!("   Created {} warnings", warnings.len());
-
-    for (i, warning) in warnings.iter().enumerate() {
-        println!("   Warning {}: {}", i + 1, warning);
-
-        // Demonstrate ToAriadne trait usage
-        let _report = warning.to_report(&source);
-        println!("   -> Successfully converted to ariadne Report");
-    }
 }
 
 fn demonstrate_integration() {

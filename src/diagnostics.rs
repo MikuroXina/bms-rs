@@ -14,7 +14,7 @@
 //! # #[cfg(feature = "diagnostics")]
 //! # {
 //! use bms_rs::{
-//!     bms::{BmsWarning, default_config, command::channel::mapper::KeyLayoutBeat, parse_bms},
+//!     bms::{BmsWarning, default_config, command::channel::mapper::BmsLayoutBeat, parse_bms},
 //!     diagnostics::emit_bms_warnings,
 //! };
 //!

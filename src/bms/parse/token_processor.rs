@@ -230,9 +230,7 @@ where
 }
 
 /// Returns all of processors this crate provided.
-pub fn full_preset<T: KeyLayoutMapper, R: Rng>(
-    rng: Rc<RefCell<R>>,
-) -> impl TokenProcessor<Output = Bms> {
+pub fn full_preset<R: Rng>(rng: Rc<RefCell<R>>) -> impl TokenProcessor<Output = Bms> {
     let case_sensitive_obj_id = Rc::new(RefCell::new(false));
     let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
         .then(bmp::BmpProcessor::new(&case_sensitive_obj_id))
@@ -253,7 +251,7 @@ pub fn full_preset<T: KeyLayoutMapper, R: Rng>(
         .then(text::TextProcessor::new(&case_sensitive_obj_id))
         .then(video::VideoProcessor::new(&case_sensitive_obj_id))
         .then(volume::VolumeProcessor)
-        .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
+        .then(wav::WavProcessor::new(&case_sensitive_obj_id));
 
     let bms_mapper = sub_processor.map(
         |(

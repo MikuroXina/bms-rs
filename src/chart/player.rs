@@ -66,7 +66,7 @@ impl<'a> ChartPlayer<'a> {
     /// let start_time = TimeStamp::now();
     /// let base_bpm = StartBpmGenerator.generate(&bms)?;
     /// let visible_range = VisibleRangePerBpm::new(base_bpm, reaction_time);
-    /// let chart = BmsProcessor::parse(&bms);
+    /// let chart = bms.process().unwrap();
     ///
     /// let mut player = ChartPlayer::start(&chart, visible_range, start_time);
     /// ```

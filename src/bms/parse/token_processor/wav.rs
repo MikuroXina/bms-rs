@@ -17,7 +17,7 @@
 //! - `#xxx[D1-DZ]:` - Player 1 landmine channel with damage amount.
 //! - `#xxx[E1-EZ]:` - Player 2 landmine channel with damage amount.
 
-use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
+use std::{cell::RefCell, path::Path, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -35,21 +35,19 @@ use crate::{
 
 /// It processes `#WAVxx` and `#LNOBJ` definitions and objects on `Bgm` and `Note` channels.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WavProcessor<T> {
+pub struct WavProcessor {
     case_sensitive_obj_id: Rc<RefCell<bool>>,
-    _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T: KeyLayoutMapper> WavProcessor<T> {
+impl WavProcessor {
     pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
         Self {
             case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
-            _phantom: PhantomData,
         }
     }
 }
 
-impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
+impl TokenProcessor for WavProcessor {
     type Output = WavObjects;
 
     fn process<P: Prompter>(
@@ -81,7 +79,7 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
     }
 }
 
-impl<T: KeyLayoutMapper> WavProcessor<T> {
+impl WavProcessor {
     fn on_header(
         &self,
         name: &str,
@@ -190,7 +188,7 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
             let end_id = ObjId::try_from(args, *self.case_sensitive_obj_id.borrow())?;
             let mut end_note = objects
                 .notes
-                .pop_latest_of::<T>(end_id)
+                .pop_latest_of(end_id)
                 .ok_or(ParseWarning::UndefinedObject(end_id))?;
             let WavObj {
                 offset, channel_id, ..
@@ -210,30 +208,22 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
                 ParseWarning::SyntaxError(format!("Cannot find begin note for LNOBJ {end_id:?}"))
             })?;
 
-            let mut begin_note_tuple = begin_note
-                .channel_id
-                .try_into_map::<T>()
-                .ok_or_else(|| {
-                    ParseWarning::SyntaxError(format!(
-                        "channel of specified note for LNOBJ cannot become LN {end_id:?}"
-                    ))
-                })?
-                .as_tuple();
-            begin_note_tuple.1 = NoteKind::Long;
-            begin_note.channel_id = T::from_tuple(begin_note_tuple).to_channel_id();
+            begin_note.channel_id =
+                begin_note
+                    .channel_id
+                    .to_long_note_channel()
+                    .ok_or_else(|| {
+                        ParseWarning::SyntaxError(format!(
+                            "channel of specified note for LNOBJ cannot become LN {end_id:?}"
+                        ))
+                    })?;
             objects.notes.push_note(begin_note);
 
-            let mut end_note_tuple = end_note
-                .channel_id
-                .try_into_map::<T>()
-                .ok_or_else(|| {
-                    ParseWarning::SyntaxError(format!(
-                        "channel of specified note for LNOBJ cannot become LN {end_id:?}"
-                    ))
-                })?
-                .as_tuple();
-            end_note_tuple.1 = NoteKind::Long;
-            end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
+            end_note.channel_id = end_note.channel_id.to_long_note_channel().ok_or_else(|| {
+                ParseWarning::SyntaxError(format!(
+                    "channel of specified note for LNOBJ cannot become LN {end_id:?}"
+                ))
+            })?;
             objects.notes.push_note(end_note);
         }
         if name.eq_ignore_ascii_case("WAVCMD") {
@@ -298,7 +288,7 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
             let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
-                objects.notes.push_bgm::<T>(time, obj);
+                objects.notes.push_bgm(time, obj);
             }
         }
         if let Channel::Note { channel_id } = channel {

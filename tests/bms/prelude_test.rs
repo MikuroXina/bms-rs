@@ -78,19 +78,3 @@ fn test_prelude_minor_command_imports() {
     assert_eq!(*_ex_wav_volume.as_ref(), 0);
     assert_eq!(u64::from(_ex_wav_frequency), 100);
 }
-
-#[test]
-#[cfg(feature = "diagnostics")]
-fn test_prelude_diagnostics_imports() {
-    let _simple_source = SimpleSource::new("test.bms", "#TITLE Test");
-    let _bms_warning = BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined);
-
-    let source_text = "#TITLE Test\n#ARTIST Composer\n";
-    let source = SimpleSource::new("test.bms", source_text);
-    let warnings = vec![BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined)];
-
-    let reports = bms_rs::diagnostics::collect_bms_reports("test.bms", source_text, &warnings);
-    assert_eq!(reports.len(), warnings.len());
-
-    let _report = _bms_warning.to_report(&source);
-}

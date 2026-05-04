@@ -94,7 +94,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     };
 
     // Bms -> tokens (unparse)
-    let tokens2 = bms1.unparse::<KeyLayoutBeat>();
+    let tokens2 = bms1.unparse();
     let tokens2_wrapped: Vec<TokenWithRange<'_>> = tokens2
         .into_iter()
         .map(|t| SourceRangeMixin::new(t, 0..0))

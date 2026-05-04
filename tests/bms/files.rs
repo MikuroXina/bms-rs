@@ -149,13 +149,16 @@ fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
     let BmsOutput { bms, warnings } = parse_bms(source, default_config());
     let bms = bms.unwrap();
+    assert_eq!(warnings, vec![]);
+
+    let PlayingCheckOutput {
+        playing_warnings,
+        playing_errors,
+    } = bms.check_playing::<BmsLayoutBeat>();
+    assert_eq!(playing_warnings, vec![PlayingWarning::TotalUndefined]);
     assert_eq!(
-        warnings,
-        vec![
-            BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined),
-            BmsWarning::PlayingError(PlayingError::BpmUndefined),
-            BmsWarning::PlayingError(PlayingError::NoNotes)
-        ]
+        playing_errors,
+        vec![PlayingError::BpmUndefined, PlayingError::NoNotes]
     );
 
     // Check header content - this file has minimal header info
