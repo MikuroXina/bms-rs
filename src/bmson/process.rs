@@ -25,7 +25,7 @@ use crate::util::StrExtension;
 ///
 /// This struct serves as a namespace for BMSON parsing functions.
 /// It parses BMSON files and returns a `Chart` containing all precomputed data.
-pub struct BmsonProcessor;
+struct BmsonProcessor;
 
 impl BmsonProcessor {
     /// Parse BMSON file and return a `Chart` containing all precomputed data.
@@ -34,7 +34,7 @@ impl BmsonProcessor {
     ///
     /// Panics if `init_bpm` is not a positive number.
     #[must_use]
-    pub fn parse(bmson: &Bmson<'_>) -> Chart {
+    fn parse(bmson: &Bmson<'_>) -> Chart {
         let init_bpm: PositiveF64 =
             PositiveF64::new(bmson.info.init_bpm.as_f64()).expect("init_bpm should be positive");
         let pulses_denom = FinF64::new((4 * bmson.info.resolution.get()) as f64)
@@ -439,15 +439,15 @@ impl<'a> TryFrom<Bmson<'a>> for Chart {
     type Error = ();
 
     fn try_from(bmson: Bmson<'a>) -> Result<Self, Self::Error> {
-        Ok(BmsonProcessor::parse(&bmson))
+        bmson.process()
     }
 }
 
 impl Process for Bmson<'_> {
     type Error = ();
 
-    fn process(self) -> Result<Chart, Self::Error> {
-        Ok(BmsonProcessor::parse(&self))
+    fn process(&self) -> Result<Chart, Self::Error> {
+        Ok(BmsonProcessor::parse(self))
     }
 }
 

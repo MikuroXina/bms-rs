@@ -389,4 +389,53 @@ impl Bms {
         // randomized
         self.randomized.extend(other.randomized.clone());
     }
+
+    /// Check for playing warnings and errors based on the parsed BMS data.
+    ///
+    /// This method inspects the parsed BMS data for conditions that would affect
+    /// playback, such as missing BPM, missing TOTAL, or no playable notes.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T` - Key layout mapper type (e.g., [`BmsLayoutBeat`], [`BmsLayoutBeatNanasi`])
+    pub fn check_playing<T: BmsLayoutMapper>(&self) -> PlayingCheckOutput {
+        let mut playing_warnings = Vec::new();
+        let mut playing_errors = Vec::new();
+
+        // Check for TotalUndefined warning
+        if self.judge.total.is_none() {
+            playing_warnings.push(PlayingWarning::TotalUndefined);
+        }
+
+        // Check for BPM-related conditions
+        if self.bpm.bpm.is_none() {
+            if self.bpm.bpm_changes.is_empty() {
+                playing_errors.push(PlayingError::BpmUndefined);
+            } else {
+                playing_warnings.push(PlayingWarning::StartBpmUndefined);
+            }
+        }
+
+        // Check for notes
+        if self.wav.notes.is_empty() {
+            playing_errors.push(PlayingError::NoNotes);
+        } else {
+            // Check for displayable notes (Visible, Long, Landmine)
+            let has_displayable = self.wav.notes.displayables::<T>().next().is_some();
+            if !has_displayable {
+                playing_warnings.push(PlayingWarning::NoDisplayableNotes);
+            }
+
+            // Check for playable notes (all except Invisible)
+            let has_playable = self.wav.notes.playables::<T>().next().is_some();
+            if !has_playable {
+                playing_warnings.push(PlayingWarning::NoPlayableNotes);
+            }
+        }
+
+        PlayingCheckOutput {
+            playing_warnings,
+            playing_errors,
+        }
+    }
 }

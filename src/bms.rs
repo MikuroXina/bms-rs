@@ -15,7 +15,7 @@
 //! - Do not support commands having ambiguous semantics.
 //! - Do not support syntax came from typo (such as `#RONDOM` or `#END IF`).
 
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 pub mod command;
 
@@ -40,7 +40,6 @@ use self::{
     model::Bms,
     parse::{
         ParseErrorWithRange, ParseWarningWithRange,
-        check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         token_processor::{
             DefaultTokenRelaxer, NoopTokenModifier, SequentialTokenModifier, TokenModifier,
             TokenProcessor, full_preset,
@@ -60,172 +59,133 @@ pub enum BmsWarning {
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     Parse(#[from] ParseWarningWithRange),
-    /// A warning for playing.
-    #[error("Warn: playing: {0}")]
-    PlayingWarning(#[from] PlayingWarning),
-    /// An error for playing.
-    #[error("Error: playing: {0}")]
-    PlayingError(#[from] PlayingError),
 }
 
 /// A configuration builder for [`parse_bms`]. Its methods can be chained to set parameters you want.
 #[must_use]
-pub struct ParseConfig<T, P, R, M> {
-    key_mapper: PhantomData<fn() -> T>,
+pub struct ParseConfig<P, R, M> {
     prompter: P,
     rng: R,
     token_modifier: M,
 }
 
-/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the standard RNG [`rand::rngs::StdRng`].
+/// Creates the default configuration builder with the basic key layout [`BmsLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the standard RNG [`rand::rngs::StdRng`].
 #[cfg(feature = "rand")]
-pub fn default_config() -> ParseConfig<
-    KeyLayoutBeat,
-    AlwaysWarnAndUseNewer,
-    RandRng<rand::rngs::StdRng>,
-    DefaultTokenRelaxer,
-> {
+pub fn default_config()
+-> ParseConfig<AlwaysWarnAndUseNewer, RandRng<rand::rngs::StdRng>, DefaultTokenRelaxer> {
     ParseConfig {
-        key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: RandRng(rand::make_rng()),
         token_modifier: DefaultTokenRelaxer,
     }
 }
 
-/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the Java-compatible RNG.
+/// Creates the default configuration builder with the basic key layout [`BmsLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the Java-compatible RNG.
 /// This version is available when the `rand` feature is not enabled.
 #[cfg(not(feature = "rand"))]
-pub fn default_config()
--> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, rng::JavaRandom, DefaultTokenRelaxer> {
+pub fn default_config() -> ParseConfig<AlwaysWarnAndUseNewer, rng::JavaRandom, DefaultTokenRelaxer>
+{
     ParseConfig {
-        key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: rng::JavaRandom::default(),
         token_modifier: DefaultTokenRelaxer,
     }
 }
 
-/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and your RNG.
-pub fn default_config_with_rng<R>(
+/// Creates the default configuration builder with the basic key layout [`BmsLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and your RNG.
+pub const fn default_config_with_rng<R>(
     rng: R,
-) -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, R, DefaultTokenRelaxer> {
+) -> ParseConfig<AlwaysWarnAndUseNewer, R, DefaultTokenRelaxer> {
     ParseConfig {
-        key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng,
         token_modifier: DefaultTokenRelaxer,
     }
 }
 
-impl<T, P, R, M> ParseConfig<T, P, R, M> {
-    /// Sets the key mapper to the `T2` one.
-    pub fn key_mapper<T2: KeyLayoutMapper>(self) -> ParseConfig<T2, P, R, M> {
+impl<P, R, M> ParseConfig<P, R, M> {
+    /// Sets a custom prompter for conflict resolution.
+    pub fn prompter<P2: Prompter>(self, prompter: P2) -> ParseConfig<P2, R, M> {
         ParseConfig {
-            key_mapper: PhantomData,
-            prompter: self.prompter,
-            rng: self.rng,
-            token_modifier: self.token_modifier,
-        }
-    }
-
-    /// Sets the prompter to `prompter`.
-    pub fn prompter<P2: Prompter>(self, prompter: P2) -> ParseConfig<T, P2, R, M> {
-        ParseConfig {
-            key_mapper: PhantomData,
             prompter,
             rng: self.rng,
             token_modifier: self.token_modifier,
         }
     }
 
-    /// Sets the RNG to `rng`.
-    pub fn rng<R2: Rng>(self, rng: R2) -> ParseConfig<T, P, R2, M> {
+    /// Sets a custom random number generator.
+    pub fn rng<R2: Rng>(self, rng: R2) -> ParseConfig<P, R2, M> {
         ParseConfig {
-            key_mapper: PhantomData,
             prompter: self.prompter,
             rng,
             token_modifier: self.token_modifier,
         }
     }
 
-    /// Append a token modifier by sequentially composing it after the current one.
-    ///
-    /// This preserves the existing modifier and runs the new modifier afterward, enabling
-    /// static dispatch without heap allocations.
+    /// Appends an additional token modifier after the current one.
     pub fn append_token_modifier<M2: TokenModifier>(
         self,
         token_modifier: M2,
-    ) -> ParseConfig<T, P, R, SequentialTokenModifier<M, M2>>
+    ) -> ParseConfig<P, R, SequentialTokenModifier<M, M2>>
     where
         M: TokenModifier,
     {
         ParseConfig {
-            key_mapper: PhantomData,
             prompter: self.prompter,
             rng: self.rng,
             token_modifier: self.token_modifier.then(token_modifier),
         }
     }
 
-    /// Override and replace the current token modifier with the provided one.
+    /// Replaces the current token modifier with a new one.
     pub fn override_token_modifier<M2: TokenModifier>(
         self,
         token_modifier: M2,
-    ) -> ParseConfig<T, P, R, M2> {
+    ) -> ParseConfig<P, R, M2> {
         ParseConfig {
-            key_mapper: PhantomData,
             prompter: self.prompter,
             rng: self.rng,
             token_modifier,
         }
     }
 
-    /// Map the current token modifier using a closure.
-    ///
-    /// Accepts a closure `f` that takes the current modifier `M` and returns a new
-    /// modifier `M2`. This is useful for wrapping, decorating, or transforming the
-    /// modifier while keeping static dispatch.
-    pub fn map_token_modifier<F, M2>(self, f: F) -> ParseConfig<T, P, R, M2>
+    /// Transforms the token modifier using the provided function.
+    pub fn map_token_modifier<F, M2>(self, f: F) -> ParseConfig<P, R, M2>
     where
         F: FnOnce(M) -> M2,
     {
         ParseConfig {
-            key_mapper: PhantomData,
             prompter: self.prompter,
             rng: self.rng,
             token_modifier: f(self.token_modifier),
         }
     }
 
-    /// Clean all token modifiers by switching to a no-op modifier.
-    pub fn clean_token_modifier(self) -> ParseConfig<T, P, R, NoopTokenModifier> {
+    /// Removes the token modifier, using a no-op modifier instead.
+    pub fn clean_token_modifier(self) -> ParseConfig<P, R, NoopTokenModifier> {
         self.override_token_modifier(NoopTokenModifier)
     }
 
     pub(crate) fn build(self) -> (impl TokenProcessor<Output = Bms>, P)
     where
-        T: KeyLayoutMapper,
         P: Prompter,
         R: Rng,
     {
-        struct AggregateTokenProcessor<T, R> {
-            key_mapper: PhantomData<fn() -> T>,
+        struct AggregateTokenProcessor<R> {
             rng: Rc<RefCell<R>>,
         }
-        impl<T: KeyLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
+        impl<R: Rng> TokenProcessor for AggregateTokenProcessor<R> {
             type Output = Bms;
 
             fn process<P: Prompter>(
                 &self,
                 ctx: &mut parse::token_processor::ProcessContext<'_, '_, P>,
             ) -> Result<Self::Output, ParseErrorWithRange> {
-                full_preset::<T, R>(Rc::clone(&self.rng)).process(ctx)
+                full_preset::<R>(Rc::clone(&self.rng)).process(ctx)
             }
         }
         (
-            AggregateTokenProcessor::<T, R> {
-                key_mapper: PhantomData,
+            AggregateTokenProcessor::<R> {
                 rng: Rc::new(RefCell::new(self.rng)),
             },
             self.prompter,
@@ -234,42 +194,26 @@ impl<T, P, R, M> ParseConfig<T, P, R, M> {
 }
 
 /// Parse a BMS file from source text with the specified command preset.
-pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
+pub fn parse_bms<P: Prompter, R: Rng, M: TokenModifier>(
     source: &str,
-    config: ParseConfig<T, P, R, M>,
+    config: ParseConfig<P, R, M>,
 ) -> BmsOutput {
-    // Parse tokens using default channel parser
     let LexOutput {
         mut tokens,
         lex_warnings,
     } = lex::TokenStream::parse_lex(source);
 
-    // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
     config.token_modifier.modify(&mut tokens);
-    let parse_output = Bms::from_token_stream::<'_, T, _, _, _>(&tokens, config);
+    let parse_output = Bms::from_token_stream(&tokens, config);
     let bms_result = parse_output.bms;
-    // Convert parse warnings to BmsWarning
     warnings.extend(
         parse_output
             .parse_warnings
             .into_iter()
             .map(BmsWarning::Parse),
     );
-
-    if let Ok(ref bms) = bms_result {
-        let PlayingCheckOutput {
-            playing_warnings,
-            playing_errors,
-        } = bms.check_playing::<T>();
-
-        // Convert playing warnings to BmsWarning
-        warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
-
-        // Convert playing errors to BmsWarning
-        warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
-    }
 
     BmsOutput {
         bms: bms_result,
@@ -294,12 +238,10 @@ impl ToAriadne for BmsWarning {
         &self,
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        use BmsWarning::{Lex, Parse, PlayingError, PlayingWarning};
+        use BmsWarning::{Lex, Parse};
         match self {
             Lex(e) => e.to_report(src),
             Parse(e) => e.to_report(src),
-            PlayingWarning(w) => w.to_report(src),
-            PlayingError(e) => e.to_report(src),
         }
     }
 }

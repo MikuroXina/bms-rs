@@ -24,7 +24,7 @@ use crate::bms::{
     ParseConfig,
     command::{
         ObjId,
-        channel::{Channel, mapper::KeyLayoutMapper},
+        channel::Channel,
         mixin::SourceRangeMixin,
         time::{ObjTime, Track},
     },
@@ -139,9 +139,9 @@ pub struct ParseOutput {
 
 impl Bms {
     /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream<'a, T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
+    pub fn from_token_stream<'a, P: Prompter, R: Rng, M: TokenModifier>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
-        config: ParseConfig<T, P, R, M>,
+        config: ParseConfig<P, R, M>,
     ) -> ParseOutput {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();

@@ -9,7 +9,7 @@ use super::{base62_to_byte, char_to_base62};
 use std::str::FromStr;
 use thiserror::Error;
 
-use self::mapper::KeyLayoutMapper;
+use self::mapper::BmsLayoutMapper;
 
 // Import chart types for use in this module
 use crate::chart::types::{Key, NoteKind, PlayerSide};
@@ -220,10 +220,35 @@ impl NoteChannelId {
         Self([b'0', b'1'])
     }
 
+    /// Check if this is the BGM channel (`01`).
+    #[must_use]
+    pub const fn is_bgm(self) -> bool {
+        self.0[0] == b'0' && self.0[1] == b'1'
+    }
+
     /// Converts the channel into a key mapping.
     #[must_use]
-    pub fn try_into_map<T: KeyLayoutMapper>(self) -> Option<T> {
+    pub fn try_into_map<T: BmsLayoutMapper>(self) -> Option<T> {
         T::from_channel_id(self)
+    }
+
+    /// Check if this is a visible note channel (P1: first digit '1', P2: first digit '2').
+    #[must_use]
+    pub const fn is_visible_note_channel(self) -> bool {
+        matches!(self.0[0], b'1' | b'2')
+    }
+
+    /// Convert a visible note channel to its long-note channel equivalent.
+    ///
+    /// P1 Visible (`1x`) → P1 Long (`5x`), P2 Visible (`2x`) → P2 Long (`6x`).
+    /// Returns `None` if this is not a visible note channel.
+    #[must_use]
+    pub const fn to_long_note_channel(self) -> Option<Self> {
+        if !self.is_visible_note_channel() {
+            return None;
+        }
+        let long_first = if self.0[0] == b'1' { b'5' } else { b'6' };
+        Some(Self([long_first, self.0[1]]))
     }
 }
 
@@ -335,4 +360,76 @@ pub fn read_channel(channel: &str) -> Option<Channel> {
     }
     let channel_id = channel.parse::<NoteChannelId>().ok()?;
     Some(Channel::Note { channel_id })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_visible_to_long_p1() {
+        let vis = NoteChannelId::try_from([b'1', b'1']).unwrap();
+        assert!(vis.is_visible_note_channel());
+        let long = vis.to_long_note_channel().unwrap();
+        assert_eq!(long, NoteChannelId::try_from([b'5', b'1']).unwrap());
+    }
+
+    #[test]
+    fn test_visible_to_long_p2() {
+        let vis = NoteChannelId::try_from([b'2', b'1']).unwrap();
+        assert!(vis.is_visible_note_channel());
+        let long = vis.to_long_note_channel().unwrap();
+        assert_eq!(long, NoteChannelId::try_from([b'6', b'1']).unwrap());
+    }
+
+    #[test]
+    fn test_non_visible_returns_none() {
+        let long = NoteChannelId::try_from([b'5', b'1']).unwrap();
+        assert!(!long.is_visible_note_channel());
+        assert!(long.to_long_note_channel().is_none());
+    }
+
+    #[test]
+    fn test_invisible_not_visible() {
+        let inv = NoteChannelId::try_from([b'3', b'1']).unwrap();
+        assert!(!inv.is_visible_note_channel());
+        assert!(inv.to_long_note_channel().is_none());
+    }
+
+    #[test]
+    fn test_bgm_not_visible() {
+        let bgm = NoteChannelId::bgm();
+        assert!(!bgm.is_visible_note_channel());
+    }
+
+    #[test]
+    fn test_landmine_not_visible() {
+        let landmine = NoteChannelId::try_from([b'D', b'1']).unwrap();
+        assert!(!landmine.is_visible_note_channel());
+        assert!(landmine.to_long_note_channel().is_none());
+    }
+
+    #[test]
+    fn test_bgm_is_bgm() {
+        let bgm = NoteChannelId::bgm();
+        assert!(bgm.is_bgm());
+    }
+
+    #[test]
+    fn test_visible_not_bgm() {
+        let vis = NoteChannelId::try_from([b'1', b'1']).unwrap();
+        assert!(!vis.is_bgm());
+    }
+
+    #[test]
+    fn test_long_not_bgm() {
+        let long = NoteChannelId::try_from([b'5', b'1']).unwrap();
+        assert!(!long.is_bgm());
+    }
+
+    #[test]
+    fn test_invisible_not_bgm() {
+        let inv = NoteChannelId::try_from([b'3', b'1']).unwrap();
+        assert!(!inv.is_bgm());
+    }
 }

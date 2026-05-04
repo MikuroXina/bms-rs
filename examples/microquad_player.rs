@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bms_rs::bms::prelude::*;
-use bms_rs::bmson::prelude::BmsonProcessor;
 use bms_rs::chart::prelude::*;
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
@@ -216,8 +215,9 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
                 .generate(&bms)
                 .unwrap_or(BaseBpm::new(DEFAULT_BPM));
 
-            // Use KeyLayoutBeat mapper (supports 7+1k)
-            let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
+            // Process Bms into Chart
+            let chart = bms
+                .process()
                 .map_err(|e| format!("Failed to parse chart: {e}"))?;
             (chart, base_bpm)
         }
@@ -225,7 +225,7 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
             // BMSON format
             #[cfg(feature = "bmson")]
             {
-                let bmson =
+                let bmson: bms_rs::bmson::Bmson<'_> =
                     serde_json::from_str(&content).map_err(|e| format!("JSON parse error: {e}"))?;
 
                 // First generate base BPM from BMSON
@@ -233,7 +233,7 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
                     .generate(&bmson)
                     .unwrap_or(BaseBpm::new(DEFAULT_BPM));
 
-                let chart = BmsonProcessor::parse(&bmson);
+                let chart = bmson.process().expect("BMSON processing should succeed");
                 (chart, base_bpm)
             }
             #[cfg(not(feature = "bmson"))]

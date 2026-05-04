@@ -1,10 +1,10 @@
-//! For converting key/channel between different modes, please see [`KeyLayoutMapper`] enum and `convert_key_mapping_between` function.
+//! For converting key/channel between different modes, please see [`BmsLayoutMapper`] enum and `convert_key_mapping_between` function.
 
 use super::{Key, NoteChannelId, NoteKind, PlayerSide};
 use Key::*;
 
-/// Convert from [`KeyLayoutBeat`] to [`NoteChannelId`].
-fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
+/// Convert from [`BmsLayoutBeat`] to [`NoteChannelId`].
+fn bms_layout_beat_to_channel_id(beat: BmsLayoutBeat) -> NoteChannelId {
     let (side, kind, key) = beat.as_tuple();
 
     // First character based on NoteKind and PlayerSide
@@ -32,8 +32,8 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
         .expect("generated note channel id should be valid")
 }
 
-/// Convert from [`NoteChannelId`] to [`KeyLayoutBeat`].
-fn channel_id_to_key_layout_beat(channel_id: NoteChannelId) -> Option<KeyLayoutBeat> {
+/// Convert from [`NoteChannelId`] to [`BmsLayoutBeat`].
+fn channel_id_to_bms_layout_beat(channel_id: NoteChannelId) -> Option<BmsLayoutBeat> {
     let [first_char, second_char] = channel_id.0.map(|c| c as char);
 
     // Parse NoteKind and PlayerSide from first character
@@ -58,20 +58,20 @@ fn channel_id_to_key_layout_beat(channel_id: NoteChannelId) -> Option<KeyLayoutB
         _ => return None,
     };
 
-    Some(KeyLayoutBeat::new(side, kind, key))
+    Some(BmsLayoutBeat::new(side, kind, key))
 }
 
 /// A trait for key mapping storage structure.
-pub trait KeyMapping {
-    /// Create a new [`KeyMapping`] from a [`PlayerSide`], [`NoteKind`] and [`Key`].
+pub trait BmsLayout {
+    /// Create a new [`BmsLayout`] from a [`PlayerSide`], [`NoteKind`] and [`Key`].
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self;
-    /// Get the [`PlayerSide`] from this [`KeyMapping`].
+    /// Get the [`PlayerSide`] from this [`BmsLayout`].
     fn side(&self) -> PlayerSide;
-    /// Get the [`NoteKind`] from this [`KeyMapping`].
+    /// Get the [`NoteKind`] from this [`BmsLayout`].
     fn kind(&self) -> NoteKind;
-    /// Get the [`Key`] from this [`KeyMapping`].
+    /// Get the [`Key`] from this [`BmsLayout`].
     fn key(&self) -> Key;
-    /// Create a new [`KeyMapping`] from a tuple of [`PlayerSide`], [`NoteKind`] and [`Key`].
+    /// Create a new [`BmsLayout`] from a tuple of [`PlayerSide`], [`NoteKind`] and [`Key`].
     #[must_use]
     fn from_tuple(tuple: (PlayerSide, NoteKind, Key)) -> Self
     where
@@ -90,7 +90,7 @@ pub trait KeyMapping {
 /// This trait defines the interface for converting between different key channel modes
 /// and the standard [`NoteChannelId`] format. Each mode implementation should provide methods to
 /// convert from its own format to [`NoteChannelId`] format and vice versa.
-pub trait KeyLayoutMapper: KeyMapping {
+pub trait BmsLayoutMapper: BmsLayout {
     /// Convert from this mode's format to [`NoteChannelId`] format.
     ///
     /// This method takes a ([`PlayerSide`], [`NoteKind`], [`Key`]) tuple in this mode's format and converts
@@ -112,9 +112,9 @@ pub trait KeyLayoutMapper: KeyMapping {
 /// - Lanes:
 ///   - Chars: '1'..'7','6' scratch, '7' free zone, '8'->Key6, '9'->Key7
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyLayoutBeat(pub PlayerSide, pub NoteKind, pub Key);
+pub struct BmsLayoutBeat(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutBeat {
+impl BmsLayout for BmsLayoutBeat {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -132,13 +132,13 @@ impl KeyMapping for KeyLayoutBeat {
     }
 }
 
-impl KeyLayoutMapper for KeyLayoutBeat {
+impl BmsLayoutMapper for BmsLayoutBeat {
     fn to_channel_id(self) -> NoteChannelId {
-        key_layout_beat_to_channel_id(self)
+        bms_layout_beat_to_channel_id(self)
     }
 
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
-        channel_id_to_key_layout_beat(channel_id)
+        channel_id_to_bms_layout_beat(channel_id)
     }
 }
 
@@ -147,9 +147,9 @@ impl KeyLayoutMapper for KeyLayoutBeat {
 /// - Lanes:
 ///   - Chars: '1'..'9', '6'->Key8, '7'->Key9, '8'->Key6, '9'->Key7
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyLayoutPmsBmeType(pub PlayerSide, pub NoteKind, pub Key);
+pub struct BmsLayoutPmsBmeType(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutPmsBmeType {
+impl BmsLayout for BmsLayoutPmsBmeType {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -167,7 +167,7 @@ impl KeyMapping for KeyLayoutPmsBmeType {
     }
 }
 
-impl KeyLayoutMapper for KeyLayoutPmsBmeType {
+impl BmsLayoutMapper for BmsLayoutPmsBmeType {
     fn to_channel_id(self) -> NoteChannelId {
         let (side, kind, key) = self.as_tuple();
         let key = match key {
@@ -175,12 +175,12 @@ impl KeyLayoutMapper for KeyLayoutPmsBmeType {
             Key(9) => FreeZone,
             other => other,
         };
-        let beat = KeyLayoutBeat::new(side, kind, key);
-        key_layout_beat_to_channel_id(beat)
+        let beat = BmsLayoutBeat::new(side, kind, key);
+        bms_layout_beat_to_channel_id(beat)
     }
 
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
-        let beat = channel_id_to_key_layout_beat(channel_id)?;
+        let beat = channel_id_to_bms_layout_beat(channel_id)?;
         let (side, kind, key) = beat.as_tuple();
         let key = match key {
             Scratch(1) => Key(8),
@@ -197,9 +197,9 @@ impl KeyLayoutMapper for KeyLayoutPmsBmeType {
 ///   - Beat -> this: (P2,Key2..Key5) remapped to (P1,Key6..Key9); (P1,Key1..Key5) unchanged
 ///   - This -> Beat: Key6..Key9 => (P2,Key2..Key5); Key1..Key5 => (P1,Key1..Key5)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyLayoutPms(pub PlayerSide, pub NoteKind, pub Key);
+pub struct BmsLayoutPms(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutPms {
+impl BmsLayout for BmsLayoutPms {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -217,7 +217,7 @@ impl KeyMapping for KeyLayoutPms {
     }
 }
 
-impl KeyLayoutMapper for KeyLayoutPms {
+impl BmsLayoutMapper for BmsLayoutPms {
     fn to_channel_id(self) -> NoteChannelId {
         use PlayerSide::*;
         let (side, kind, key) = self.as_tuple();
@@ -226,13 +226,13 @@ impl KeyLayoutMapper for KeyLayoutPms {
             (Player1, Key(key_u8 @ 6..=9)) => (Player2, Key(key_u8 - 4)),
             other => other,
         };
-        let beat = KeyLayoutBeat::new(side, kind, key);
-        key_layout_beat_to_channel_id(beat)
+        let beat = BmsLayoutBeat::new(side, kind, key);
+        bms_layout_beat_to_channel_id(beat)
     }
 
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
         use PlayerSide::*;
-        let beat = channel_id_to_key_layout_beat(channel_id)?;
+        let beat = channel_id_to_bms_layout_beat(channel_id)?;
         let (side, kind, key) = beat.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=5)) => (Player1, key),
@@ -249,9 +249,9 @@ impl KeyLayoutMapper for KeyLayoutPms {
 ///   - Beat -> this: FreeZone=>FootPedal
 ///   - This -> Beat: FootPedal=>FreeZone
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyLayoutBeatNanasi(pub PlayerSide, pub NoteKind, pub Key);
+pub struct BmsLayoutBeatNanasi(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutBeatNanasi {
+impl BmsLayout for BmsLayoutBeatNanasi {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -269,16 +269,16 @@ impl KeyMapping for KeyLayoutBeatNanasi {
     }
 }
 
-impl KeyLayoutMapper for KeyLayoutBeatNanasi {
+impl BmsLayoutMapper for BmsLayoutBeatNanasi {
     fn to_channel_id(self) -> NoteChannelId {
         let (side, kind, key) = self.as_tuple();
         let key = if let FootPedal = key { FreeZone } else { key };
-        let beat = KeyLayoutBeat::new(side, kind, key);
-        key_layout_beat_to_channel_id(beat)
+        let beat = BmsLayoutBeat::new(side, kind, key);
+        bms_layout_beat_to_channel_id(beat)
     }
 
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
-        let beat = channel_id_to_key_layout_beat(channel_id)?;
+        let beat = channel_id_to_bms_layout_beat(channel_id)?;
         let (side, kind, key) = beat.as_tuple();
         let key = if let FreeZone = key { FootPedal } else { key };
         Some(Self::new(side, kind, key))
@@ -291,9 +291,9 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
 ///   - Beat -> this: (P2,Key1)=>FootPedal, (P2,Key2..Key7)=>Key8..Key13, (P2,Scratch)=>ScratchExtra; (P1,Key1..Key7|Scratch) unchanged; side becomes P1
 ///   - This -> Beat: reverse of above
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyLayoutDscOctFp(pub PlayerSide, pub NoteKind, pub Key);
+pub struct BmsLayoutDscOctFp(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutDscOctFp {
+impl BmsLayout for BmsLayoutDscOctFp {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -311,7 +311,7 @@ impl KeyMapping for KeyLayoutDscOctFp {
     }
 }
 
-impl KeyLayoutMapper for KeyLayoutDscOctFp {
+impl BmsLayoutMapper for BmsLayoutDscOctFp {
     fn to_channel_id(self) -> NoteChannelId {
         use PlayerSide::*;
         let (side, kind, key) = self.as_tuple();
@@ -322,13 +322,13 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
             (Player1, Key(key_u8 @ 8..=13)) => (Player2, Key(key_u8 - 6)),
             (s, other) => (s, other),
         };
-        let beat = KeyLayoutBeat::new(side, kind, key);
-        key_layout_beat_to_channel_id(beat)
+        let beat = BmsLayoutBeat::new(side, kind, key);
+        bms_layout_beat_to_channel_id(beat)
     }
 
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
         use PlayerSide::*;
-        let beat = channel_id_to_key_layout_beat(channel_id)?;
+        let beat = channel_id_to_bms_layout_beat(channel_id)?;
         let (side, kind, key) = beat.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=7) | Scratch(1)) => (Player1, key),

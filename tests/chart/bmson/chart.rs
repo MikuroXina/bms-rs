@@ -3,8 +3,8 @@
 use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
-use bms_rs::bmson::prelude::BmsonProcessor;
 use bms_rs::chart::prelude::*;
+use bms_rs::chart::process::Process;
 
 fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {
     // Use approximate comparison to handle floating-point precision issues
@@ -160,7 +160,7 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().expect("Failed to process BMSON");
     let processor_start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, processor_start_time);
     let start_time = TimeStamp::start();
@@ -220,7 +220,7 @@ fn test_update_consistency_extreme_many_intervals() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().expect("Failed to process BMSON");
     let visible_range = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
 
     let start_time = TimeStamp::start();
@@ -315,7 +315,7 @@ fn test_update_consistency_zero_interval() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().expect("Failed to process BMSON");
     let visible_range = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
 
     let mut player = ChartPlayer::start(&chart, visible_range, TimeStamp::start());

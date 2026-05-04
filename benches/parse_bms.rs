@@ -1,6 +1,7 @@
 //! Benchmark for `BMS` file parsing and chart conversion.
 
-use bms_rs::bms::{default_config, parse_bms, process::BmsProcessor};
+use bms_rs::bms::{default_config, parse_bms};
+use bms_rs::chart::process::Process;
 use criterion::{Criterion, Throughput};
 use std::{collections::BTreeMap, sync::LazyLock};
 
@@ -77,11 +78,7 @@ fn bench_bms_to_chart(c: &mut Criterion) {
 
     for (name, chart) in PARSED_CHARTS.iter() {
         group.bench_function(name, |b| {
-            b.iter(|| {
-                BmsProcessor::parse::<bms_rs::bms::command::channel::mapper::KeyLayoutBeat>(
-                    std::hint::black_box(chart),
-                )
-            });
+            b.iter(|| std::hint::black_box(chart).process());
         });
     }
 

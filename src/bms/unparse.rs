@@ -10,13 +10,16 @@ use crate::{
     chart::types::{Argb, BgaLayer},
 };
 
+// ---- Private helpers on Bms for unparsing ----
+
 impl Bms {
     /// Convert Bms to `Vec<Token>` (in conventional order: header -> definitions -> resources -> messages).
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
     /// - For messages requiring `ObjId`, prioritize reusing existing definitions; if missing, allocate new `ObjId` and add definition Token (only reflected in returned Token list).
+    /// - Channel IDs are preserved as-is; no key layout mapping is applied.
     #[must_use]
-    pub fn unparse<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
-        let mut tokens: Vec<Token<'a>> = Vec::new();
+    pub fn unparse(&self) -> Vec<Token<'_>> {
+        let mut tokens: Vec<Token<'_>> = Vec::new();
 
         // Others section lines FIRST to preserve order equality on roundtrip
         self.unparse_headers(&mut tokens);
@@ -24,7 +27,7 @@ impl Bms {
         // Check if any of the used IDs require base62 (not base36 but valid base62)
         let mut base62_checker = Base62Checker::new();
 
-        self.unparse_messages::<T>(&mut tokens, &mut base62_checker);
+        Self::unparse_messages(self, &mut tokens, &mut base62_checker);
 
         // Add ObjIds from definition tokens that are not covered by managers
         // ExWav definitions
@@ -74,6 +77,917 @@ impl Bms {
         tokens
     }
 
+    fn unparse_messages<'a>(
+        bms: &'a Bms,
+        tokens: &mut Vec<Token<'a>>,
+        checker: &mut Base62Checker,
+    ) {
+        // Collect late definition tokens and message tokens
+        let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
+        let mut message_tokens: Vec<Token<'a>> = Vec::new();
+
+        // Messages: Section length - Use iterator chain to collect tokens (sorted by track for consistent output)
+        let mut section_len_tokens: Vec<_> = bms
+            .section_len
+            .section_len_changes
+            .values()
+            .map(|obj| Token::Message {
+                track: obj.track,
+                channel: Channel::SectionLen,
+                message: Cow::Owned(obj.length.to_string()),
+            })
+            .collect();
+        section_len_tokens.sort_by_key(|token| match token {
+            Token::Message { track, .. } => *track,
+            _ => Track(0),
+        });
+        message_tokens.extend(section_len_tokens);
+
+        // Helper closures for mapping definitions
+        // Note: We use f64::to_bits() as key since FinF64 doesn't implement Hash
+
+        let bpm_value_to_id: HashMap<u64, ObjId> = bms
+            .bpm
+            .bpm_defs
+            .iter()
+            .filter_map(|(k, v)| {
+                v.value()
+                    .as_ref()
+                    .ok()
+                    .map(|val| (val.as_f64().to_bits(), *k))
+            })
+            .collect();
+        let stop_value_to_id: HashMap<u64, ObjId> = bms
+            .stop
+            .stop_defs
+            .iter()
+            .filter_map(|(k, v)| {
+                v.value()
+                    .as_ref()
+                    .ok()
+                    .map(|val| (val.as_f64().to_bits(), *k))
+            })
+            .collect();
+        let scroll_value_to_id: HashMap<u64, ObjId> = bms
+            .scroll
+            .scroll_defs
+            .iter()
+            .filter_map(|(k, v)| {
+                v.value()
+                    .as_ref()
+                    .ok()
+                    .map(|val| (val.as_f64().to_bits(), *k))
+            })
+            .collect();
+        let speed_value_to_id: HashMap<u64, ObjId> = bms
+            .speed
+            .speed_defs
+            .iter()
+            .filter_map(|(k, v)| {
+                v.value()
+                    .as_ref()
+                    .ok()
+                    .map(|val| (val.as_f64().to_bits(), *k))
+            })
+            .collect();
+        let text_value_to_id: HashMap<&'a str, ObjId> = bms
+            .text
+            .texts
+            .iter()
+            .map(|(k, v)| (v.as_str(), *k))
+            .collect();
+        let exrank_value_to_id: HashMap<&'a JudgeLevel, ObjId> = bms
+            .judge
+            .exrank_defs
+            .iter()
+            .map(|(k, v)| (&v.judge_level, *k))
+            .collect();
+
+        let seek_value_to_id: HashMap<u64, ObjId> = bms
+            .video
+            .seek_defs
+            .iter()
+            .filter_map(|(k, v)| {
+                v.value()
+                    .as_ref()
+                    .ok()
+                    .map(|val| (val.as_f64().to_bits(), *k))
+            })
+            .collect();
+
+        // Messages: BPM change (#xxx08 or #xxx03)
+        let mut bpm_message_tokens = Vec::new();
+
+        // Process U8 type BPM changes
+        let EventProcessingResult {
+            message_tokens: bpm_u8_message_tokens,
+            ..
+        } = build_event_messages(
+            bms.bpm.bpm_changes_u8.iter(),
+            None::<(
+                fn(ObjId, &()) -> Token,
+                fn(&_) -> &(),
+                &mut ObjIdManager<()>,
+            )>,
+            |_ev| Channel::BpmChangeU8,
+            |bpm, _id| {
+                let s = format!("{bpm:02X}");
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
+        );
+        bpm_message_tokens.extend(bpm_u8_message_tokens);
+
+        // Process other type BPM changes using build_event_messages_owned
+        let mut bpm_manager: HashMap<u64, ObjId> = bpm_value_to_id;
+        let EventProcessingResult {
+            late_def_tokens: other_late_def_tokens,
+            message_tokens: other_message_tokens,
+        } = build_event_messages_owned(
+            bms.bpm.bpm_changes.iter(),
+            Some((
+                |id, bpm_bits: &u64| Token::Header {
+                    name: format!("BPM{id}").into(),
+                    args: f64::from_bits(*bpm_bits).to_string().into(),
+                },
+                |ev: &'a BpmChangeObj| ev.bpm.as_f64().to_bits(),
+                &mut bpm_manager,
+            )),
+            |_ev| Channel::BpmChange,
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                id.into_chars()
+            },
+        );
+
+        // Update id_manager with the results
+        late_def_tokens.extend(other_late_def_tokens);
+        bpm_message_tokens.extend(other_message_tokens);
+
+        message_tokens.extend(bpm_message_tokens);
+
+        // Messages: STOP (#xxx09)
+        let mut stop_manager: HashMap<u64, ObjId> = stop_value_to_id;
+        let EventProcessingResult {
+            late_def_tokens: stop_late_def_tokens,
+            message_tokens: stop_message_tokens,
+        } = build_event_messages_owned(
+            bms.stop.stops.iter(),
+            Some((
+                |id, duration_bits: &u64| Token::Header {
+                    name: format!("STOP{id}").into(),
+                    args: f64::from_bits(*duration_bits).to_string().into(),
+                },
+                |ev: &'a StopObj| ev.duration.as_f64().to_bits(),
+                &mut stop_manager,
+            )),
+            |_ev| Channel::Stop,
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                id.into_chars()
+            },
+        );
+        late_def_tokens.extend(stop_late_def_tokens);
+        message_tokens.extend(stop_message_tokens);
+
+        // Messages: SCROLL (#xxxSC)
+        let mut scroll_manager: HashMap<u64, ObjId> = scroll_value_to_id;
+        let EventProcessingResult {
+            late_def_tokens: scroll_late_def_tokens,
+            message_tokens: scroll_message_tokens,
+        } = build_event_messages_owned(
+            bms.scroll.scrolling_factor_changes.iter(),
+            Some((
+                |id, factor_bits: &u64| Token::Header {
+                    name: format!("SCROLL{id}").into(),
+                    args: f64::from_bits(*factor_bits).to_string().into(),
+                },
+                |ev: &'a ScrollingFactorObj| ev.factor.as_f64().to_bits(),
+                &mut scroll_manager,
+            )),
+            |_ev| Channel::Scroll,
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                id.into_chars()
+            },
+        );
+        late_def_tokens.extend(scroll_late_def_tokens);
+        message_tokens.extend(scroll_message_tokens);
+
+        // Messages: SPEED (#xxxSP)
+        let mut speed_manager: HashMap<u64, ObjId> = speed_value_to_id;
+        let EventProcessingResult {
+            late_def_tokens: speed_late_def_tokens,
+            message_tokens: speed_message_tokens,
+        } = build_event_messages_owned(
+            bms.speed.speed_factor_changes.iter(),
+            Some((
+                |id, factor_bits: &u64| Token::Header {
+                    name: format!("SPEED{id}").into(),
+                    args: f64::from_bits(*factor_bits).to_string().into(),
+                },
+                |ev: &'a SpeedObj| ev.factor.as_f64().to_bits(),
+                &mut speed_manager,
+            )),
+            |_ev| Channel::Speed,
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                id.into_chars()
+            },
+        );
+        late_def_tokens.extend(speed_late_def_tokens);
+        message_tokens.extend(speed_message_tokens);
+
+        {
+            // STP events, sorted by time for consistent output
+            let mut stp_events: Vec<_> = bms.stop.stp_events.values().collect();
+            stp_events.sort_by_key(|ev| ev.time);
+            tokens.extend(stp_events.into_iter().map(|ev| {
+                Token::Header {
+                    name: "STP".into(),
+                    args: format!(
+                        "{:03}.{:03} {}",
+                        ev.time.track(),
+                        ev.time.numerator() * ev.time.denominator_u64() / 1000,
+                        ev.duration.as_millis()
+                    )
+                    .into(),
+                }
+            }));
+        }
+
+        // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
+        let EventProcessingResult {
+            message_tokens: bga_message_tokens,
+            ..
+        } = build_event_messages(
+            bms.bmp.bga_changes.iter(),
+            None::<(
+                fn(ObjId, &'a ()) -> Token<'a>,
+                fn(&_) -> &'a (),
+                &mut ObjIdManager<()>,
+            )>,
+            |bga| bga.layer.to_channel(),
+            |bga, _id| {
+                let s = bga.id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
+        );
+        message_tokens.extend(bga_message_tokens);
+
+        {
+            // Messages: BGA opacity changes (#xxx0B/#xxx0C/#xxx0D/#xxx0E)
+            for (layer, opacity_changes) in &bms.bmp.bga_opacity_changes {
+                let EventProcessingResult {
+                    message_tokens: opacity_message_tokens,
+                    ..
+                } = build_event_messages(
+                    opacity_changes.iter(),
+                    None::<(
+                        fn(ObjId, &'a ()) -> Token<'a>,
+                        fn(&_) -> &'a (),
+                        &mut ObjIdManager<()>,
+                    )>,
+                    |_ev| match layer {
+                        BgaLayer::Base => Channel::BgaBaseOpacity,
+                        BgaLayer::Poor => Channel::BgaPoorOpacity,
+                        BgaLayer::Overlay => Channel::BgaLayerOpacity,
+                        BgaLayer::Overlay2 => Channel::BgaLayer2Opacity,
+                    },
+                    |ev, _id| {
+                        let s = format!("{:02X}", ev.opacity);
+                        let mut chars = s.chars();
+                        [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                    },
+                );
+                message_tokens.extend(opacity_message_tokens);
+            }
+
+            // Messages: BGA ARGB changes (#xxxA1/#xxxA2/#xxxA3/#xxxA4)
+            for (layer, argb_changes) in &bms.bmp.bga_argb_changes {
+                let EventProcessingResult {
+                    message_tokens: argb_message_tokens,
+                    ..
+                } = build_event_messages(
+                    argb_changes.iter(),
+                    None::<(
+                        fn(ObjId, &'a ()) -> Token<'a>,
+                        fn(&_) -> &'a (),
+                        &mut ObjIdManager<()>,
+                    )>,
+                    |_ev| match layer {
+                        BgaLayer::Base => Channel::BgaBaseArgb,
+                        BgaLayer::Poor => Channel::BgaPoorArgb,
+                        BgaLayer::Overlay => Channel::BgaLayerArgb,
+                        BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
+                    },
+                    |ev, _id| {
+                        let s = format!("{:02X}", ev.argb.alpha);
+                        let mut chars = s.chars();
+                        [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                    },
+                );
+                message_tokens.extend(argb_message_tokens);
+            }
+        }
+
+        // Messages: BGM (#xxx01) and Notes (various #xx)
+        // Use build_event_messages to process note and BGM objects
+        // We need to preserve the original insertion order, so we process each object individually
+        let EventProcessingResult {
+            message_tokens: notes_message_tokens,
+            ..
+        } = build_event_messages(
+            bms.wav
+                .notes
+                .all_notes_insertion_order()
+                .map(|obj| (&obj.offset, obj)),
+            None::<(
+                fn(ObjId, &()) -> Token,
+                fn(&_) -> &(),
+                &mut ObjIdManager<()>,
+            )>,
+            |obj| {
+                if obj.channel_id.is_bgm() {
+                    Channel::Bgm
+                } else {
+                    Channel::Note {
+                        channel_id: obj.channel_id,
+                    }
+                }
+            },
+            |obj, _id| {
+                let s = obj.wav_id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            }, // Message formatting: use wav_id
+        );
+
+        message_tokens.extend(notes_message_tokens);
+
+        // Messages: BGM volume (#97)
+        let EventProcessingResult {
+            message_tokens: bgm_volume_message_tokens,
+            ..
+        } = build_event_messages(
+            bms.volume.bgm_volume_changes.iter(),
+            None::<(
+                fn(ObjId, &'a ()) -> Token<'a>,
+                fn(&_) -> &'a (),
+                &mut ObjIdManager<()>,
+            )>,
+            |_ev| Channel::BgmVolume,
+            |ev, _id| {
+                let s = format!("{:02X}", ev.volume);
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
+        );
+        message_tokens.extend(bgm_volume_message_tokens);
+
+        // Messages: KEY volume (#98)
+        let EventProcessingResult {
+            message_tokens: key_volume_message_tokens,
+            ..
+        } = build_event_messages(
+            bms.volume.key_volume_changes.iter(),
+            None::<(
+                fn(ObjId, &'a ()) -> Token<'a>,
+                fn(&_) -> &'a (),
+                &mut ObjIdManager<()>,
+            )>,
+            |_ev| Channel::KeyVolume,
+            |ev, _id| {
+                let s = format!("{:02X}", ev.volume);
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
+        );
+        message_tokens.extend(key_volume_message_tokens);
+
+        // Messages: TEXT (#99)
+        let mut text_manager =
+            ObjIdManager::from_entries(text_value_to_id.iter().map(|(k, v)| (*k, *v)));
+        let EventProcessingResult {
+            late_def_tokens: text_late_def_tokens,
+            message_tokens: text_message_tokens,
+        } = build_event_messages(
+            bms.text.text_events.iter(),
+            Some((
+                |id, text: &'a str| Token::Header {
+                    name: format!("TEXT{id}").into(),
+                    args: text.into(),
+                },
+                |ev: &'a TextObj| ev.text.as_str(),
+                &mut text_manager,
+            )),
+            |_ev| Channel::Text,
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                id.into_chars()
+            },
+        );
+        checker.check(text_manager.into_assigned_ids());
+        late_def_tokens.extend(text_late_def_tokens);
+        message_tokens.extend(text_message_tokens);
+
+        let mut exrank_manager =
+            ObjIdManager::from_entries(exrank_value_to_id.iter().map(|(k, v)| (*k, *v)));
+        let EventProcessingResult {
+            late_def_tokens: judge_late_def_tokens,
+            message_tokens: judge_message_tokens,
+        } = build_event_messages(
+            bms.judge.judge_events.iter(),
+            Some((
+                |id, judge_level: &JudgeLevel| Token::Header {
+                    name: format!("EXRANK{id}").into(),
+                    args: judge_level.to_string().into(),
+                },
+                |ev: &'a JudgeObj| &ev.judge_level,
+                &mut exrank_manager,
+            )),
+            |_ev| Channel::Judge,
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                id.into_chars()
+            },
+        );
+        checker.check(exrank_manager.into_assigned_ids());
+        late_def_tokens.extend(judge_late_def_tokens);
+        message_tokens.extend(judge_message_tokens);
+
+        if let Some(poor_bmp) = bms.bmp.poor_bmp.as_ref()
+            && !poor_bmp.as_path().as_os_str().is_empty()
+        {
+            tokens.push(Token::Header {
+                name: "BMP00".into(),
+                args: poor_bmp.display().to_string().into(),
+            });
+        }
+
+        tokens.extend(
+            bms.bmp
+                .bmp_files
+                .iter()
+                .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
+                .map(|(id, bmp)| {
+                    (
+                        *id,
+                        if bmp.transparent_color == Argb::default() {
+                            Token::Header {
+                                name: format!("BMP{id}").into(),
+                                args: bmp.file.display().to_string().into(),
+                            }
+                        } else {
+                            Token::Header {
+                                name: format!("EXBMP{id}").into(),
+                                args: format!(
+                                    "{},{},{},{} {}",
+                                    bmp.transparent_color.alpha,
+                                    bmp.transparent_color.red,
+                                    bmp.transparent_color.green,
+                                    bmp.transparent_color.blue,
+                                    bmp.file.display()
+                                )
+                                .into(),
+                            }
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
+        );
+
+        {
+            // Messages: SEEK (#xxx05)
+            let mut seek_manager: HashMap<u64, ObjId> = seek_value_to_id;
+            let EventProcessingResult {
+                late_def_tokens: seek_late_def_tokens,
+                message_tokens: seek_message_tokens,
+            } = build_event_messages_owned(
+                bms.video.seek_events.iter(),
+                Some((
+                    |id, position_bits: &u64| Token::Header {
+                        name: format!("SEEK{id}").into(),
+                        args: f64::from_bits(*position_bits).to_string().into(),
+                    },
+                    |ev: &'a SeekObj| ev.position.as_f64().to_bits(),
+                    &mut seek_manager,
+                )),
+                |_ev| Channel::Seek,
+                |_ev, id| {
+                    let id = id.unwrap_or(ObjId::null());
+                    let s = id.to_string();
+                    let mut chars = s.chars();
+                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                },
+            );
+            late_def_tokens.extend(seek_late_def_tokens);
+            message_tokens.extend(seek_message_tokens);
+
+            // Messages: BGA keybound (#xxxA5)
+            let EventProcessingResult {
+                message_tokens: bga_keybound_message_tokens,
+                ..
+            } = build_event_messages(
+                bms.bmp.bga_keybound_events.iter(),
+                None::<(
+                    fn(ObjId, &'a ()) -> Token<'a>,
+                    fn(&_) -> &'a (),
+                    &mut ObjIdManager<()>,
+                )>,
+                |_ev| Channel::BgaKeybound,
+                |ev, _id| {
+                    let s = format!("{:02X}", ev.event.line);
+                    let mut chars = s.chars();
+                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                },
+            );
+            message_tokens.extend(bga_keybound_message_tokens);
+
+            // Messages: OPTION (#xxxA6)
+            let EventProcessingResult {
+                message_tokens: option_message_tokens,
+                ..
+            } = build_event_messages(
+                bms.option.option_events.iter(),
+                None::<(
+                    fn(ObjId, &'a ()) -> Token<'a>,
+                    fn(&_) -> &'a (),
+                    &mut ObjIdManager<()>,
+                )>,
+                |_ev| Channel::OptionChange,
+                |_ev, _id| {
+                    let s = format!("{:02X}", 0);
+                    let mut chars = s.chars();
+                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                }, // Option events don't use values
+            );
+            checker.check(seek_manager.values().copied());
+            message_tokens.extend(option_message_tokens);
+        };
+
+        // Assembly: header/definitions/resources/others -> late definitions -> messages
+        if !late_def_tokens.is_empty() {
+            tokens.extend(late_def_tokens);
+        }
+        if !message_tokens.is_empty() {
+            tokens.extend(message_tokens);
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct Base62Checker {
+    using_base62: bool,
+}
+
+impl Base62Checker {
+    const fn new() -> Self {
+        Self {
+            using_base62: false,
+        }
+    }
+
+    fn check(&mut self, iter: impl IntoIterator<Item = ObjId>) {
+        if !self.using_base62 && iter.into_iter().any(|id| !id.is_base36() && id.is_base62()) {
+            self.using_base62 = true;
+        }
+    }
+
+    const fn into_using_base62(self) -> bool {
+        self.using_base62
+    }
+}
+
+/// A unit of event processing containing all necessary information for token generation
+#[derive(Debug, Clone)]
+struct EventUnit<'a, Event> {
+    time: ObjTime,
+    event: &'a Event,
+    channel: Channel,
+    id: Option<ObjId>,
+}
+
+/// Complete result from `build_messages_event` containing all processing outputs
+struct EventProcessingResult<'a> {
+    message_tokens: Vec<Token<'a>>,
+    late_def_tokens: Vec<Token<'a>>,
+}
+
+/// Generic function to process message types with optional ID allocation
+///
+/// This function processes time-indexed events from an iterator and converts them into message tokens.
+/// It supports both ID allocation mode (using `token_creator` and `key_extractor`) and direct mode (without ID allocation).
+///
+/// # PROCESSING FLOW OVERVIEW:
+/// 1. **GROUP EVENTS**: Events are grouped by track, channel, and non-strictly increasing time
+/// 2. **SPLIT INTO MESSAGE SEGMENTS**: Each group is further split into message segments with stricter rules:
+///    - Strictly increasing time (prevents overlaps)
+///    - Consistent denominators (ensures accurate representation)
+/// 3. **GENERATE TOKENS**: Each message segment becomes one `Token::Message` with all events encoded
+///
+/// Arguments:
+///     events: An iterator yielding (&time, &event) pairs to process
+///     `id_allocation`: Optional tuple containing (`token_creator`, `key_extractor`, `id_manager`) for ID allocation mode
+///     `channel_mapper`: Function to map events to channels
+///     `message_formatter`: Function to format events into [char; 2]
+///
+/// Returns:
+///     `EventProcessingResult` containing `message_tokens`, `late_def_tokens`, and updated maps
+///
+/// The function leverages Rust's iterator chains for efficient processing and supports
+/// both ID-based and direct value-based event processing.
+/// Common pipeline: convert processed `EventUnit`s into message tokens.
+/// Steps: group by track/channel/time → split into message segments → tokenize.
+fn run_message_pipeline<'a, Event>(
+    processed_events: Vec<EventUnit<'a, Event>>,
+    message_formatter: &impl Fn(&'a Event, Option<ObjId>) -> [char; 2],
+) -> Vec<Token<'a>> {
+    let grouped_events = group_events_by_track_channel_time(processed_events);
+    let message_segmented_events: Vec<Vec<_>> = grouped_events
+        .into_iter()
+        .flat_map(split_group_into_message_segments)
+        .collect();
+    message_segmented_events
+        .into_iter()
+        .map(|segment| convert_message_segment_to_token(segment, message_formatter))
+        .collect()
+}
+
+fn build_event_messages<
+    'a,
+    Event: 'a,
+    Key: 'a + ?Sized + std::hash::Hash + Eq,
+    EventIterator,
+    TokenCreator,
+    KeyExtractor,
+    ChannelMapper,
+    MessageFormatter,
+>(
+    event_iter: EventIterator,
+    mut id_allocation: Option<(TokenCreator, KeyExtractor, &mut ObjIdManager<'a, Key>)>,
+    channel_mapper: ChannelMapper,
+    message_formatter: MessageFormatter,
+) -> EventProcessingResult<'a>
+where
+    EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
+    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> &'a Key,
+    ChannelMapper: Fn(&'a Event) -> Channel,
+    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
+{
+    let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
+
+    // Process events based on whether id_allocation tuple is provided
+    // Keep original order from event_iter instead of grouping by track/channel
+    let processed_events: Vec<EventUnit<'a, Event>> = event_iter
+        .map(|(&time, event)| {
+            let id = id_allocation
+                .as_mut()
+                .and_then(|(token_creator, key_extractor, manager)| {
+                    let key = key_extractor(event);
+                    let is_assigned = manager.is_assigned(key);
+                    let id = manager.get_or_new_id(key);
+                    if !is_assigned && let Some(new) = id {
+                        late_def_tokens.push(token_creator(new, key));
+                    }
+                    id
+                });
+            EventUnit {
+                time,
+                event,
+                channel: channel_mapper(event),
+                id,
+            }
+        })
+        .collect();
+
+    let message_tokens = run_message_pipeline(processed_events, &message_formatter);
+
+    EventProcessingResult {
+        message_tokens,
+        late_def_tokens,
+    }
+}
+
+/// A version of `build_event_messages` that supports owned keys (like u64 instead of &u64)
+fn build_event_messages_owned<
+    'a,
+    Event: 'a,
+    Key: std::hash::Hash + Eq + Clone,
+    EventIterator,
+    TokenCreator,
+    KeyExtractor,
+    ChannelMapper,
+    MessageFormatter,
+>(
+    event_iter: EventIterator,
+    mut id_allocation: Option<(TokenCreator, KeyExtractor, &mut HashMap<Key, ObjId>)>,
+    channel_mapper: ChannelMapper,
+    message_formatter: MessageFormatter,
+) -> EventProcessingResult<'a>
+where
+    EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
+    TokenCreator: Fn(ObjId, &Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> Key,
+    ChannelMapper: Fn(&'a Event) -> Channel,
+    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
+{
+    let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
+
+    // Process events based on whether id_allocation tuple is provided
+    let processed_events: Vec<EventUnit<'a, Event>> = event_iter
+        .map(|(&time, event)| {
+            let id = id_allocation
+                .as_mut()
+                .and_then(|(token_creator, key_extractor, manager)| {
+                    let key = key_extractor(event);
+                    let _is_assigned = manager.contains_key(&key);
+
+                    manager.get(&key).copied().or_else(|| {
+                        let new_id =
+                            ObjId::all_values().find(|id| !manager.values().any(|&v| v == *id));
+                        if let Some(new_id) = new_id {
+                            manager.insert(key.clone(), new_id);
+                            late_def_tokens.push(token_creator(new_id, &key));
+                        }
+                        new_id
+                    })
+                });
+            EventUnit {
+                time,
+                event,
+                channel: channel_mapper(event),
+                id,
+            }
+        })
+        .collect();
+
+    let message_tokens = run_message_pipeline(processed_events, &message_formatter);
+
+    EventProcessingResult {
+        message_tokens,
+        late_def_tokens,
+    }
+}
+
+/// Group events by track, channel, and non-strictly increasing time
+fn group_events_by_track_channel_time<'a, Event>(
+    processed_events: Vec<EventUnit<'a, Event>>,
+) -> Vec<Vec<EventUnit<'a, Event>>> {
+    let mut groups = Vec::new();
+    let mut current_group = Vec::new();
+
+    for event_unit in processed_events {
+        let should_join = current_group
+            .last()
+            .is_some_and(|last_unit: &EventUnit<'a, Event>| {
+                event_unit.time.track() == last_unit.time.track()
+                    && last_unit.channel == event_unit.channel
+                    && last_unit.time <= event_unit.time
+            });
+
+        if should_join {
+            current_group.push(event_unit);
+        } else {
+            if !current_group.is_empty() {
+                groups.push(current_group);
+            }
+            current_group = vec![event_unit];
+        }
+    }
+
+    if !current_group.is_empty() {
+        groups.push(current_group);
+    }
+    groups
+}
+
+/// Split a group into message segments based on time ordering and denominator consistency
+fn split_group_into_message_segments<'a, Event>(
+    group: Vec<EventUnit<'a, Event>>,
+) -> Vec<Vec<EventUnit<'a, Event>>> {
+    let mut message_segments = Vec::new();
+    let mut current_message_segment = Vec::new();
+
+    for event_unit in group {
+        let should_join =
+            current_message_segment
+                .last()
+                .is_none_or(|last_unit: &EventUnit<'a, Event>| {
+                    // MESSAGE SEGMENT JOINING RULES:
+                    // 1. Time must be strictly increasing (prevents overlapping events)
+                    // 2. Denominators must be compatible:
+                    //    - If current message segment is empty, accept any denominator
+                    //    - Otherwise, denominators must share a factor relationship (either is a factor of the other)
+                    //    - Reference denominator is the maximum denominator currently in the message segment
+                    (last_unit.time < event_unit.time)
+                        && (current_message_segment.is_empty()
+                            || is_denominator_compatible(&event_unit, &current_message_segment))
+                }); // Empty message segment always accepts the first event
+
+        if should_join {
+            current_message_segment.push(event_unit);
+        } else {
+            if !current_message_segment.is_empty() {
+                message_segments.push(current_message_segment);
+            }
+            current_message_segment = vec![event_unit];
+        }
+    }
+
+    if !current_message_segment.is_empty() {
+        message_segments.push(current_message_segment);
+    }
+    message_segments
+}
+
+/// Check if an event unit's denominator is compatible with the current message segment
+/// Two denominators are compatible if either is a factor of the other
+fn is_denominator_compatible<'a, Event>(
+    event_unit: &EventUnit<'a, Event>,
+    message_segment: &[EventUnit<'a, Event>],
+) -> bool {
+    // Find the maximum denominator from the current message segment as reference
+    let reference_denominator = message_segment
+        .iter()
+        .map(|unit| unit.time.denominator_u64())
+        .max()
+        .unwrap_or(1);
+
+    // Check if the event unit's denominator shares a common factor relationship
+    let event_denominator = event_unit.time.denominator_u64();
+    reference_denominator.is_multiple_of(event_denominator)
+        || event_denominator.is_multiple_of(reference_denominator)
+}
+
+/// Convert a message segment of events into a single `Token::Message`
+fn convert_message_segment_to_token<'a, Event, MessageFormatter>(
+    message_segment: Vec<EventUnit<'a, Event>>,
+    message_formatter: &MessageFormatter,
+) -> Token<'a>
+where
+    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
+{
+    // EXTRACT METADATA FROM MESSAGE SEGMENT
+    // All events in message segment should have same track and channel (guaranteed by grouping logic)
+    let Some(first_event) = message_segment.first() else {
+        return Token::Message {
+            track: Track(0),
+            channel: Channel::Bgm,
+            message: Cow::Borrowed(""),
+        };
+    };
+    let (track, channel) = (first_event.time.track(), first_event.channel);
+
+    // CALCULATE MESSAGE LENGTH
+    // Find the least common multiple (LCM) of all denominators to determine message length - this ensures
+    // all events in the message segment can be accurately positioned in the message string.
+    // Example: if we have events at 1/3 and 1/5, LCM(3,5)=15, so we need length 15 to represent them both accurately.
+    let denominators: Vec<u64> = message_segment
+        .iter()
+        .map(|event_unit| event_unit.time.denominator_u64())
+        .collect();
+    let lcm_denom = lcm_slice(&denominators);
+
+    let message_len = lcm_denom as usize;
+    let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
+
+    // PLACE EVENTS IN MESSAGE STRING
+    // For each event in the message segment, calculate its exact position in the message
+    // and place its value there. The time_idx calculation converts fractional time
+    // to array index using the formula: (numerator * lcm_denom / denominator)
+    for event_unit in message_segment {
+        let EventUnit {
+            event, id, time, ..
+        } = event_unit;
+        let chars = message_formatter(event, id);
+        let denom_u64 = time.denominator_u64();
+
+        // Calculate exact position: convert fraction to index in the message array
+        // Example: time=3/4, lcm_denom=4: (3 * 4 / 4) = 3, so place at index 3
+        // Example: time=1/3, lcm_denom=15: (1 * 15 / 3) = 5, so place at index 5
+        let time_idx = (time.numerator() * (lcm_denom / denom_u64)) as usize;
+
+        // Ensure we don't go out of bounds (safety check)
+        let Some(slot) = message_parts.get_mut(time_idx) else {
+            continue;
+        };
+        *slot = chars.iter().collect::<String>();
+    }
+
+    Token::Message {
+        track,
+        channel,
+        message: Cow::Owned(message_parts.join("")),
+    }
+}
+
+// ---- Private helpers on Bms for unparsing (moved from model.rs) ----
+
+impl Bms {
     fn unparse_headers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         // Options
         if let Some(options) = self.option.options.as_ref() {
@@ -330,7 +1244,6 @@ impl Bms {
         );
 
         // PoorBga mode
-
         if self.bmp.poor_bga_mode != PoorMode::default() {
             tokens.push(Token::Header {
                 name: "POORBGA".into(),
@@ -339,7 +1252,6 @@ impl Bms {
         }
 
         // Add basic definitions
-
         if let Some(base_bpm) = self.bpm.base_bpm.as_ref() {
             tokens.push(Token::Header {
                 name: "BASEBPM".into(),
@@ -365,13 +1277,11 @@ impl Bms {
         );
 
         self.unparse_def_tokens(tokens);
-
         self.unparse_resource_tokens(tokens);
     }
 
     fn unparse_def_tokens<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         // Definitions in scope (existing ones first)
-        // Use iterator chains to efficiently collect all definition tokens
         tokens.extend(
             self.stop
                 .stop_defs
@@ -618,8 +1528,6 @@ impl Bms {
     }
 
     fn unparse_resource_tokens<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
-        // Resources - Use iterator chains to efficiently collect resource tokens
-        // Add basic resource tokens
         if let Some(path_root) = self.metadata.wav_path_root.as_ref() {
             tokens.push(Token::Header {
                 name: "PATH_WAV".into(),
@@ -699,951 +1607,6 @@ impl Bms {
                 args: self.volume.volume.relative_percent.to_string().into(),
             });
         }
-    }
-
-    fn unparse_messages<'a, T: KeyLayoutMapper>(
-        &'a self,
-        tokens: &mut Vec<Token<'a>>,
-        checker: &mut Base62Checker,
-    ) {
-        // Collect late definition tokens and message tokens
-        let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
-        let mut message_tokens: Vec<Token<'a>> = Vec::new();
-
-        // Messages: Section length - Use iterator chain to collect tokens (sorted by track for consistent output)
-        let mut section_len_tokens: Vec<_> = self
-            .section_len
-            .section_len_changes
-            .values()
-            .map(|obj| Token::Message {
-                track: obj.track,
-                channel: Channel::SectionLen,
-                message: Cow::Owned(obj.length.to_string()),
-            })
-            .collect();
-        section_len_tokens.sort_by_key(|token| match token {
-            Token::Message { track, .. } => *track,
-            _ => Track(0),
-        });
-        message_tokens.extend(section_len_tokens);
-
-        // Helper closures for mapping definitions
-        // Note: We use f64::to_bits() as key since FinF64 doesn't implement Hash
-
-        let bpm_value_to_id: HashMap<u64, ObjId> = self
-            .bpm
-            .bpm_defs
-            .iter()
-            .filter_map(|(k, v)| {
-                v.value()
-                    .as_ref()
-                    .ok()
-                    .map(|val| (val.as_f64().to_bits(), *k))
-            })
-            .collect();
-        let stop_value_to_id: HashMap<u64, ObjId> = self
-            .stop
-            .stop_defs
-            .iter()
-            .filter_map(|(k, v)| {
-                v.value()
-                    .as_ref()
-                    .ok()
-                    .map(|val| (val.as_f64().to_bits(), *k))
-            })
-            .collect();
-        let scroll_value_to_id: HashMap<u64, ObjId> = self
-            .scroll
-            .scroll_defs
-            .iter()
-            .filter_map(|(k, v)| {
-                v.value()
-                    .as_ref()
-                    .ok()
-                    .map(|val| (val.as_f64().to_bits(), *k))
-            })
-            .collect();
-        let speed_value_to_id: HashMap<u64, ObjId> = self
-            .speed
-            .speed_defs
-            .iter()
-            .filter_map(|(k, v)| {
-                v.value()
-                    .as_ref()
-                    .ok()
-                    .map(|val| (val.as_f64().to_bits(), *k))
-            })
-            .collect();
-        let text_value_to_id: HashMap<&'a str, ObjId> = self
-            .text
-            .texts
-            .iter()
-            .map(|(k, v)| (v.as_str(), *k))
-            .collect();
-        let exrank_value_to_id: HashMap<&'a JudgeLevel, ObjId> = self
-            .judge
-            .exrank_defs
-            .iter()
-            .map(|(k, v)| (&v.judge_level, *k))
-            .collect();
-
-        let seek_value_to_id: HashMap<u64, ObjId> = self
-            .video
-            .seek_defs
-            .iter()
-            .filter_map(|(k, v)| {
-                v.value()
-                    .as_ref()
-                    .ok()
-                    .map(|val| (val.as_f64().to_bits(), *k))
-            })
-            .collect();
-
-        // Messages: BPM change (#xxx08 or #xxx03)
-        let mut bpm_message_tokens = Vec::new();
-
-        // Process U8 type BPM changes
-        let EventProcessingResult {
-            message_tokens: bpm_u8_message_tokens,
-            ..
-        } = build_event_messages(
-            self.bpm.bpm_changes_u8.iter(),
-            None::<(
-                fn(ObjId, &()) -> Token,
-                fn(&_) -> &(),
-                &mut ObjIdManager<()>,
-            )>,
-            |_ev| Channel::BpmChangeU8,
-            |bpm, _id| {
-                let s = format!("{bpm:02X}");
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
-        );
-        bpm_message_tokens.extend(bpm_u8_message_tokens);
-
-        // Process other type BPM changes using build_event_messages_owned
-        let mut bpm_manager: HashMap<u64, ObjId> = bpm_value_to_id;
-        let EventProcessingResult {
-            late_def_tokens: other_late_def_tokens,
-            message_tokens: other_message_tokens,
-        } = build_event_messages_owned(
-            self.bpm.bpm_changes.iter(),
-            Some((
-                |id, bpm_bits: &u64| Token::Header {
-                    name: format!("BPM{id}").into(),
-                    args: f64::from_bits(*bpm_bits).to_string().into(),
-                },
-                |ev: &'a BpmChangeObj| ev.bpm.as_f64().to_bits(),
-                &mut bpm_manager,
-            )),
-            |_ev| Channel::BpmChange,
-            |_ev, id| {
-                let id = id.unwrap_or(ObjId::null());
-                id.into_chars()
-            },
-        );
-
-        // Update id_manager with the results
-        late_def_tokens.extend(other_late_def_tokens);
-        bpm_message_tokens.extend(other_message_tokens);
-
-        message_tokens.extend(bpm_message_tokens);
-
-        // Messages: STOP (#xxx09)
-        let mut stop_manager: HashMap<u64, ObjId> = stop_value_to_id;
-        let EventProcessingResult {
-            late_def_tokens: stop_late_def_tokens,
-            message_tokens: stop_message_tokens,
-        } = build_event_messages_owned(
-            self.stop.stops.iter(),
-            Some((
-                |id, duration_bits: &u64| Token::Header {
-                    name: format!("STOP{id}").into(),
-                    args: f64::from_bits(*duration_bits).to_string().into(),
-                },
-                |ev: &'a StopObj| ev.duration.as_f64().to_bits(),
-                &mut stop_manager,
-            )),
-            |_ev| Channel::Stop,
-            |_ev, id| {
-                let id = id.unwrap_or(ObjId::null());
-                id.into_chars()
-            },
-        );
-        late_def_tokens.extend(stop_late_def_tokens);
-        message_tokens.extend(stop_message_tokens);
-
-        // Messages: SCROLL (#xxxSC)
-        let mut scroll_manager: HashMap<u64, ObjId> = scroll_value_to_id;
-        let EventProcessingResult {
-            late_def_tokens: scroll_late_def_tokens,
-            message_tokens: scroll_message_tokens,
-        } = build_event_messages_owned(
-            self.scroll.scrolling_factor_changes.iter(),
-            Some((
-                |id, factor_bits: &u64| Token::Header {
-                    name: format!("SCROLL{id}").into(),
-                    args: f64::from_bits(*factor_bits).to_string().into(),
-                },
-                |ev: &'a ScrollingFactorObj| ev.factor.as_f64().to_bits(),
-                &mut scroll_manager,
-            )),
-            |_ev| Channel::Scroll,
-            |_ev, id| {
-                let id = id.unwrap_or(ObjId::null());
-                id.into_chars()
-            },
-        );
-        late_def_tokens.extend(scroll_late_def_tokens);
-        message_tokens.extend(scroll_message_tokens);
-
-        // Messages: SPEED (#xxxSP)
-        let mut speed_manager: HashMap<u64, ObjId> = speed_value_to_id;
-        let EventProcessingResult {
-            late_def_tokens: speed_late_def_tokens,
-            message_tokens: speed_message_tokens,
-        } = build_event_messages_owned(
-            self.speed.speed_factor_changes.iter(),
-            Some((
-                |id, factor_bits: &u64| Token::Header {
-                    name: format!("SPEED{id}").into(),
-                    args: f64::from_bits(*factor_bits).to_string().into(),
-                },
-                |ev: &'a SpeedObj| ev.factor.as_f64().to_bits(),
-                &mut speed_manager,
-            )),
-            |_ev| Channel::Speed,
-            |_ev, id| {
-                let id = id.unwrap_or(ObjId::null());
-                id.into_chars()
-            },
-        );
-        late_def_tokens.extend(speed_late_def_tokens);
-        message_tokens.extend(speed_message_tokens);
-
-        {
-            // STP events, sorted by time for consistent output
-            let mut stp_events: Vec<_> = self.stop.stp_events.values().collect();
-            stp_events.sort_by_key(|ev| ev.time);
-            tokens.extend(stp_events.into_iter().map(|ev| {
-                Token::Header {
-                    name: "STP".into(),
-                    args: format!(
-                        "{:03}.{:03} {}",
-                        ev.time.track(),
-                        ev.time.numerator() * ev.time.denominator_u64() / 1000,
-                        ev.duration.as_millis()
-                    )
-                    .into(),
-                }
-            }));
-        }
-
-        // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
-        let EventProcessingResult {
-            message_tokens: bga_message_tokens,
-            ..
-        } = build_event_messages(
-            self.bmp.bga_changes.iter(),
-            None::<(
-                fn(ObjId, &'a ()) -> Token<'a>,
-                fn(&_) -> &'a (),
-                &mut ObjIdManager<()>,
-            )>,
-            |bga| bga.layer.to_channel(),
-            |bga, _id| {
-                let s = bga.id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
-        );
-        message_tokens.extend(bga_message_tokens);
-
-        {
-            // Messages: BGA opacity changes (#xxx0B/#xxx0C/#xxx0D/#xxx0E)
-            for (layer, opacity_changes) in &self.bmp.bga_opacity_changes {
-                let EventProcessingResult {
-                    message_tokens: opacity_message_tokens,
-                    ..
-                } = build_event_messages(
-                    opacity_changes.iter(),
-                    None::<(
-                        fn(ObjId, &'a ()) -> Token<'a>,
-                        fn(&_) -> &'a (),
-                        &mut ObjIdManager<()>,
-                    )>,
-                    |_ev| match layer {
-                        BgaLayer::Base => Channel::BgaBaseOpacity,
-                        BgaLayer::Poor => Channel::BgaPoorOpacity,
-                        BgaLayer::Overlay => Channel::BgaLayerOpacity,
-                        BgaLayer::Overlay2 => Channel::BgaLayer2Opacity,
-                    },
-                    |ev, _id| {
-                        let s = format!("{:02X}", ev.opacity);
-                        let mut chars = s.chars();
-                        [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-                    },
-                );
-                message_tokens.extend(opacity_message_tokens);
-            }
-
-            // Messages: BGA ARGB changes (#xxxA1/#xxxA2/#xxxA3/#xxxA4)
-            for (layer, argb_changes) in &self.bmp.bga_argb_changes {
-                let EventProcessingResult {
-                    message_tokens: argb_message_tokens,
-                    ..
-                } = build_event_messages(
-                    argb_changes.iter(),
-                    None::<(
-                        fn(ObjId, &'a ()) -> Token<'a>,
-                        fn(&_) -> &'a (),
-                        &mut ObjIdManager<()>,
-                    )>,
-                    |_ev| match layer {
-                        BgaLayer::Base => Channel::BgaBaseArgb,
-                        BgaLayer::Poor => Channel::BgaPoorArgb,
-                        BgaLayer::Overlay => Channel::BgaLayerArgb,
-                        BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
-                    },
-                    |ev, _id| {
-                        let s = format!("{:02X}", ev.argb.alpha);
-                        let mut chars = s.chars();
-                        [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-                    },
-                );
-                message_tokens.extend(argb_message_tokens);
-            }
-        }
-
-        // Messages: BGM (#xxx01) and Notes (various #xx)
-        // Use build_event_messages to process note and BGM objects
-        // We need to preserve the original insertion order, so we process each object individually
-        let EventProcessingResult {
-            message_tokens: notes_message_tokens,
-            ..
-        } = build_event_messages(
-            self.wav
-                .notes
-                .all_notes_insertion_order()
-                .map(|obj| (&obj.offset, obj)),
-            None::<(
-                fn(ObjId, &()) -> Token,
-                fn(&_) -> &(),
-                &mut ObjIdManager<()>,
-            )>,
-            |obj| {
-                // Channel mapping: determine channel based on channel_id
-                obj.channel_id
-                    .try_into_map::<T>()
-                    .map_or(Channel::Bgm, |_map| Channel::Note {
-                        channel_id: obj.channel_id,
-                    })
-            },
-            |obj, _id| {
-                let s = obj.wav_id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            }, // Message formatting: use wav_id
-        );
-
-        message_tokens.extend(notes_message_tokens);
-
-        // Messages: BGM volume (#97)
-        let EventProcessingResult {
-            message_tokens: bgm_volume_message_tokens,
-            ..
-        } = build_event_messages(
-            self.volume.bgm_volume_changes.iter(),
-            None::<(
-                fn(ObjId, &'a ()) -> Token<'a>,
-                fn(&_) -> &'a (),
-                &mut ObjIdManager<()>,
-            )>,
-            |_ev| Channel::BgmVolume,
-            |ev, _id| {
-                let s = format!("{:02X}", ev.volume);
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
-        );
-        message_tokens.extend(bgm_volume_message_tokens);
-
-        // Messages: KEY volume (#98)
-        let EventProcessingResult {
-            message_tokens: key_volume_message_tokens,
-            ..
-        } = build_event_messages(
-            self.volume.key_volume_changes.iter(),
-            None::<(
-                fn(ObjId, &'a ()) -> Token<'a>,
-                fn(&_) -> &'a (),
-                &mut ObjIdManager<()>,
-            )>,
-            |_ev| Channel::KeyVolume,
-            |ev, _id| {
-                let s = format!("{:02X}", ev.volume);
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
-        );
-        message_tokens.extend(key_volume_message_tokens);
-
-        // Messages: TEXT (#99)
-        let mut text_manager =
-            ObjIdManager::from_entries(text_value_to_id.iter().map(|(k, v)| (*k, *v)));
-        let EventProcessingResult {
-            late_def_tokens: text_late_def_tokens,
-            message_tokens: text_message_tokens,
-        } = build_event_messages(
-            self.text.text_events.iter(),
-            Some((
-                |id, text: &'a str| Token::Header {
-                    name: format!("TEXT{id}").into(),
-                    args: text.into(),
-                },
-                |ev: &'a TextObj| ev.text.as_str(),
-                &mut text_manager,
-            )),
-            |_ev| Channel::Text,
-            |_ev, id| {
-                let id = id.unwrap_or(ObjId::null());
-                id.into_chars()
-            },
-        );
-        checker.check(text_manager.into_assigned_ids());
-        late_def_tokens.extend(text_late_def_tokens);
-        message_tokens.extend(text_message_tokens);
-
-        let mut exrank_manager =
-            ObjIdManager::from_entries(exrank_value_to_id.iter().map(|(k, v)| (*k, *v)));
-        let EventProcessingResult {
-            late_def_tokens: judge_late_def_tokens,
-            message_tokens: judge_message_tokens,
-        } = build_event_messages(
-            self.judge.judge_events.iter(),
-            Some((
-                |id, judge_level: &JudgeLevel| Token::Header {
-                    name: format!("EXRANK{id}").into(),
-                    args: judge_level.to_string().into(),
-                },
-                |ev: &'a JudgeObj| &ev.judge_level,
-                &mut exrank_manager,
-            )),
-            |_ev| Channel::Judge,
-            |_ev, id| {
-                let id = id.unwrap_or(ObjId::null());
-                id.into_chars()
-            },
-        );
-        checker.check(exrank_manager.into_assigned_ids());
-        late_def_tokens.extend(judge_late_def_tokens);
-        message_tokens.extend(judge_message_tokens);
-
-        if let Some(poor_bmp) = self.bmp.poor_bmp.as_ref()
-            && !poor_bmp.as_path().as_os_str().is_empty()
-        {
-            tokens.push(Token::Header {
-                name: "BMP00".into(),
-                args: poor_bmp.display().to_string().into(),
-            });
-        }
-
-        tokens.extend(
-            self.bmp
-                .bmp_files
-                .iter()
-                .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
-                .map(|(id, bmp)| {
-                    (
-                        *id,
-                        if bmp.transparent_color == Argb::default() {
-                            Token::Header {
-                                name: format!("BMP{id}").into(),
-                                args: bmp.file.display().to_string().into(),
-                            }
-                        } else {
-                            Token::Header {
-                                name: format!("EXBMP{id}").into(),
-                                args: format!(
-                                    "{},{},{},{} {}",
-                                    bmp.transparent_color.alpha,
-                                    bmp.transparent_color.red,
-                                    bmp.transparent_color.green,
-                                    bmp.transparent_color.blue,
-                                    bmp.file.display()
-                                )
-                                .into(),
-                            }
-                        },
-                    )
-                })
-                .collect::<BTreeMap<_, _>>()
-                .into_values(),
-        );
-
-        {
-            // Messages: SEEK (#xxx05)
-            let mut seek_manager: HashMap<u64, ObjId> = seek_value_to_id;
-            let EventProcessingResult {
-                late_def_tokens: seek_late_def_tokens,
-                message_tokens: seek_message_tokens,
-            } = build_event_messages_owned(
-                self.video.seek_events.iter(),
-                Some((
-                    |id, position_bits: &u64| Token::Header {
-                        name: format!("SEEK{id}").into(),
-                        args: f64::from_bits(*position_bits).to_string().into(),
-                    },
-                    |ev: &'a SeekObj| ev.position.as_f64().to_bits(),
-                    &mut seek_manager,
-                )),
-                |_ev| Channel::Seek,
-                |_ev, id| {
-                    let id = id.unwrap_or(ObjId::null());
-                    let s = id.to_string();
-                    let mut chars = s.chars();
-                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-                },
-            );
-            late_def_tokens.extend(seek_late_def_tokens);
-            message_tokens.extend(seek_message_tokens);
-
-            // Messages: BGA keybound (#xxxA5)
-            let EventProcessingResult {
-                message_tokens: bga_keybound_message_tokens,
-                ..
-            } = build_event_messages(
-                self.bmp.bga_keybound_events.iter(),
-                None::<(
-                    fn(ObjId, &'a ()) -> Token<'a>,
-                    fn(&_) -> &'a (),
-                    &mut ObjIdManager<()>,
-                )>,
-                |_ev| Channel::BgaKeybound,
-                |ev, _id| {
-                    let s = format!("{:02X}", ev.event.line);
-                    let mut chars = s.chars();
-                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-                },
-            );
-            message_tokens.extend(bga_keybound_message_tokens);
-
-            // Messages: OPTION (#xxxA6)
-            let EventProcessingResult {
-                message_tokens: option_message_tokens,
-                ..
-            } = build_event_messages(
-                self.option.option_events.iter(),
-                None::<(
-                    fn(ObjId, &'a ()) -> Token<'a>,
-                    fn(&_) -> &'a (),
-                    &mut ObjIdManager<()>,
-                )>,
-                |_ev| Channel::OptionChange,
-                |_ev, _id| {
-                    let s = format!("{:02X}", 0);
-                    let mut chars = s.chars();
-                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-                }, // Option events don't use values
-            );
-            checker.check(seek_manager.values().copied());
-            message_tokens.extend(option_message_tokens);
-        };
-
-        // Assembly: header/definitions/resources/others -> late definitions -> messages
-        if !late_def_tokens.is_empty() {
-            tokens.extend(late_def_tokens);
-        }
-        if !message_tokens.is_empty() {
-            tokens.extend(message_tokens);
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-struct Base62Checker {
-    using_base62: bool,
-}
-
-impl Base62Checker {
-    const fn new() -> Self {
-        Self {
-            using_base62: false,
-        }
-    }
-
-    fn check(&mut self, iter: impl IntoIterator<Item = ObjId>) {
-        if !self.using_base62 && iter.into_iter().any(|id| !id.is_base36() && id.is_base62()) {
-            self.using_base62 = true;
-        }
-    }
-
-    const fn into_using_base62(self) -> bool {
-        self.using_base62
-    }
-}
-
-/// A unit of event processing containing all necessary information for token generation
-#[derive(Debug, Clone)]
-struct EventUnit<'a, Event> {
-    time: ObjTime,
-    event: &'a Event,
-    channel: Channel,
-    id: Option<ObjId>,
-}
-
-/// Complete result from `build_messages_event` containing all processing outputs
-struct EventProcessingResult<'a> {
-    message_tokens: Vec<Token<'a>>,
-    late_def_tokens: Vec<Token<'a>>,
-}
-
-/// Generic function to process message types with optional ID allocation
-///
-/// This function processes time-indexed events from an iterator and converts them into message tokens.
-/// It supports both ID allocation mode (using `token_creator` and `key_extractor`) and direct mode (without ID allocation).
-///
-/// # PROCESSING FLOW OVERVIEW:
-/// 1. **GROUP EVENTS**: Events are grouped by track, channel, and non-strictly increasing time
-/// 2. **SPLIT INTO MESSAGE SEGMENTS**: Each group is further split into message segments with stricter rules:
-///    - Strictly increasing time (prevents overlaps)
-///    - Consistent denominators (ensures accurate representation)
-/// 3. **GENERATE TOKENS**: Each message segment becomes one `Token::Message` with all events encoded
-///
-/// Arguments:
-///     events: An iterator yielding (&time, &event) pairs to process
-///     `id_allocation`: Optional tuple containing (`token_creator`, `key_extractor`, `id_manager`) for ID allocation mode
-///     `channel_mapper`: Function to map events to channels
-///     `message_formatter`: Function to format events into [char; 2]
-///
-/// Returns:
-///     `EventProcessingResult` containing `message_tokens`, `late_def_tokens`, and updated maps
-///
-/// The function leverages Rust's iterator chains for efficient processing and supports
-/// both ID-based and direct value-based event processing.
-fn build_event_messages<
-    'a,
-    Event: 'a,
-    Key: 'a + ?Sized + std::hash::Hash + Eq,
-    EventIterator,
-    TokenCreator,
-    KeyExtractor,
-    ChannelMapper,
-    MessageFormatter,
->(
-    event_iter: EventIterator,
-    mut id_allocation: Option<(TokenCreator, KeyExtractor, &mut ObjIdManager<'a, Key>)>,
-    channel_mapper: ChannelMapper,
-    message_formatter: MessageFormatter,
-) -> EventProcessingResult<'a>
-where
-    EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
-    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
-    KeyExtractor: Fn(&'a Event) -> &'a Key,
-    ChannelMapper: Fn(&'a Event) -> Channel,
-    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
-{
-    let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
-
-    // Process events based on whether id_allocation tuple is provided
-    // Keep original order from event_iter instead of grouping by track/channel
-    let processed_events: Vec<EventUnit<'a, Event>> = event_iter
-        .map(|(&time, event)| {
-            let id = id_allocation
-                .as_mut()
-                .and_then(|(token_creator, key_extractor, manager)| {
-                    let key = key_extractor(event);
-                    let is_assigned = manager.is_assigned(key);
-                    let id = manager.get_or_new_id(key);
-                    if !is_assigned && let Some(new) = id {
-                        late_def_tokens.push(token_creator(new, key));
-                    }
-                    id
-                });
-            EventUnit {
-                time,
-                event,
-                channel: channel_mapper(event),
-                id,
-            }
-        })
-        .collect();
-
-    // === STEP 1: GROUP EVENTS BY TRACK, CHANNEL, AND TIME ===
-    // Group events by adjacent same track, channel and non-strictly increasing time
-    //
-    // This creates the first level of grouping where events that share:
-    // - Preserve the original event iterator order
-    // - Same track number
-    // - Same channel type
-    // - Non-strictly increasing time (last_time <= current_time)
-    // ...are grouped together. This is the foundation for efficient message generation.
-    let grouped_events = group_events_by_track_channel_time(processed_events);
-
-    // === STEP 2: SPLIT GROUPS INTO MESSAGE SEGMENTS ===
-    // Split each group into message segments based on time ordering and denominator consistency
-    //
-    // This creates the second level of grouping with stricter rules:
-    // - Not preserve the original event iterator order
-    // - Time must be strictly increasing (last_time < current_time)
-    // - Denominators must be the same starting from the second element
-    // - First element can have 0 numerator, or the same denominator as elements after it
-    //
-    // The purpose is to ensure that events within a message segment can be represented
-    // in a single message string without conflicts or information loss.
-    let message_segmented_events: Vec<Vec<_>> = grouped_events
-        .into_iter()
-        .flat_map(split_group_into_message_segments)
-        .collect();
-
-    // === STEP 3: GENERATE MESSAGE TOKENS FROM MESSAGE SEGMENTS ===
-    // Generate message tokens: each message segment generates one Token::Message
-    //
-    // This is the final step where each message segment is converted into a single Token::Message.
-    // The process ensures that all events in a message segment are represented in one message string
-    // with correct timing and without information loss.
-    let message_tokens: Vec<Token<'a>> = message_segmented_events
-        .into_iter()
-        .map(|message_segment| {
-            convert_message_segment_to_token(message_segment, &message_formatter)
-        })
-        .collect();
-
-    EventProcessingResult {
-        message_tokens,
-        late_def_tokens,
-    }
-}
-
-/// A version of `build_event_messages` that supports owned keys (like u64 instead of &u64)
-fn build_event_messages_owned<
-    'a,
-    Event: 'a,
-    Key: std::hash::Hash + Eq + Clone,
-    EventIterator,
-    TokenCreator,
-    KeyExtractor,
-    ChannelMapper,
-    MessageFormatter,
->(
-    event_iter: EventIterator,
-    mut id_allocation: Option<(TokenCreator, KeyExtractor, &mut HashMap<Key, ObjId>)>,
-    channel_mapper: ChannelMapper,
-    message_formatter: MessageFormatter,
-) -> EventProcessingResult<'a>
-where
-    EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
-    TokenCreator: Fn(ObjId, &Key) -> Token<'a>,
-    KeyExtractor: Fn(&'a Event) -> Key,
-    ChannelMapper: Fn(&'a Event) -> Channel,
-    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
-{
-    let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
-
-    // Process events based on whether id_allocation tuple is provided
-    let processed_events: Vec<EventUnit<'a, Event>> = event_iter
-        .map(|(&time, event)| {
-            let id = id_allocation
-                .as_mut()
-                .and_then(|(token_creator, key_extractor, manager)| {
-                    let key = key_extractor(event);
-                    let _is_assigned = manager.contains_key(&key);
-
-                    manager.get(&key).copied().or_else(|| {
-                        let new_id =
-                            ObjId::all_values().find(|id| !manager.values().any(|&v| v == *id));
-                        if let Some(new_id) = new_id {
-                            manager.insert(key.clone(), new_id);
-                            late_def_tokens.push(token_creator(new_id, &key));
-                        }
-                        new_id
-                    })
-                });
-            EventUnit {
-                time,
-                event,
-                channel: channel_mapper(event),
-                id,
-            }
-        })
-        .collect();
-
-    let grouped_events = group_events_by_track_channel_time(processed_events);
-    let message_segmented_events: Vec<Vec<_>> = grouped_events
-        .into_iter()
-        .flat_map(split_group_into_message_segments)
-        .collect();
-    let message_tokens: Vec<Token<'a>> = message_segmented_events
-        .into_iter()
-        .map(|message_segment| {
-            convert_message_segment_to_token(message_segment, &message_formatter)
-        })
-        .collect();
-
-    EventProcessingResult {
-        message_tokens,
-        late_def_tokens,
-    }
-}
-
-/// Group events by track, channel, and non-strictly increasing time
-fn group_events_by_track_channel_time<'a, Event>(
-    processed_events: Vec<EventUnit<'a, Event>>,
-) -> Vec<Vec<EventUnit<'a, Event>>> {
-    let mut groups = Vec::new();
-    let mut current_group = Vec::new();
-
-    for event_unit in processed_events {
-        let should_join = current_group
-            .last()
-            .is_some_and(|last_unit: &EventUnit<'a, Event>| {
-                event_unit.time.track() == last_unit.time.track()
-                    && last_unit.channel == event_unit.channel
-                    && last_unit.time <= event_unit.time
-            });
-
-        if should_join {
-            current_group.push(event_unit);
-        } else {
-            if !current_group.is_empty() {
-                groups.push(current_group);
-            }
-            current_group = vec![event_unit];
-        }
-    }
-
-    if !current_group.is_empty() {
-        groups.push(current_group);
-    }
-    groups
-}
-
-/// Split a group into message segments based on time ordering and denominator consistency
-fn split_group_into_message_segments<'a, Event>(
-    group: Vec<EventUnit<'a, Event>>,
-) -> Vec<Vec<EventUnit<'a, Event>>> {
-    let mut message_segments = Vec::new();
-    let mut current_message_segment = Vec::new();
-
-    for event_unit in group {
-        let should_join =
-            current_message_segment
-                .last()
-                .is_none_or(|last_unit: &EventUnit<'a, Event>| {
-                    // MESSAGE SEGMENT JOINING RULES:
-                    // 1. Time must be strictly increasing (prevents overlapping events)
-                    // 2. Denominators must be compatible:
-                    //    - If current message segment is empty, accept any denominator
-                    //    - Otherwise, denominators must share a factor relationship (either is a factor of the other)
-                    //    - Reference denominator is the maximum denominator currently in the message segment
-                    (last_unit.time < event_unit.time)
-                        && (current_message_segment.is_empty()
-                            || is_denominator_compatible(&event_unit, &current_message_segment))
-                }); // Empty message segment always accepts the first event
-
-        if should_join {
-            current_message_segment.push(event_unit);
-        } else {
-            if !current_message_segment.is_empty() {
-                message_segments.push(current_message_segment);
-            }
-            current_message_segment = vec![event_unit];
-        }
-    }
-
-    if !current_message_segment.is_empty() {
-        message_segments.push(current_message_segment);
-    }
-    message_segments
-}
-
-/// Check if an event unit's denominator is compatible with the current message segment
-/// Two denominators are compatible if either is a factor of the other
-fn is_denominator_compatible<'a, Event>(
-    event_unit: &EventUnit<'a, Event>,
-    message_segment: &[EventUnit<'a, Event>],
-) -> bool {
-    // Find the maximum denominator from the current message segment as reference
-    let reference_denominator = message_segment
-        .iter()
-        .map(|unit| unit.time.denominator_u64())
-        .max()
-        .unwrap_or(1);
-
-    // Check if the event unit's denominator shares a common factor relationship
-    let event_denominator = event_unit.time.denominator_u64();
-    reference_denominator.is_multiple_of(event_denominator)
-        || event_denominator.is_multiple_of(reference_denominator)
-}
-
-/// Convert a message segment of events into a single `Token::Message`
-fn convert_message_segment_to_token<'a, Event, MessageFormatter>(
-    message_segment: Vec<EventUnit<'a, Event>>,
-    message_formatter: &MessageFormatter,
-) -> Token<'a>
-where
-    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
-{
-    if message_segment.is_empty() {
-        return Token::Message {
-            track: Track(0),
-            channel: Channel::Bgm,
-            message: Cow::Borrowed(""),
-        };
-    }
-
-    // EXTRACT METADATA FROM MESSAGE SEGMENT
-    // All events in message segment should have same track and channel (guaranteed by grouping logic)
-    let Some(first_event) = message_segment.first() else {
-        return Token::Message {
-            track: Track(0),
-            channel: Channel::Bgm,
-            message: Cow::Borrowed(""),
-        };
-    };
-    let (track, channel) = (first_event.time.track(), first_event.channel);
-
-    // CALCULATE MESSAGE LENGTH
-    // Find the least common multiple (LCM) of all denominators to determine message length - this ensures
-    // all events in the message segment can be accurately positioned in the message string.
-    // Example: if we have events at 1/3 and 1/5, LCM(3,5)=15, so we need length 15 to represent them both accurately.
-    let denominators: Vec<u64> = message_segment
-        .iter()
-        .map(|event_unit| event_unit.time.denominator_u64())
-        .collect();
-    let lcm_denom = lcm_slice(&denominators);
-
-    let message_len = lcm_denom as usize;
-    let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
-
-    // PLACE EVENTS IN MESSAGE STRING
-    // For each event in the message segment, calculate its exact position in the message
-    // and place its value there. The time_idx calculation converts fractional time
-    // to array index using the formula: (numerator * lcm_denom / denominator)
-    for event_unit in message_segment {
-        let EventUnit {
-            event, id, time, ..
-        } = event_unit;
-        let chars = message_formatter(event, id);
-        let denom_u64 = time.denominator_u64();
-
-        // Calculate exact position: convert fraction to index in the message array
-        // Example: time=3/4, lcm_denom=4: (3 * 4 / 4) = 3, so place at index 3
-        // Example: time=1/3, lcm_denom=15: (1 * 15 / 3) = 5, so place at index 5
-        let time_idx = (time.numerator() * (lcm_denom / denom_u64)) as usize;
-
-        // Ensure we don't go out of bounds (safety check)
-        let Some(slot) = message_parts.get_mut(time_idx) else {
-            continue;
-        };
-        *slot = chars.iter().collect::<String>();
-    }
-
-    Token::Message {
-        track,
-        channel,
-        message: Cow::Owned(message_parts.join("")),
     }
 }
 

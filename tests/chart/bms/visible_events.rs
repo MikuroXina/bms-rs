@@ -2,11 +2,11 @@ use std::str::FromStr;
 
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
 use bms_rs::chart::prelude::*;
+use bms_rs::chart::process::Process;
 
 use super::{assert_time_close, parse_bms_no_warnings};
 
@@ -23,7 +23,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = bms.process().expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -100,7 +100,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = bms.process().expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -131,7 +131,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = bms.process().expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -195,7 +195,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = bms.process().expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -302,7 +302,7 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = bms.process().expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -392,7 +392,7 @@ fn test_custom_visibility_range() {
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm =
         VisibleRangePerBpm::new(base_bpm.value(), TimeSpan::MILLISECOND * 600);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = bms.process().expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut player = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -436,7 +436,7 @@ fn test_visibility_range_bound_types() {
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm =
         VisibleRangePerBpm::new(base_bpm.value(), TimeSpan::MILLISECOND * 600);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = bms.process().expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut player = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 

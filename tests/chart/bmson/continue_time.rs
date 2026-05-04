@@ -3,8 +3,8 @@
 use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
-use bms_rs::bmson::prelude::BmsonProcessor;
 use bms_rs::chart::prelude::*;
+use bms_rs::chart::process::Process;
 
 use super::{MICROSECOND_EPSILON, assert_time_close};
 
@@ -41,7 +41,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().expect("Failed to process BMSON");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -103,7 +103,7 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().expect("Failed to process BMSON");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -159,7 +159,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().expect("Failed to process BMSON");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -232,7 +232,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().expect("Failed to process BMSON");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -297,7 +297,7 @@ fn test_bmson_continue_independent_across_sound_channels() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().expect("Failed to process BMSON");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let t = start_time + TimeSpan::MILLISECOND * 100;
