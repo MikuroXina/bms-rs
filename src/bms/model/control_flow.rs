@@ -200,7 +200,7 @@ impl RandomizedObjects {
     ///
     /// Branch contents are exported via `Bms::unparse::<T>()` for each branch in condition order.
     #[must_use]
-    pub fn export_as_random<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
+    pub fn export_as_random<'a, T: BmsLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         let Some(gval) = &self.generating else {
@@ -250,7 +250,7 @@ impl RandomizedObjects {
     ///
     /// Branch contents are exported via `Bms::unparse::<T>()` for each `#CASE` in condition order.
     #[must_use]
-    pub fn export_as_switch<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
+    pub fn export_as_switch<'a, T: BmsLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         let Some(gval) = &self.generating else {

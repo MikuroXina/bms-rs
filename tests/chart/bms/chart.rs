@@ -1,6 +1,6 @@
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
+use bms_rs::bms::command::channel::mapper::BmsLayoutBeat;
 use bms_rs::bms::prelude::*;
 use strict_num_extended::PositiveF64;
 
@@ -29,7 +29,7 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(DEFAULT_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = BmsProcessor::parse::<BmsLayoutBeat>(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::start();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _events = processor.update(start_time + TimeSpan::SECOND * 2);
@@ -69,7 +69,7 @@ fn test_parsed_chart_tracks_have_correct_y_coordinates_and_wav_ids() {
     let config = default_config().prompter(AlwaysUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = BmsProcessor::parse::<BmsLayoutBeat>(&bms).expect("failed to parse chart");
 
     let note_events: Vec<_> = chart
         .events()

@@ -45,7 +45,7 @@ impl BmsProcessor {
     /// # Errors
     ///
     /// Returns [`PlayingError::InvalidBpm`] if the BPM value could not be parsed.
-    pub fn parse<T: KeyLayoutMapper>(bms: &Bms) -> Result<Chart, PlayingError> {
+    pub fn parse<T: BmsLayoutMapper>(bms: &Bms) -> Result<Chart, PlayingError> {
         // === Validate all StringValue definitions ===
         let mut errors = Vec::new();
 
@@ -189,7 +189,7 @@ impl BmsProcessor {
         }
     }
 
-    pub(crate) fn lane_of_channel_id<T: KeyLayoutMapper>(
+    pub(crate) fn lane_of_channel_id<T: BmsLayoutMapper>(
         channel_id: NoteChannelId,
     ) -> Option<(PlayerSide, Key, NoteKind)> {
         let map = channel_id.try_into_map::<T>()?;
@@ -363,7 +363,7 @@ impl AllEventsIndex {
     /// Precompute all events, store grouped by Y coordinate
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
     #[must_use]
-    pub fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms, y_memo: &YMemo) -> Self {
+    pub fn precompute_all_events<T: BmsLayoutMapper>(bms: &Bms, y_memo: &YMemo) -> Self {
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
@@ -769,7 +769,7 @@ pub fn precompute_activate_times(
 /// - `ChartEvent::Note` for playable notes
 /// - `ChartEvent::Bgm` for BGM/background audio
 #[must_use]
-pub fn event_for_note_static<T: KeyLayoutMapper>(
+pub fn event_for_note_static<T: BmsLayoutMapper>(
     bms: &Bms,
     y_memo: &YMemo,
     obj: &WavObj,
@@ -804,7 +804,7 @@ impl TryFrom<Bms> for Chart {
     type Error = PlayingError;
 
     fn try_from(bms: Bms) -> Result<Self, Self::Error> {
-        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(&bms)
+        BmsProcessor::parse::<crate::bms::command::channel::mapper::BmsLayoutBeat>(&bms)
     }
 }
 
@@ -812,7 +812,7 @@ impl Process for Bms {
     type Error = PlayingError;
 
     fn process(&self) -> Result<Chart, Self::Error> {
-        BmsProcessor::parse::<crate::bms::command::channel::mapper::KeyLayoutBeat>(self)
+        BmsProcessor::parse::<crate::bms::command::channel::mapper::BmsLayoutBeat>(self)
     }
 }
 
@@ -865,7 +865,7 @@ impl BaseBpmGenerator<Bms> for crate::chart::player::base_bpm::ManualBpmGenerato
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bms::command::channel::mapper::KeyLayoutBeat;
+    use crate::bms::command::channel::mapper::BmsLayoutBeat;
     use crate::bms::command::string_value::StringValue;
 
     /// Test that parsing fails when BPM value is invalid (non-numeric string)
@@ -876,7 +876,7 @@ mod tests {
         bms.bpm.bpm = Some(StringValue::new("invalid_bpm"));
 
         // Try to parse, should return InvalidBpm error
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(result.is_err());
         match result {
@@ -895,7 +895,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new(""));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(result.is_err());
         match result {
@@ -912,7 +912,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new("NaN"));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(result.is_err());
         match result {
@@ -930,7 +930,7 @@ mod tests {
         let bms = Bms::default();
 
         // Parse should succeed with default BPM (120)
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(
             result.is_ok(),
@@ -948,7 +948,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new("150.5"));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(
             result.is_ok(),
@@ -964,7 +964,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new("abc123!@#"));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         assert!(result.is_err());
         match result {
@@ -984,7 +984,7 @@ mod tests {
         let mut bms = Bms::default();
         bms.bpm.bpm = Some(StringValue::new(invalid_value));
 
-        let result = BmsProcessor::parse::<KeyLayoutBeat>(&bms);
+        let result = BmsProcessor::parse::<BmsLayoutBeat>(&bms);
 
         match result {
             Err(PlayingError::InvalidBpm { raw, .. }) => {

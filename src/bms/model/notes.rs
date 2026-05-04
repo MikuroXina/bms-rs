@@ -143,12 +143,12 @@ impl Notes {
     /// ```rust
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
-    /// notes.playables::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
+    /// notes.playables::<BmsLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
     /// # ;
     /// ```
     pub fn playables<T>(&self) -> impl Iterator<Item = &WavObj>
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         self.arena.0.iter().sorted().filter(|obj| {
             obj.channel_id
@@ -170,12 +170,12 @@ impl Notes {
     /// ```rust
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
-    /// notes.displayables::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
+    /// notes.displayables::<BmsLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
     /// # ;
     /// ```
     pub fn displayables<T>(&self) -> impl Iterator<Item = &WavObj>
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         self.arena.0.iter().sorted().filter(|obj| {
             obj.channel_id
@@ -197,12 +197,12 @@ impl Notes {
     /// ```rust
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
-    /// notes.bgms::<KeyLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
+    /// notes.bgms::<BmsLayoutBeat>().filter(|obj| !obj.wav_id.is_null())
     /// # ;
     /// ```
     pub fn bgms<T>(&self) -> impl Iterator<Item = &WavObj>
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         self.arena.0.iter().sorted().filter(|obj| {
             obj.channel_id
@@ -225,14 +225,14 @@ impl Notes {
     /// # use bms_rs::bms::prelude::*;
     /// # let notes = Notes::default();
     /// let channel_id = NoteChannelId::try_from(['0', '1']).unwrap();
-    /// notes.notes_on::<KeyLayoutBeat>(channel_id).filter(|(_, obj)| !obj.wav_id.is_null());
+    /// notes.notes_on::<BmsLayoutBeat>(channel_id).filter(|(_, obj)| !obj.wav_id.is_null());
     /// ```
     pub fn notes_on<T>(
         &self,
         channel_id: NoteChannelId,
     ) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)>
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         self.idx_by_channel
             .get(&channel_id)
@@ -297,7 +297,7 @@ impl Notes {
     #[must_use]
     pub fn last_playable_time<T>(&self) -> Option<ObjTime>
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         self.notes_in(..)
             .map(|(_, obj)| obj)
@@ -316,7 +316,7 @@ impl Notes {
     #[must_use]
     pub fn last_bgm_time<T>(&self) -> Option<ObjTime>
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         self.notes_in(..)
             .map(|(_, obj)| obj)
@@ -390,7 +390,7 @@ impl Notes {
     /// Removes notes belonging to the wav id.
     pub fn remove_note<T>(&mut self, wav_id: ObjId) -> Vec<WavObj>
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         let Some(indexes) = self.idx_by_wav_id.remove(&wav_id) else {
             return vec![];
@@ -417,7 +417,7 @@ impl Notes {
     /// Removes the latest note using the wav of `wav_id`.
     pub fn pop_latest_of<T>(&mut self, wav_id: ObjId) -> Option<WavObj>
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         let &WavObjArenaIndex(to_pop) = self.idx_by_wav_id.get(&wav_id)?.last()?;
         let removing = std::mem::replace(self.arena.0.get_mut(to_pop)?, WavObj::dangling());
@@ -428,7 +428,7 @@ impl Notes {
     /// Adds the BGM (auto-played) note of `wav_id` at `time`.
     pub fn push_bgm<T>(&mut self, time: ObjTime, wav_id: ObjId)
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         self.push_note(WavObj {
             offset: time,
@@ -440,7 +440,7 @@ impl Notes {
     /// Retains note objects with the condition `cond`. It keeps only the [`WavObj`]s which `cond` returned `true`.
     pub fn retain_notes<T, F: FnMut(&WavObj) -> bool>(&mut self, mut cond: F)
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
     {
         let removing_indexes: Vec<_> = self
             .arena
@@ -566,14 +566,14 @@ mod tests {
         let (idx, _) = notes.all_entries().next().unwrap();
         notes.change_note_channel(
             [idx],
-            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1)).to_channel_id(),
+            BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1)).to_channel_id(),
         );
 
         assert_eq!(
             notes.all_notes().next(),
             Some(&WavObj {
                 offset: ObjTime::new(1, 2, 4,).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: ObjId::try_from("01", false).unwrap(),
             })

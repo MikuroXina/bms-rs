@@ -9,7 +9,7 @@ use super::{base62_to_byte, char_to_base62};
 use std::str::FromStr;
 use thiserror::Error;
 
-use self::mapper::KeyLayoutMapper;
+use self::mapper::BmsLayoutMapper;
 
 // Import chart types for use in this module
 use crate::chart::types::{Key, NoteKind, PlayerSide};
@@ -222,7 +222,7 @@ impl NoteChannelId {
 
     /// Converts the channel into a key mapping.
     #[must_use]
-    pub fn try_into_map<T: KeyLayoutMapper>(self) -> Option<T> {
+    pub fn try_into_map<T: BmsLayoutMapper>(self) -> Option<T> {
         T::from_channel_id(self)
     }
 }

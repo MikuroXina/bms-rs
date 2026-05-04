@@ -186,7 +186,7 @@ impl Bms {
 
                 let obj = WavObj {
                     offset: time,
-                    channel_id: KeyLayoutBeat::new(side, kind, key).to_channel_id(),
+                    channel_id: BmsLayoutBeat::new(side, kind, key).to_channel_id(),
                     wav_id: obj_id,
                 };
                 bms.wav.notes.push_note(obj);
@@ -208,7 +208,7 @@ impl Bms {
 
                 let obj = WavObj {
                     offset: time,
-                    channel_id: KeyLayoutBeat::new(side, NoteKind::Landmine, key).to_channel_id(),
+                    channel_id: BmsLayoutBeat::new(side, NoteKind::Landmine, key).to_channel_id(),
                     wav_id: obj_id,
                 };
                 bms.wav.notes.push_note(obj);
@@ -230,7 +230,7 @@ impl Bms {
 
                 let obj = WavObj {
                     offset: time,
-                    channel_id: KeyLayoutBeat::new(side, NoteKind::Invisible, key).to_channel_id(),
+                    channel_id: BmsLayoutBeat::new(side, NoteKind::Invisible, key).to_channel_id(),
                     wav_id: obj_id,
                 };
                 bms.wav.notes.push_note(obj);
@@ -307,7 +307,7 @@ impl Bms {
         let PlayingCheckOutput {
             playing_warnings,
             playing_errors,
-        } = bms.check_playing::<KeyLayoutBeat>();
+        } = bms.check_playing::<BmsLayoutBeat>();
 
         BmsonToBmsOutput {
             bms,

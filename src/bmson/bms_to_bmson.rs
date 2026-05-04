@@ -147,12 +147,12 @@ impl Bms {
                 // TODO: Support other modes
                 let is_7keys = self.wav.notes.all_notes().any(|note| {
                     note.channel_id
-                        .try_into_map::<KeyLayoutBeat>()
+                        .try_into_map::<BmsLayoutBeat>()
                         .is_some_and(|map| matches!(map.key(), Key::Key(6 | 7)))
                 });
                 let is_dp = self.wav.notes.all_notes().any(|note| {
                     note.channel_id
-                        .try_into_map::<KeyLayoutBeat>()
+                        .try_into_map::<BmsLayoutBeat>()
                         .is_some_and(|map| map.side() == PlayerSide::Player2)
                 });
                 match (is_dp, is_7keys) {
@@ -232,7 +232,7 @@ impl Bms {
             for note in self.wav.notes.all_notes() {
                 let note_lane = note
                     .channel_id
-                    .try_into_map::<KeyLayoutBeat>()
+                    .try_into_map::<BmsLayoutBeat>()
                     .filter(|map| map.kind().is_playable())
                     .map(|map|
                         match map.key() {
@@ -256,7 +256,7 @@ impl Bms {
                 let pulses = converter.get_pulses_at(note.offset);
                 match note
                     .channel_id
-                    .try_into_map::<KeyLayoutBeat>()
+                    .try_into_map::<BmsLayoutBeat>()
                     .map(|map| map.kind())
                 {
                     Some(NoteKind::Landmine) => {

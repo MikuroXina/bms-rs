@@ -15,7 +15,7 @@ impl Bms {
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
     /// - For messages requiring `ObjId`, prioritize reusing existing definitions; if missing, allocate new `ObjId` and add definition Token (only reflected in returned Token list).
     #[must_use]
-    pub fn unparse<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
+    pub fn unparse<'a, T: BmsLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         // Others section lines FIRST to preserve order equality on roundtrip
@@ -701,7 +701,7 @@ impl Bms {
         }
     }
 
-    fn unparse_messages<'a, T: KeyLayoutMapper>(
+    fn unparse_messages<'a, T: BmsLayoutMapper>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
         checker: &mut Base62Checker,

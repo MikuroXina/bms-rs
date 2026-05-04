@@ -77,10 +77,10 @@ pub struct ParseConfig<T, P, R, M> {
     token_modifier: M,
 }
 
-/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the standard RNG [`rand::rngs::StdRng`].
+/// Creates the default configuration builder with the basic key layout [`BmsLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the standard RNG [`rand::rngs::StdRng`].
 #[cfg(feature = "rand")]
 pub fn default_config() -> ParseConfig<
-    KeyLayoutBeat,
+    BmsLayoutBeat,
     AlwaysWarnAndUseNewer,
     RandRng<rand::rngs::StdRng>,
     DefaultTokenRelaxer,
@@ -93,11 +93,11 @@ pub fn default_config() -> ParseConfig<
     }
 }
 
-/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the Java-compatible RNG.
+/// Creates the default configuration builder with the basic key layout [`BmsLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the Java-compatible RNG.
 /// This version is available when the `rand` feature is not enabled.
 #[cfg(not(feature = "rand"))]
 pub fn default_config()
--> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, rng::JavaRandom, DefaultTokenRelaxer> {
+-> ParseConfig<BmsLayoutBeat, AlwaysWarnAndUseNewer, rng::JavaRandom, DefaultTokenRelaxer> {
     ParseConfig {
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
@@ -106,10 +106,10 @@ pub fn default_config()
     }
 }
 
-/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and your RNG.
+/// Creates the default configuration builder with the basic key layout [`BmsLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and your RNG.
 pub fn default_config_with_rng<R>(
     rng: R,
-) -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, R, DefaultTokenRelaxer> {
+) -> ParseConfig<BmsLayoutBeat, AlwaysWarnAndUseNewer, R, DefaultTokenRelaxer> {
     ParseConfig {
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
@@ -120,7 +120,7 @@ pub fn default_config_with_rng<R>(
 
 impl<T, P, R, M> ParseConfig<T, P, R, M> {
     /// Sets the key mapper to the `T2` one.
-    pub fn key_mapper<T2: KeyLayoutMapper>(self) -> ParseConfig<T2, P, R, M> {
+    pub fn key_mapper<T2: BmsLayoutMapper>(self) -> ParseConfig<T2, P, R, M> {
         ParseConfig {
             key_mapper: PhantomData,
             prompter: self.prompter,
@@ -205,7 +205,7 @@ impl<T, P, R, M> ParseConfig<T, P, R, M> {
 
     pub(crate) fn build(self) -> (impl TokenProcessor<Output = Bms>, P)
     where
-        T: KeyLayoutMapper,
+        T: BmsLayoutMapper,
         P: Prompter,
         R: Rng,
     {
@@ -213,7 +213,7 @@ impl<T, P, R, M> ParseConfig<T, P, R, M> {
             key_mapper: PhantomData<fn() -> T>,
             rng: Rc<RefCell<R>>,
         }
-        impl<T: KeyLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
+        impl<T: BmsLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
             type Output = Bms;
 
             fn process<P: Prompter>(
@@ -234,7 +234,7 @@ impl<T, P, R, M> ParseConfig<T, P, R, M> {
 }
 
 /// Parse a BMS file from source text with the specified command preset.
-pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
+pub fn parse_bms<T: BmsLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
     source: &str,
     config: ParseConfig<T, P, R, M>,
 ) -> BmsOutput {

@@ -20,8 +20,8 @@ pub use super::{
                 PlayerSideKeyConverter,
             },
             mapper::{
-                KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
-                KeyLayoutPms, KeyLayoutPmsBmeType, KeyMapping,
+                BmsLayout, BmsLayoutBeat, BmsLayoutBeatNanasi, BmsLayoutDscOctFp, BmsLayoutMapper,
+                BmsLayoutPms, BmsLayoutPmsBmeType,
             },
             read_channel,
         },
