@@ -3,7 +3,7 @@
 use thiserror::Error;
 
 use crate::bms::command::ObjId;
-use crate::bms::command::channel::mapper::BmsLayoutMapper;
+use crate::bms::command::channel::mapper::KeyLayoutMapper;
 
 use crate::bms::model::Bms;
 
@@ -150,7 +150,7 @@ pub struct PlayingCheckOutput {
 
 impl Bms {
     /// Check for playing warnings and errors based on the parsed BMS data.
-    pub fn check_playing<T: BmsLayoutMapper>(&self) -> PlayingCheckOutput {
+    pub fn check_playing<T: KeyLayoutMapper>(&self) -> PlayingCheckOutput {
         let mut playing_warnings = Vec::new();
         let mut playing_errors = Vec::new();
 

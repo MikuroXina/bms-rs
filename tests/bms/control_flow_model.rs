@@ -75,7 +75,7 @@ fn test_nested_random_structure() {
         branch1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                 .to_channel_id(),
             wav_id: ObjId::try_from("22", false).unwrap(),
         }]
@@ -108,7 +108,7 @@ fn test_nested_random_structure() {
             .collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                 .to_channel_id(),
             wav_id: ObjId::try_from("55", false).unwrap(),
         }]
@@ -142,14 +142,14 @@ fn test_nested_random_structure() {
         branch2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
         }]
     );
 
     let rnd_strings_outer = random_obj
-        .export_as_random::<BmsLayoutBeat>()
+        .export_as_random::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -167,7 +167,7 @@ fn test_nested_random_structure() {
     );
 
     let sw_strings_outer = random_obj
-        .export_as_switch::<BmsLayoutBeat>()
+        .export_as_switch::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -186,7 +186,7 @@ fn test_nested_random_structure() {
     );
 
     let rnd_strings_nested = nested_random
-        .export_as_random::<BmsLayoutBeat>()
+        .export_as_random::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -204,7 +204,7 @@ fn test_nested_random_structure() {
     );
 
     let sw_strings_nested = nested_random
-        .export_as_switch::<BmsLayoutBeat>()
+        .export_as_switch::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -292,7 +292,7 @@ fn test_nested_switch_structure() {
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                 .to_channel_id(),
             wav_id: ObjId::try_from("22", false).unwrap(),
         }]
@@ -324,7 +324,7 @@ fn test_nested_switch_structure() {
             .collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                 .to_channel_id(),
             wav_id: ObjId::try_from("55", false).unwrap(),
         }]
@@ -358,14 +358,14 @@ fn test_nested_switch_structure() {
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
         }]
     );
 
     let sw_strings_outer = switch_obj
-        .export_as_switch::<BmsLayoutBeat>()
+        .export_as_switch::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -384,7 +384,7 @@ fn test_nested_switch_structure() {
     );
 
     let rnd_strings_outer = switch_obj
-        .export_as_random::<BmsLayoutBeat>()
+        .export_as_random::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -402,7 +402,7 @@ fn test_nested_switch_structure() {
     );
 
     let nested_switch_strings = nested_switch
-        .export_as_switch::<BmsLayoutBeat>()
+        .export_as_switch::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -421,7 +421,7 @@ fn test_nested_switch_structure() {
     );
 
     let nested_rnd_strings = nested_switch
-        .export_as_random::<BmsLayoutBeat>()
+        .export_as_random::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -491,7 +491,7 @@ fn test_export_as_random_tokens() {
         .randomized
         .first()
         .expect("expected exactly 1 randomized block");
-    let rnd_tokens = rnd.export_as_random::<BmsLayoutBeat>();
+    let rnd_tokens = rnd.export_as_random::<KeyLayoutBeat>();
     let strings = rnd_tokens
         .into_iter()
         .map(|t| t.to_string())
@@ -510,7 +510,7 @@ fn test_export_as_random_tokens() {
     );
 
     let sw_strings = rnd
-        .export_as_switch::<BmsLayoutBeat>()
+        .export_as_switch::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -568,7 +568,7 @@ fn test_export_as_switch_tokens() {
         .randomized
         .first()
         .expect("expected exactly 1 randomized block");
-    let sw_tokens = sw.export_as_switch::<BmsLayoutBeat>();
+    let sw_tokens = sw.export_as_switch::<KeyLayoutBeat>();
     let strings = sw_tokens
         .into_iter()
         .map(|t| t.to_string())
@@ -589,7 +589,7 @@ fn test_export_as_switch_tokens() {
     );
 
     let rnd_strings = sw
-        .export_as_random::<BmsLayoutBeat>()
+        .export_as_random::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -656,7 +656,7 @@ fn test_switch_fallthrough_one_skip() {
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                 .to_channel_id(),
             wav_id: ObjId::try_from("22", false).unwrap(),
         }]
@@ -670,13 +670,13 @@ fn test_switch_fallthrough_one_skip() {
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
         }]
     );
 
-    let sw_tokens = sw.export_as_switch::<BmsLayoutBeat>();
+    let sw_tokens = sw.export_as_switch::<KeyLayoutBeat>();
     let strings = sw_tokens
         .into_iter()
         .map(|t| t.to_string())
@@ -696,7 +696,7 @@ fn test_switch_fallthrough_one_skip() {
     );
 
     let rnd_strings = sw
-        .export_as_random::<BmsLayoutBeat>()
+        .export_as_random::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -763,7 +763,7 @@ fn test_switch_default_then_case_override() {
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                 .to_channel_id(),
             wav_id: ObjId::try_from("22", false).unwrap(),
         }]
@@ -777,13 +777,13 @@ fn test_switch_default_then_case_override() {
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 2, 4).unwrap(),
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
         }]
     );
 
-    let sw_tokens = sw.export_as_switch::<BmsLayoutBeat>();
+    let sw_tokens = sw.export_as_switch::<KeyLayoutBeat>();
     let strings = sw_tokens
         .into_iter()
         .map(|t| t.to_string())
@@ -803,7 +803,7 @@ fn test_switch_default_then_case_override() {
     );
 
     let rnd_strings = sw
-        .export_as_random::<BmsLayoutBeat>()
+        .export_as_random::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -874,7 +874,7 @@ fn test_export_both_and_compare() {
         .get(1)
         .expect("expected at least 2 randomized blocks");
 
-    let sw_tokens = sw.export_as_switch::<BmsLayoutBeat>();
+    let sw_tokens = sw.export_as_switch::<KeyLayoutBeat>();
     let sw_strings = sw_tokens
         .into_iter()
         .map(|t| t.to_string())
@@ -893,7 +893,7 @@ fn test_export_both_and_compare() {
         ]
     );
 
-    let rnd_tokens = rnd.export_as_random::<BmsLayoutBeat>();
+    let rnd_tokens = rnd.export_as_random::<KeyLayoutBeat>();
     let rnd_strings = rnd_tokens
         .into_iter()
         .map(|t| t.to_string())
@@ -978,7 +978,7 @@ fn test_export_both_and_compare_different_contents() {
         .expect("expected at least 2 randomized blocks");
 
     let sw_strings = sw
-        .export_as_switch::<BmsLayoutBeat>()
+        .export_as_switch::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();
@@ -997,7 +997,7 @@ fn test_export_both_and_compare_different_contents() {
     );
 
     let rnd_strings = rnd
-        .export_as_random::<BmsLayoutBeat>()
+        .export_as_random::<KeyLayoutBeat>()
         .into_iter()
         .map(|t| t.to_string())
         .collect::<Vec<_>>();

@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::bms::{
     command::{ObjId, time::ObjTime},
     model::{Bms, obj::WavObj},
-    prelude::{BmsLayout, BmsLayoutBeat, BmsLayoutMapper},
+    prelude::{KeyLayout, KeyLayoutBeat, KeyLayoutMapper},
 };
 use crate::chart::types::{Key, NoteKind, PlayerSide};
 
@@ -170,7 +170,7 @@ impl Bms {
         let mut lane_to_notes: HashMap<Key, Vec<&WavObj>> = HashMap::new();
         for obj in self.wav.notes.all_notes() {
             // Visible note in section 000 (track index 0)
-            let Some(map) = BmsLayoutBeat::from_channel_id(obj.channel_id) else {
+            let Some(map) = KeyLayoutBeat::from_channel_id(obj.channel_id) else {
                 continue;
             };
             if map.kind().is_playable() && obj.offset.track().0 == 0 {
@@ -194,7 +194,7 @@ impl Bms {
             let long_times: Vec<ObjTime> = lane_objs
                 .iter()
                 .filter_map(|o| {
-                    let map = BmsLayoutBeat::from_channel_id(o.channel_id)?;
+                    let map = KeyLayoutBeat::from_channel_id(o.channel_id)?;
                     (map.kind() == NoteKind::Long).then_some(o.offset)
                 })
                 .collect();
@@ -204,7 +204,7 @@ impl Bms {
             for (single_obj, map) in lane_objs
                 .iter()
                 .filter_map(|obj| {
-                    BmsLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
+                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
                 })
                 .filter(|(_, map)| map.kind() == NoteKind::Visible)
             {
@@ -221,7 +221,7 @@ impl Bms {
             for (landmine_obj, map) in lane_objs
                 .iter()
                 .filter_map(|obj| {
-                    BmsLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
+                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
                 })
                 .filter(|(_, map)| map.kind() == NoteKind::Landmine)
             {
@@ -274,7 +274,7 @@ impl Bms {
             for (single_obj, map) in lane_objs
                 .iter()
                 .filter_map(|obj| {
-                    BmsLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
+                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
                 })
                 .filter(|(_, map)| map.kind() == NoteKind::Visible)
             {
@@ -295,7 +295,7 @@ impl Bms {
             for (landmine_obj, map) in lane_objs
                 .iter()
                 .filter_map(|obj| {
-                    BmsLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
+                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
                 })
                 .filter(|(_, map)| map.kind() == NoteKind::Landmine)
             {
@@ -341,7 +341,7 @@ mod tests {
         let mut notes = Notes::default();
         notes.push_note(WavObj {
             offset: time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id,
         });
@@ -376,7 +376,7 @@ mod tests {
         let mut notes = Notes::default();
         notes.push_note(WavObj {
             offset: time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id,
         });
@@ -398,13 +398,13 @@ mod tests {
         let mut notes = Notes::default();
         notes.push_note(WavObj {
             offset: time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id1,
         });
         notes.push_note(WavObj {
             offset: time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id2,
         });
@@ -430,21 +430,21 @@ mod tests {
         // LN start
         notes.push_note(WavObj {
             offset: ln_start,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_s,
         });
         // LN end
         notes.push_note(WavObj {
             offset: ln_end,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_e,
         });
         // Visible inside LN interval
         notes.push_note(WavObj {
             offset: vis_time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_vis,
         });
@@ -470,20 +470,20 @@ mod tests {
         // LN interval
         notes.push_note(WavObj {
             offset: ln_start,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_s,
         });
         notes.push_note(WavObj {
             offset: ln_end,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_e,
         });
         // Landmine inside the LN
         notes.push_note(WavObj {
             offset: mine_time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_mine,
         });
@@ -505,13 +505,13 @@ mod tests {
         let mut notes = Notes::default();
         notes.push_note(WavObj {
             offset: time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_vis,
         });
         notes.push_note(WavObj {
             offset: time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_mine,
         });
@@ -537,13 +537,13 @@ mod tests {
         // Zero-length long note: start and end at same time
         notes.push_note(WavObj {
             offset: zero_length_time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_start,
         });
         notes.push_note(WavObj {
             offset: zero_length_time, // Same time - zero length
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_ln_end,
         });
@@ -551,7 +551,7 @@ mod tests {
         // Visible note at the same time as zero-length LN
         notes.push_note(WavObj {
             offset: vis_time,
-            channel_id: BmsLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                 .to_channel_id(),
             wav_id: id_vis,
         });

@@ -40,7 +40,7 @@ pub struct WavProcessor<T> {
     _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T: BmsLayoutMapper> WavProcessor<T> {
+impl<T: KeyLayoutMapper> WavProcessor<T> {
     pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
         Self {
             case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
@@ -49,7 +49,7 @@ impl<T: BmsLayoutMapper> WavProcessor<T> {
     }
 }
 
-impl<T: BmsLayoutMapper> TokenProcessor for WavProcessor<T> {
+impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
     type Output = WavObjects;
 
     fn process<P: Prompter>(
@@ -81,7 +81,7 @@ impl<T: BmsLayoutMapper> TokenProcessor for WavProcessor<T> {
     }
 }
 
-impl<T: BmsLayoutMapper> WavProcessor<T> {
+impl<T: KeyLayoutMapper> WavProcessor<T> {
     fn on_header(
         &self,
         name: &str,
