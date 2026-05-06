@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::bms::{
     command::{ObjId, time::ObjTime},
     model::{Bms, obj::WavObj},
-    prelude::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
+    prelude::{KeyLayout, KeyLayoutBeat, KeyLayoutMapper},
 };
 use crate::chart::types::{Key, NoteKind, PlayerSide};
 

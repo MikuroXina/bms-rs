@@ -62,16 +62,16 @@ fn channel_id_to_key_layout_beat(channel_id: NoteChannelId) -> Option<KeyLayoutB
 }
 
 /// A trait for key mapping storage structure.
-pub trait KeyMapping {
-    /// Create a new [`KeyMapping`] from a [`PlayerSide`], [`NoteKind`] and [`Key`].
+pub trait KeyLayout {
+    /// Create a new [`KeyLayout`] from a [`PlayerSide`], [`NoteKind`] and [`Key`].
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self;
-    /// Get the [`PlayerSide`] from this [`KeyMapping`].
+    /// Get the [`PlayerSide`] from this [`KeyLayout`].
     fn side(&self) -> PlayerSide;
-    /// Get the [`NoteKind`] from this [`KeyMapping`].
+    /// Get the [`NoteKind`] from this [`KeyLayout`].
     fn kind(&self) -> NoteKind;
-    /// Get the [`Key`] from this [`KeyMapping`].
+    /// Get the [`Key`] from this [`KeyLayout`].
     fn key(&self) -> Key;
-    /// Create a new [`KeyMapping`] from a tuple of [`PlayerSide`], [`NoteKind`] and [`Key`].
+    /// Create a new [`KeyLayout`] from a tuple of [`PlayerSide`], [`NoteKind`] and [`Key`].
     #[must_use]
     fn from_tuple(tuple: (PlayerSide, NoteKind, Key)) -> Self
     where
@@ -90,7 +90,7 @@ pub trait KeyMapping {
 /// This trait defines the interface for converting between different key channel modes
 /// and the standard [`NoteChannelId`] format. Each mode implementation should provide methods to
 /// convert from its own format to [`NoteChannelId`] format and vice versa.
-pub trait KeyLayoutMapper: KeyMapping {
+pub trait KeyLayoutMapper: KeyLayout {
     /// Convert from this mode's format to [`NoteChannelId`] format.
     ///
     /// This method takes a ([`PlayerSide`], [`NoteKind`], [`Key`]) tuple in this mode's format and converts
@@ -114,7 +114,7 @@ pub trait KeyLayoutMapper: KeyMapping {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutBeat(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutBeat {
+impl KeyLayout for KeyLayoutBeat {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -149,7 +149,7 @@ impl KeyLayoutMapper for KeyLayoutBeat {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutPmsBmeType(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutPmsBmeType {
+impl KeyLayout for KeyLayoutPmsBmeType {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -199,7 +199,7 @@ impl KeyLayoutMapper for KeyLayoutPmsBmeType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutPms(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutPms {
+impl KeyLayout for KeyLayoutPms {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -251,7 +251,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutBeatNanasi(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutBeatNanasi {
+impl KeyLayout for KeyLayoutBeatNanasi {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
@@ -293,7 +293,7 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutDscOctFp(pub PlayerSide, pub NoteKind, pub Key);
 
-impl KeyMapping for KeyLayoutDscOctFp {
+impl KeyLayout for KeyLayoutDscOctFp {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
         Self(side, kind, key)
     }
