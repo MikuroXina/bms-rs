@@ -8,8 +8,7 @@ use std::path::PathBuf;
 use crate::chart::event::{ChartEvent, PlayheadEvent, YCoordinate};
 use crate::chart::types::NoteKind;
 use crate::chart::{Chart, TimeSpan};
-use strict_num_extended::NonNegativeF64;
-use strict_num_extended::PositiveF64;
+use strict_num_extended::{NonNegativeF64, PositiveF64};
 
 /// Trait for types that can be processed into a `Chart`. It's intended that chart types implement this.
 ///

@@ -215,7 +215,7 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
                 .generate(&bms)
                 .unwrap_or(BaseBpm::new(DEFAULT_BPM));
 
-            let chart = <Bms as Process<KeyLayoutBeat>>::process(&bms)
+            let chart = Process::<KeyLayoutBeat>::process(&bms)
                 .map_err(|e| format!("Failed to parse chart: {e}"))?;
             (chart, base_bpm)
         }

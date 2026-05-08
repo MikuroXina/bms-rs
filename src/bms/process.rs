@@ -6,7 +6,7 @@ use std::{
 };
 
 use itertools::Itertools;
-use strict_num_extended::{FinF64, PositiveF64};
+use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use crate::bms::command::string_value::StringValue;
 use crate::bms::parse::check_playing::PlayingError;
@@ -18,7 +18,6 @@ use crate::chart::process::{
     calculate_cumulative_times,
 };
 use crate::chart::{Chart, DEFAULT_BPM, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
-use strict_num_extended::NonNegativeF64;
 
 /// BMS format parser (internal).
 ///
