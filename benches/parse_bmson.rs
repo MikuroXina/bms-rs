@@ -1,6 +1,7 @@
 //! Benchmark for `BMSON` file parsing and chart conversion.
 
-use bms_rs::bmson::{Bmson, parse_bmson, process::BmsonProcessor};
+use bms_rs::bmson::{Bmson, parse_bmson};
+use bms_rs::chart::prelude::Process;
 use criterion::{Criterion, Throughput};
 use std::{collections::BTreeMap, sync::LazyLock};
 
@@ -74,7 +75,7 @@ fn bench_bmson_to_chart(c: &mut Criterion) {
 
     for (name, chart) in PARSED_CHARTS.iter() {
         group.bench_function(name, |b| {
-            b.iter(|| BmsonProcessor::parse(std::hint::black_box(chart)));
+            b.iter(|| std::hint::black_box(chart).process().unwrap());
         });
     }
 

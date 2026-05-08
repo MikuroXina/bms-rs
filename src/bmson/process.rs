@@ -3,7 +3,6 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
-    convert::TryFrom,
     path::PathBuf,
 };
 
@@ -21,11 +20,13 @@ use crate::chart::types::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::chart::{Chart, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
 use crate::util::StrExtension;
 
-/// BMSON format parser.
+/// BMSON format parser (internal).
 ///
 /// This struct serves as a namespace for BMSON parsing functions.
 /// It parses BMSON files and returns a `Chart` containing all precomputed data.
-pub struct BmsonProcessor;
+///
+/// Users should use [`Bmson::process`](Process) via the [`Process`] trait instead.
+struct BmsonProcessor;
 
 impl BmsonProcessor {
     /// Parse BMSON file and return a `Chart` containing all precomputed data.
@@ -435,16 +436,8 @@ impl AllEventsIndex {
     }
 }
 
-impl<'a> TryFrom<Bmson<'a>> for Chart {
-    type Error = ();
-
-    fn try_from(bmson: Bmson<'a>) -> Result<Self, Self::Error> {
-        Ok(BmsonProcessor::parse(&bmson))
-    }
-}
-
 impl Process for Bmson<'_> {
-    type Error = ();
+    type Error = std::convert::Infallible;
 
     fn process(&self) -> Result<Chart, Self::Error> {
         Ok(BmsonProcessor::parse(self))

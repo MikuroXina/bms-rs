@@ -12,7 +12,11 @@ use strict_num_extended::NonNegativeF64;
 use strict_num_extended::PositiveF64;
 
 /// Trait for types that can be processed into a `Chart`. It's intended that chart types implement this.
-pub trait Process {
+///
+/// The type parameter `L` is a phantom parameter used to constrain which types can be processed
+/// into a chart. For example, `Bms` requires `L: KeyLayoutMapper` to specify the key layout,
+/// while `Bmson` uses the default `L = ()`.
+pub trait Process<L = ()> {
     /// Error type returned when processing fails.
     type Error;
 

@@ -69,8 +69,8 @@ pub use super::{
     rng::{Rng, RngMock},
 };
 
-// Re-export process module
-pub use super::process::BmsProcessor;
+// Re-export chart process trait
+pub use crate::chart::process::Process;
 
 // Re-export chart event types (including BmsEvent)
 pub use crate::chart::event::BmsEvent;

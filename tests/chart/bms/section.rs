@@ -1,6 +1,5 @@
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 use bms_rs::bms::prelude::*;
 use strict_num_extended::PositiveF64;
 
@@ -93,7 +92,7 @@ fn test_bms_zero_length_section_comprehensive() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = <Bms as Process<KeyLayoutBeat>>::process(&bms).expect("failed to parse chart");
 
     assert!(
         !chart.events().as_events().is_empty(),
@@ -150,7 +149,7 @@ fn test_bms_very_small_section_no_division_by_zero() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = <Bms as Process<KeyLayoutBeat>>::process(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -234,7 +233,7 @@ fn test_bms_consecutive_zero_length_sections() {
         .generate(&bms)
         .unwrap_or(BaseBpm::new(TEST_BPM_120));
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms).expect("failed to parse chart");
+    let chart = <Bms as Process<KeyLayoutBeat>>::process(&bms).expect("failed to parse chart");
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 

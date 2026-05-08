@@ -2,7 +2,6 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
-    convert::TryFrom,
     path::PathBuf,
 };
 
@@ -21,11 +20,13 @@ use crate::chart::process::{
 use crate::chart::{Chart, DEFAULT_BPM, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
 use strict_num_extended::NonNegativeF64;
 
-/// BMS format parser.
+/// BMS format parser (internal).
 ///
 /// This struct serves as a namespace for BMS parsing functions.
 /// It parses BMS files and returns a `Chart` containing all precomputed data.
-pub struct BmsProcessor;
+///
+/// Users should use [`Bms::process`](Process) via the [`Process`] trait instead.
+struct BmsProcessor;
 
 /// Convert STOP duration from 192nd-note units to beats (measure units).
 ///
@@ -156,7 +157,7 @@ impl BmsProcessor {
     }
 
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
-    pub fn generate_barlines_for_bms(
+    pub(crate) fn generate_barlines_for_bms(
         bms: &Bms,
         y_memo: &YMemo,
         events_map: &mut BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
@@ -197,6 +198,14 @@ impl BmsProcessor {
         let key = map.key();
         let kind = map.kind();
         Some((side, key, kind))
+    }
+}
+
+impl<L: KeyLayoutMapper> Process<L> for Bms {
+    type Error = PlayingError;
+
+    fn process(&self) -> Result<Chart, Self::Error> {
+        BmsProcessor::parse::<L>(self)
     }
 }
 
@@ -797,22 +806,6 @@ pub fn event_for_note_static<T: KeyLayoutMapper>(
         wav_id,
         length,
         continue_play: None,
-    }
-}
-
-impl TryFrom<Bms> for Chart {
-    type Error = PlayingError;
-
-    fn try_from(bms: Bms) -> Result<Self, Self::Error> {
-        BmsProcessor::parse::<KeyLayoutBeat>(&bms)
-    }
-}
-
-impl Process for Bms {
-    type Error = PlayingError;
-
-    fn process(&self) -> Result<Chart, Self::Error> {
-        BmsProcessor::parse::<KeyLayoutBeat>(self)
     }
 }
 
