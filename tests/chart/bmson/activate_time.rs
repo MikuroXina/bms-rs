@@ -3,7 +3,6 @@
 use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
-use bms_rs::bmson::prelude::BmsonProcessor;
 use bms_rs::chart::prelude::*;
 
 use super::assert_time_close;
@@ -33,7 +32,7 @@ fn test_bmson_visible_event_activate_time_prediction() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().unwrap();
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
@@ -79,7 +78,7 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().unwrap();
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _ = processor.update(start_time);
@@ -125,7 +124,7 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
         .generate(&bmson)
         .expect("Failed to generate base BPM in test setup");
     let visible_range_per_bpm = VisibleRangePerBpm::new(base_bpm.value(), reaction_time);
-    let chart = BmsonProcessor::parse(&bmson);
+    let chart = bmson.process().unwrap();
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
     let _ = processor.update(start_time);

@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bms_rs::bms::prelude::*;
-use bms_rs::bmson::prelude::BmsonProcessor;
 use bms_rs::chart::prelude::*;
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
@@ -207,7 +206,7 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
 
     let (chart, base_bpm) = match extension.to_lowercase().as_str() {
         "bms" | "bme" | "bml" | "pms" => {
-            // Parse using BmsProcessor
+            // Parse using Process trait
             let output = parse_bms(&content, default_config());
             let bms = output.bms.map_err(|e| format!("Parse error: {e:?}"))?;
 
@@ -216,8 +215,7 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
                 .generate(&bms)
                 .unwrap_or(BaseBpm::new(DEFAULT_BPM));
 
-            // Use KeyLayoutBeat mapper (supports 7+1k)
-            let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
+            let chart = Process::<KeyLayoutBeat>::process(&bms)
                 .map_err(|e| format!("Failed to parse chart: {e}"))?;
             (chart, base_bpm)
         }
@@ -225,7 +223,7 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
             // BMSON format
             #[cfg(feature = "bmson")]
             {
-                let bmson =
+                let bmson: bms_rs::bmson::Bmson<'_> =
                     serde_json::from_str(&content).map_err(|e| format!("JSON parse error: {e}"))?;
 
                 // First generate base BPM from BMSON
@@ -233,7 +231,7 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
                     .generate(&bmson)
                     .unwrap_or(BaseBpm::new(DEFAULT_BPM));
 
-                let chart = BmsonProcessor::parse(&bmson);
+                let chart = bmson.process().unwrap();
                 (chart, base_bpm)
             }
             #[cfg(not(feature = "bmson"))]

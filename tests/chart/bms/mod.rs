@@ -1,4 +1,4 @@
-//! Integration tests for `bms_rs::chart::BmsProcessor`.
+//! Integration tests for `bms_rs::bms::process` (Process trait on Bms).
 
 mod chart;
 mod playback_state;

@@ -1,6 +1,6 @@
 #![cfg(feature = "bmson")]
 
-//! Integration tests for `bms_rs::chart::BmsonProcessor`.
+//! Integration tests for `bms_rs::bmson::process` (Process trait on Bmson).
 
 mod activate_time;
 mod chart;
