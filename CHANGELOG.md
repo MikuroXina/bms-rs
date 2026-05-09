@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/MikuroXina/bms-rs/compare/v1.0.0...v1.0.1) (2026-05-09)
+
+
+### Bug Fixes
+
+* **process:** Processor should not taking ownership ([#367](https://github.com/MikuroXina/bms-rs/issues/367)) ([e2dc05c](https://github.com/MikuroXina/bms-rs/commit/e2dc05c6ce526dfb60cef89dde008c07a6e52ddc))
+* remove pub use except prelude ([#356](https://github.com/MikuroXina/bms-rs/issues/356)) ([a97a7f9](https://github.com/MikuroXina/bms-rs/commit/a97a7f9040e8ff42dd8e1a756fa4887a04eefbe4))
+
 ## [1.0.0](https://github.com/MikuroXina/bms-rs/compare/v0.10.1...v1.0.0) (2026-04-14)
 
 
