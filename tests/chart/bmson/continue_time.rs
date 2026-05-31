@@ -2,7 +2,7 @@
 
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bmson::parse_bmson;
+use bms_rs::bmson::Bmson;
 use bms_rs::chart::prelude::*;
 
 use super::{MICROSECOND_EPSILON, assert_time_close};
@@ -33,8 +33,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 5000;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
@@ -95,8 +94,7 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
@@ -151,8 +149,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 5000;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
@@ -224,8 +221,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
@@ -289,8 +285,7 @@ fn test_bmson_continue_independent_across_sound_channels() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 5000;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)

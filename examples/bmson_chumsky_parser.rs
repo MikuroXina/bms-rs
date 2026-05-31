@@ -1,21 +1,71 @@
-//! This is a parser for JSON.
+//! BMSON parser example using a chumsky-based custom JSON parser.
+//!
+//! This example demonstrates how to build a custom JSON parser with chumsky,
+//! use it to parse BMSON data into a `serde_json::Value`, and then deserialize
+//! that value into the `bms_rs::bmson::Bmson` struct.
+//!
+//! The parser supports error recovery (missing commas, trailing commas) and
+//! provides detailed error diagnostics.
+//!
+//! # Usage
+//!
+//! ```bash
+//! cargo run --example bmson_chumsky_parser --features bmson -- path/to/file.bmson
+//! ```
+
+use std::env;
+use std::fs;
+use std::process;
 
 use chumsky::{error::RichReason, prelude::*};
 use serde_json::Value;
 
-#[cfg(feature = "diagnostics")]
-use ariadne::{Color, Report, ReportKind};
-
-#[cfg(feature = "diagnostics")]
-use crate::diagnostics::{SimpleSource, ToAriadne, build_report};
-
-/// This is a parser for JSON.
+/// Parse a BMSON file from JSON string using the chumsky parser.
 ///
-/// Parsing from str, returning [`Value`]. Chumsky emits `Rich<char>` internally,
-/// which we later classify into `Warning` (custom diagnostics) and `Recovered`
-/// (grammar errors recovered by the parser).
+/// Returns the parsed `Bmson` value or exits with an error message.
+fn parse_bmson(json: &str) -> bms_rs::bmson::Bmson<'_> {
+    let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
+
+    let had_output = value.is_some();
+    let (warnings, recovered, fatal) = split_chumsky_errors(parse_errors, had_output);
+
+    // Print warnings
+    for Warning(warning) in &warnings {
+        eprintln!("Warning: {warning:?}");
+    }
+
+    // Print recovered errors
+    for Recovered(error) in &recovered {
+        eprintln!("Recovered error: {error:?}");
+    }
+
+    // If there are fatal errors and no output was produced, exit
+    if !fatal.is_empty() && !had_output {
+        for Error(error) in &fatal {
+            eprintln!("Fatal error: {error:?}");
+        }
+        eprintln!("Failed to parse JSON.");
+        process::exit(1);
+    }
+
+    // Fall back to serde_json if chumsky didn't produce a value
+    let json_value = value.unwrap_or_else(|| {
+        serde_json::from_str(json).unwrap_or_else(|e| {
+            eprintln!("serde_json fallback also failed: {e}");
+            process::exit(1);
+        })
+    });
+
+    // Deserialize into Bmson
+    serde_json::from_value(json_value).unwrap_or_else(|e| {
+        eprintln!("Failed to deserialize BMSON: {e}");
+        process::exit(1);
+    })
+}
+
+/// Chumsky-based JSON parser.
 #[must_use]
-pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>>> {
+fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>>> {
     recursive(|value| {
         let digits = text::digits(10).to_slice();
 
@@ -190,76 +240,22 @@ pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>
     })
 }
 
+/// Diagnostic warning intentionally emitted by the JSON parser using `Rich::custom`.
+#[derive(Debug, Clone)]
+struct Warning<'a>(Rich<'a, char>);
+
 /// Error recovered by the JSON parser. These originated from grammar mismatches
 /// that were recovered via `recover_with` or similar mechanisms.
 #[derive(Debug, Clone)]
-pub struct Recovered<'a>(pub Rich<'a, char>);
-
-/// Diagnostic warning intentionally emitted by the JSON parser using `Rich::custom`.
-#[derive(Debug, Clone)]
-pub struct Warning<'a>(pub Rich<'a, char>);
+struct Recovered<'a>(Rich<'a, char>);
 
 /// Unrecoverable JSON parsing error (no output value was produced).
 #[derive(Debug, Clone)]
-pub struct Error<'a>(pub Rich<'a, char>);
-
-#[cfg(feature = "diagnostics")]
-impl ToAriadne for Recovered<'_> {
-    fn to_report<'b>(
-        &self,
-        src: &SimpleSource<'b>,
-    ) -> Report<'b, (String, std::ops::Range<usize>)> {
-        let span = self.0.span();
-        build_report(
-            src,
-            ReportKind::Advice,
-            span.start..span.end,
-            "JSON recovered parsing issue",
-            &self.0,
-            Color::Blue,
-        )
-    }
-}
-
-#[cfg(feature = "diagnostics")]
-impl ToAriadne for Warning<'_> {
-    fn to_report<'b>(
-        &self,
-        src: &SimpleSource<'b>,
-    ) -> Report<'b, (String, std::ops::Range<usize>)> {
-        let span = self.0.span();
-        build_report(
-            src,
-            ReportKind::Warning,
-            span.start..span.end,
-            "JSON parsing warning",
-            &self.0,
-            Color::Yellow,
-        )
-    }
-}
-
-#[cfg(feature = "diagnostics")]
-impl ToAriadne for Error<'_> {
-    fn to_report<'b>(
-        &self,
-        src: &SimpleSource<'b>,
-    ) -> Report<'b, (String, std::ops::Range<usize>)> {
-        let span = self.0.span();
-        build_report(
-            src,
-            ReportKind::Error,
-            span.start..span.end,
-            "JSON parsing error",
-            &self.0,
-            Color::Red,
-        )
-    }
-}
+struct Error<'a>(Rich<'a, char>);
 
 /// Split chumsky `Rich<char>` errors into `Warning`, `Recovered`, and `Error` buckets.
 #[must_use]
-pub fn split_chumsky_errors<'a>(
+fn split_chumsky_errors<'a>(
     errors: impl IntoIterator<Item = Rich<'a, char>>,
     had_output: bool,
 ) -> (Vec<Warning<'a>>, Vec<Recovered<'a>>, Vec<Error<'a>>) {
@@ -277,4 +273,34 @@ pub fn split_chumsky_errors<'a>(
         }
     }
     (warnings, recovered, fatal)
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        eprintln!("Usage: bmson_chumsky_parser <path-to-bmson-file>");
+        process::exit(1);
+    }
+
+    let path = &args[1];
+    let json = fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Failed to read file {path}: {e}");
+        process::exit(1);
+    });
+
+    let bmson = parse_bmson(&json);
+
+    println!("Successfully parsed BMSON file: {path}");
+    println!("Title: {}", bmson.info.title);
+    println!("Artist: {}", bmson.info.artist);
+    println!("Genre: {}", bmson.info.genre);
+    println!("Level: {}", bmson.info.level);
+    println!("BPM: {:.2}", bmson.info.init_bpm.as_f64());
+    println!("Resolution: {}", bmson.info.resolution);
+    println!(
+        "Sound channels: {}",
+        bmson.sound_channels.len()
+    );
+    println!("BPM events: {}", bmson.bpm_events.len());
+    println!("Stop events: {}", bmson.stop_events.len());
 }

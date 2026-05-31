@@ -2,7 +2,7 @@
 
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bmson::parse_bmson;
+use bms_rs::bmson::Bmson;
 use bms_rs::chart::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
@@ -34,8 +34,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
@@ -51,8 +50,7 @@ fn test_bmson_restart_resets_scroll_to_one() {
     let state = processor.playback_state();
     assert_ne!(state.current_scroll, FinF64::ONE);
 
-    let output2 = parse_bmson(json);
-    let bmson2 = output2.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson2 = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm2 = StartBpmGenerator
         .generate(&bmson2)
@@ -88,13 +86,7 @@ fn test_bmson_edge_cases_no_division_by_zero() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let output = parse_bmson(json);
-    let Some(bmson) = output.bmson else {
-        panic!(
-            "Failed to parse BMSON in test setup. Errors: {:?}",
-            output.errors
-        );
-    };
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
         panic!(
@@ -156,13 +148,7 @@ fn test_very_long_elapsed_time_no_errors() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let output = parse_bmson(json);
-    let Some(bmson) = output.bmson else {
-        panic!(
-            "Failed to parse BMSON in test setup. Errors: {:?}",
-            output.errors
-        );
-    };
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
         panic!(

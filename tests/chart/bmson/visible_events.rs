@@ -2,7 +2,7 @@
 
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bmson::parse_bmson;
+use bms_rs::bmson::Bmson;
 use bms_rs::chart::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
@@ -33,8 +33,7 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 1500;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
@@ -79,8 +78,7 @@ fn test_visible_events_duration_matches_reaction_time() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
@@ -129,8 +127,7 @@ fn test_visible_events_duration_with_playback_ratio() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
@@ -196,8 +193,7 @@ fn test_visible_events_with_boundary_conditions() {
     }"#;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON in test setup");
+    let bmson = serde_json::from_str::<Bmson>(json).expect("Failed to parse BMSON in test setup");
 
     let base_bpm = StartBpmGenerator
         .generate(&bmson)

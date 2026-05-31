@@ -1,6 +1,6 @@
 //! Benchmark for `BMSON` file parsing and chart conversion.
 
-use bms_rs::bmson::{Bmson, parse_bmson};
+use bms_rs::bmson::Bmson;
 use bms_rs::chart::prelude::Process;
 use criterion::{Criterion, Throughput};
 use std::{collections::BTreeMap, sync::LazyLock};
@@ -47,8 +47,7 @@ fn load_bmson_charts() -> ParsedBmsonCharts {
         .map(|file| {
             // Leak the source to extend lifetime to 'static for benchmark caching
             let leaked_source: &'static str = Box::leak(file.source.into_boxed_str());
-            let bmson = parse_bmson(leaked_source)
-                .bmson
+            let bmson = serde_json::from_str::<Bmson>(leaked_source)
                 .expect("Failed to parse BMSON");
 
             (file.name, bmson)
@@ -63,7 +62,7 @@ fn bench_parse_bmson(c: &mut Criterion) {
     for file in &files {
         group.throughput(Throughput::Bytes(file.source.len() as u64));
         group.bench_function(&file.name, |b| {
-            b.iter(|| parse_bmson(std::hint::black_box(&file.source)));
+            b.iter(|| serde_json::from_str::<Bmson>(std::hint::black_box(&file.source)));
         });
     }
 

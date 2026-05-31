@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["bmson", "rand", "diagnostics"]
 serde = ["dep:serde", "num/serde"]
-bmson = ["serde", "serde_json", "serde_path_to_error", "chumsky"]
+bmson = ["serde"]
 rand = ["dep:rand"]
 diagnostics = ["dep:ariadne"]
 
@@ -25,12 +25,9 @@ diagnostics = ["dep:ariadne"]
 itertools = "0.14"
 num = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }
-serde_json = { version = "1", optional = true }
-serde_path_to_error = { version = "0.1", optional = true }
 thiserror = "2"
 rand = { version = "0.10", optional = true }
 ariadne = { version = "0.6", optional = true }
-chumsky = { version = "0.12", optional = true, features = ["serde"] }
 gametime = { version = "0.7", features = ["global_reference"] }
 strict-num-extended = { version = "0.5", features = ["serde"] }
 
@@ -44,6 +41,7 @@ clap = { version = "4", features = ["derive"] }
 kira = { version = "0.12", features = ["cpal"] }
 rayon = "1.10"
 criterion = { version = "0.8", default-features = false, features = ["rayon", "cargo_bench_support"] }
+chumsky = { version = "0.12", features = ["serde"] }
 
 [[example]]
 name = "diagnostics_example"
@@ -56,6 +54,10 @@ required-features = ["diagnostics"]
 [[example]]
 name = "microquad_player"
 required-features = ["diagnostics"]
+
+[[example]]
+name = "bmson_chumsky_parser"
+required-features = ["bmson"]
 
 [[bench]]
 name = "parse_bms"

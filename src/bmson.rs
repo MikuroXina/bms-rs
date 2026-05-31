@@ -29,7 +29,6 @@
 
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
-pub mod parse;
 pub mod prelude;
 pub mod process;
 pub mod pulse;
@@ -39,23 +38,11 @@ use std::{
     num::{NonZeroU8, NonZeroU64},
 };
 
-#[cfg(feature = "diagnostics")]
-use ariadne::{Color, Report, ReportKind};
-use chumsky::{prelude::*, span::SimpleSpan};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::bms::command::LnMode;
 
-#[cfg(feature = "diagnostics")]
-use crate::diagnostics::{ToAriadne, build_report};
-
-use self::{
-    parse::{
-        Error as JsonError, Recovered as JsonRecovered, Warning as JsonWarning, parser,
-        split_chumsky_errors,
-    },
-    pulse::PulseNumber,
-};
+use self::pulse::PulseNumber;
 
 use strict_num_extended::{FinF64, PositiveF64};
 
@@ -447,139 +434,4 @@ pub struct KeyChannel<'a> {
     pub notes: Vec<KeyEvent>,
 }
 
-/// Errors that can occur during BMSON parsing.
-#[derive(Debug)]
-pub enum BmsonParseError<'a> {
-    /// JSON parsing warning intentionally emitted by the parser.
-    JsonWarning {
-        /// The parser-emitted warning diagnostic.
-        warning: JsonWarning<'a>,
-    },
-    /// JSON grammar error that was recovered by the parser.
-    JsonRecovered {
-        /// The recovered chumsky error.
-        error: JsonRecovered<'a>,
-    },
-    /// Unrecoverable JSON parsing error (no value produced).
-    JsonError {
-        /// The unrecoverable JSON parsing error.
-        error: JsonError<'a>,
-    },
-    /// Deserialization error from serde.
-    Deserialize {
-        /// The serde deserialization error.
-        error: serde_path_to_error::Error<serde_json::Error>,
-    },
-}
 
-#[cfg(feature = "diagnostics")]
-impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
-    fn to_report<'b>(
-        &self,
-        src: &crate::diagnostics::SimpleSource<'b>,
-    ) -> Report<'b, (String, std::ops::Range<usize>)> {
-        let message = format!("{self}");
-        build_report(
-            src,
-            ReportKind::Error,
-            0..0,
-            "BMSON deserialization error",
-            &message,
-            Color::Red,
-        )
-    }
-}
-
-#[cfg(feature = "diagnostics")]
-impl ToAriadne for BmsonParseError<'_> {
-    fn to_report<'b>(
-        &self,
-        src: &crate::diagnostics::SimpleSource<'b>,
-    ) -> Report<'b, (String, std::ops::Range<usize>)> {
-        match self {
-            BmsonParseError::JsonWarning { warning } => warning.to_report(src),
-            BmsonParseError::JsonRecovered { error } => error.to_report(src),
-            BmsonParseError::JsonError { error } => error.to_report(src),
-            BmsonParseError::Deserialize { error } => error.to_report(src),
-        }
-    }
-}
-
-/// Output of parsing a BMSON file.
-///
-/// This struct contains the parsed BMSON data (if successful), along with any
-/// parsing errors that occurred during the process.
-pub struct BmsonParseOutput<'a> {
-    /// The parsed BMSON data, or None if parsing failed.
-    pub bmson: Option<Bmson<'a>>,
-    /// Errors that occurred during parsing.
-    pub errors: Vec<BmsonParseError<'a>>,
-}
-
-/// Parse a BMSON file from JSON string.
-///
-/// This function provides a convenient way to parse a BMSON file in one step.
-/// It uses chumsky parser internally to parse JSON, then deserializes the result
-/// using `serde_path_to_error` for detailed error information.
-///
-/// # Returns
-///
-/// Returns a `BmsonParseOutput` containing the parsed BMSON data (if successful),
-/// or various types of parsing errors that occurred during the process.
-#[must_use]
-pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
-    // First parse JSON using chumsky parser
-    let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
-
-    let had_output = value.is_some();
-    // Split chumsky errors into warnings, recovered errors, and fatal errors
-    let (warnings, recovered, fatal) = split_chumsky_errors(parse_errors, had_output);
-
-    // Collect JSON parsing diagnostics
-    let mut errors: Vec<BmsonParseError<'a>> =
-        Vec::with_capacity(warnings.len() + recovered.len() + fatal.len());
-    errors.extend(
-        warnings
-            .into_iter()
-            .map(|warning| BmsonParseError::JsonWarning { warning }),
-    );
-    errors.extend(
-        recovered
-            .into_iter()
-            .map(|error| BmsonParseError::JsonRecovered { error }),
-    );
-    errors.extend(
-        fatal
-            .into_iter()
-            .map(|error| BmsonParseError::JsonError { error }),
-    );
-
-    // Try to get a JSON value from either chumsky or serde_json
-    let serde_fallback = serde_json::from_str(json);
-    let json_value = value.or_else(|| serde_fallback.as_ref().ok().cloned());
-
-    // If neither parser produced a value and no fatal chumsky error existed,
-    // synthesize a fatal JSON error from the serde error for better diagnostics.
-    if json_value.is_none()
-        && let Err(e) = serde_fallback
-        && !errors
-            .iter()
-            .any(|err| matches!(err, BmsonParseError::JsonError { .. }))
-    {
-        let span = SimpleSpan::new((), 0..json.len());
-        errors.push(BmsonParseError::JsonError {
-            error: JsonError(Rich::custom(span, format!("Invalid JSON: {e}"))),
-        });
-    }
-
-    // Try to deserialize the JSON value into Bmson
-    let bmson = json_value
-        .map(|json_value| serde_path_to_error::deserialize(&json_value))
-        .and_then(|deserialize_result| {
-            deserialize_result
-                .map_err(|error| errors.push(BmsonParseError::Deserialize { error }))
-                .ok()
-        });
-
-    BmsonParseOutput { bmson, errors }
-}

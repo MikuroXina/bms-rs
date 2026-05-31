@@ -23,9 +23,6 @@ pub use super::bmson_to_bms::{BmsonToBmsOutput, BmsonToBmsWarning};
 pub use super::pulse::{PulseConverter, PulseNumber};
 pub use strict_num_extended::{FinF64, PositiveF64};
 
-// Re-export parsing functions and types
-pub use super::{BmsonParseError, BmsonParseOutput, parse_bmson};
-
 // Re-export default functions
 pub use super::{default_mode_hint, default_percentage, default_resolution};
 
