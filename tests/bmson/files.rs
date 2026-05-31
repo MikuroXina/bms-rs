@@ -2,9 +2,7 @@
 
 use std::num::NonZeroU64;
 
-use bms_rs::bmson::{
-    BgaEvent, BgaHeader, BgaId, Bmson, BpmEvent, pulse::PulseNumber,
-};
+use bms_rs::bmson::{BgaEvent, BgaHeader, BgaId, Bmson, BpmEvent, pulse::PulseNumber};
 
 use strict_num_extended::PositiveF64;
 

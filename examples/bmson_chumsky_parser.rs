@@ -15,15 +15,14 @@
 
 use std::env;
 use std::fs;
-use std::process;
 
 use chumsky::{error::RichReason, prelude::*};
 use serde_json::Value;
 
 /// Parse a BMSON file from JSON string using the chumsky parser.
 ///
-/// Returns the parsed `Bmson` value or exits with an error message.
-fn parse_bmson(json: &str) -> bms_rs::bmson::Bmson<'_> {
+/// Returns the parsed `Bmson` value or an error message.
+fn parse_bmson(json: &str) -> Result<bms_rs::bmson::Bmson<'_>, String> {
     let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
 
     let had_output = value.is_some();
@@ -39,28 +38,23 @@ fn parse_bmson(json: &str) -> bms_rs::bmson::Bmson<'_> {
         eprintln!("Recovered error: {error:?}");
     }
 
-    // If there are fatal errors and no output was produced, exit
+    // If there are fatal errors and no output was produced, return error
     if !fatal.is_empty() && !had_output {
         for Error(error) in &fatal {
             eprintln!("Fatal error: {error:?}");
         }
-        eprintln!("Failed to parse JSON.");
-        process::exit(1);
+        return Err("Failed to parse JSON.".to_string());
     }
 
     // Fall back to serde_json if chumsky didn't produce a value
-    let json_value = value.unwrap_or_else(|| {
-        serde_json::from_str(json).unwrap_or_else(|e| {
-            eprintln!("serde_json fallback also failed: {e}");
-            process::exit(1);
-        })
-    });
+    let json_value = match value {
+        Some(v) => v,
+        None => serde_json::from_str(json)
+            .map_err(|e| format!("serde_json fallback also failed: {e}"))?,
+    };
 
     // Deserialize into Bmson
-    serde_json::from_value(json_value).unwrap_or_else(|e| {
-        eprintln!("Failed to deserialize BMSON: {e}");
-        process::exit(1);
-    })
+    serde_json::from_value(json_value).map_err(|e| format!("Failed to deserialize BMSON: {e}"))
 }
 
 /// Chumsky-based JSON parser.
@@ -277,18 +271,29 @@ fn split_chumsky_errors<'a>(
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
+
+    let path = if let Some(p) = args.get(1) {
+        p
+    } else {
         eprintln!("Usage: bmson_chumsky_parser <path-to-bmson-file>");
-        process::exit(1);
-    }
+        return;
+    };
 
-    let path = &args[1];
-    let json = fs::read_to_string(path).unwrap_or_else(|e| {
-        eprintln!("Failed to read file {path}: {e}");
-        process::exit(1);
-    });
+    let json = match fs::read_to_string(path) {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("Failed to read file {path}: {e}");
+            return;
+        }
+    };
 
-    let bmson = parse_bmson(&json);
+    let bmson = match parse_bmson(&json) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
 
     println!("Successfully parsed BMSON file: {path}");
     println!("Title: {}", bmson.info.title);
@@ -297,10 +302,7 @@ fn main() {
     println!("Level: {}", bmson.info.level);
     println!("BPM: {:.2}", bmson.info.init_bpm.as_f64());
     println!("Resolution: {}", bmson.info.resolution);
-    println!(
-        "Sound channels: {}",
-        bmson.sound_channels.len()
-    );
+    println!("Sound channels: {}", bmson.sound_channels.len());
     println!("BPM events: {}", bmson.bpm_events.len());
     println!("Stop events: {}", bmson.stop_events.len());
 }

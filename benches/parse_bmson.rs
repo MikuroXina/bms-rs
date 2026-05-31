@@ -47,8 +47,8 @@ fn load_bmson_charts() -> ParsedBmsonCharts {
         .map(|file| {
             // Leak the source to extend lifetime to 'static for benchmark caching
             let leaked_source: &'static str = Box::leak(file.source.into_boxed_str());
-            let bmson = serde_json::from_str::<Bmson>(leaked_source)
-                .expect("Failed to parse BMSON");
+            let bmson =
+                serde_json::from_str::<Bmson>(leaked_source).expect("Failed to parse BMSON");
 
             (file.name, bmson)
         })

@@ -433,5 +433,3 @@ pub struct KeyChannel<'a> {
     /// Invisible key notes.
     pub notes: Vec<KeyEvent>,
 }
-
-
