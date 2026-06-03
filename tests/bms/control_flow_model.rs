@@ -763,7 +763,12 @@ fn test_switch_default_then_case_override() {
         .find(|b| b.condition.is_none())
         .expect("expected DEF branch");
     assert_eq!(
-        def_branch.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        def_branch
+            .sub
+            .notes()
+            .all_notes()
+            .cloned()
+            .collect::<Vec<_>>(),
         vec![WavObj {
             offset: ObjTime::new(1, 1, 4).unwrap(),
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))

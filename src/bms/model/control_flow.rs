@@ -96,7 +96,10 @@ impl RandomizedObjects {
         let generating = other.generating.clone().or_else(|| self.generating.clone());
         let mut branches = self.branches.clone();
         for branch in &other.branches {
-            if let Some(existing) = branches.iter_mut().find(|b| b.condition == branch.condition) {
+            if let Some(existing) = branches
+                .iter_mut()
+                .find(|b| b.condition == branch.condition)
+            {
                 let merged_bms = existing.sub.union(&branch.sub);
                 *existing.sub = merged_bms;
             } else {
@@ -116,7 +119,11 @@ impl RandomizedObjects {
             self.generating.clone_from(&other.generating);
         }
         for branch in &other.branches {
-            if let Some(existing) = self.branches.iter_mut().find(|b| b.condition == branch.condition) {
+            if let Some(existing) = self
+                .branches
+                .iter_mut()
+                .find(|b| b.condition == branch.condition)
+            {
                 existing.sub.union_inplace(&branch.sub);
             } else {
                 self.branches.push(branch.clone());
@@ -144,26 +151,40 @@ impl RandomizedObjects {
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
     #[must_use]
     pub fn branch(&self, condition: &BigUint) -> Option<&RandomizedBranch> {
-        self.branches.iter().find(|b| b.condition.as_ref() == Some(condition))
+        self.branches
+            .iter()
+            .find(|b| b.condition.as_ref() == Some(condition))
     }
 
     /// Returns a mutable reference to the branch with the given condition value.
     ///
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
     pub fn branch_mut(&mut self, condition: &BigUint) -> Option<&mut RandomizedBranch> {
-        self.branches.iter_mut().find(|b| b.condition.as_ref() == Some(condition))
+        self.branches
+            .iter_mut()
+            .find(|b| b.condition.as_ref() == Some(condition))
     }
 
     /// Returns a mutable reference to the branch entry for `condition`.
     ///
     /// If the branch does not exist, a new one with an empty `Bms` is inserted and returned.
+    ///
+    /// # Panics
+    ///
+    /// Never panics under normal operation. The internal push-then-pop sequence
+    /// is guaranteed to succeed.
+    #[expect(clippy::indexing_slicing)]
     pub fn branch_entry(&mut self, condition: BigUint) -> &mut RandomizedBranch {
-        let idx = self.branches.iter().position(|b| b.condition.as_ref() == Some(&condition));
-        if let Some(idx) = idx {
-            &mut self.branches[idx]
+        if let Some(pos) = self
+            .branches
+            .iter()
+            .position(|b| b.condition.as_ref() == Some(&condition))
+        {
+            &mut self.branches[pos]
         } else {
-            self.branches.push(RandomizedBranch::new(Some(condition), Bms::default()));
-            self.branches.last_mut().unwrap()
+            self.branches
+                .push(RandomizedBranch::new(Some(condition), Bms::default()));
+            self.branches.last_mut().expect("just pushed an element")
         }
     }
 
@@ -216,6 +237,11 @@ impl RandomizedObjects {
     ///
     /// Conditional branches are sorted by condition value.
     /// The fallback branch (`condition: None`) is emitted as `#ELSE` after all conditional branches.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a conditional branch's condition is unexpectedly `None`. This
+    /// cannot happen under normal operation because the filter guarantees `Some`.
     #[must_use]
     pub fn export_as_random<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
@@ -235,12 +261,19 @@ impl RandomizedObjects {
             }),
         }
 
-        let mut conditional: Vec<&RandomizedBranch> = self.branches.iter().filter(|b| b.condition.is_some()).collect();
+        let mut conditional: Vec<&RandomizedBranch> = self
+            .branches
+            .iter()
+            .filter(|b| b.condition.is_some())
+            .collect();
         conditional.sort_by(|a, b| a.condition.cmp(&b.condition));
         let fallback = self.branches.iter().find(|b| b.condition.is_none());
 
         if let Some(branch) = conditional.first() {
-            let cond = branch.condition.as_ref().unwrap();
+            let cond = branch
+                .condition
+                .as_ref()
+                .expect("conditional branches have Some condition");
             tokens.push(Token::Header {
                 name: "IF".into(),
                 args: cond.to_string().into(),
@@ -248,7 +281,10 @@ impl RandomizedObjects {
             tokens.extend(branch.sub.as_ref().unparse::<T>());
         }
         for branch in conditional.iter().skip(1) {
-            let cond = branch.condition.as_ref().unwrap();
+            let cond = branch
+                .condition
+                .as_ref()
+                .expect("conditional branches have Some condition");
             tokens.push(Token::Header {
                 name: "ELSEIF".into(),
                 args: cond.to_string().into(),
@@ -279,6 +315,11 @@ impl RandomizedObjects {
     ///
     /// Conditional branches are sorted by condition value.
     /// The fallback branch (`condition: None`) is emitted as `#DEF` after all conditional branches.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a conditional branch's condition is unexpectedly `None`. This
+    /// cannot happen under normal operation because the filter guarantees `Some`.
     #[must_use]
     pub fn export_as_switch<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
@@ -298,12 +339,19 @@ impl RandomizedObjects {
             }),
         }
 
-        let mut conditional: Vec<&RandomizedBranch> = self.branches.iter().filter(|b| b.condition.is_some()).collect();
+        let mut conditional: Vec<&RandomizedBranch> = self
+            .branches
+            .iter()
+            .filter(|b| b.condition.is_some())
+            .collect();
         conditional.sort_by(|a, b| a.condition.cmp(&b.condition));
         let fallback = self.branches.iter().find(|b| b.condition.is_none());
 
-        for branch in conditional {
-            let cond = branch.condition.as_ref().unwrap();
+        for branch in &conditional {
+            let cond = branch
+                .condition
+                .as_ref()
+                .expect("conditional branches have Some condition");
             tokens.push(Token::Header {
                 name: "CASE".into(),
                 args: cond.to_string().into(),

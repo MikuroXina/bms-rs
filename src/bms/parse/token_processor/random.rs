@@ -85,7 +85,6 @@ struct BranchBuffer<'t> {
 struct RandomScope<'t> {
     line_number: usize,
     generating: Option<ControlFlowValue>,
-    max_value: Option<BigUint>,
     branches: BTreeMap<BigUint, RandomizedBranch>,
     fallback: Option<RandomizedBranch>,
     covered_values: BTreeSet<BigUint>,
@@ -106,14 +105,9 @@ impl<'t> Collector<'t> {
     }
 
     fn push_random(&mut self, generating: ControlFlowValue, line_number: usize) {
-        let max_value = match &generating {
-            ControlFlowValue::GenMax(m) => Some(m.clone()),
-            ControlFlowValue::Set(_) => None, // Explicit value, cannot infer range for ELSE
-        };
         self.stack.push(RandomScope {
             line_number,
             generating: Some(generating),
-            max_value,
             branches: BTreeMap::new(),
             fallback: None,
             covered_values: BTreeSet::new(),
@@ -504,7 +498,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 self.finish_current_branch(collector, prompter)?;
 
                 if let Some(scope) = collector.stack.pop() {
-                    let mut branches: Vec<RandomizedBranch> = scope.branches.into_values().collect();
+                    let mut branches: Vec<RandomizedBranch> =
+                        scope.branches.into_values().collect();
                     if let Some(fallback) = scope.fallback {
                         branches.push(fallback);
                     }
@@ -653,7 +648,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 if let ProcessState::Random { .. } = top
                     && let Some(scope) = collector.stack.pop()
                 {
-                    let mut branches: Vec<RandomizedBranch> = scope.branches.into_values().collect();
+                    let mut branches: Vec<RandomizedBranch> =
+                        scope.branches.into_values().collect();
                     if let Some(fallback) = scope.fallback {
                         branches.push(fallback);
                     }
@@ -792,7 +788,8 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 self.finish_current_branch(collector, prompter)?;
 
                 if let Some(scope) = collector.stack.pop() {
-                    let mut branches: Vec<RandomizedBranch> = scope.branches.into_values().collect();
+                    let mut branches: Vec<RandomizedBranch> =
+                        scope.branches.into_values().collect();
                     if let Some(fallback) = scope.fallback {
                         branches.push(fallback);
                     }
