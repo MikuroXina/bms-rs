@@ -144,22 +144,37 @@ impl Bms {
             subartists: vec![Cow::Owned(self.music_info.sub_artist.unwrap_or_default())],
             genre: Cow::Owned(self.music_info.genre.unwrap_or_default()),
             mode_hint: {
-                // TODO: Support other modes
-                let is_7keys = self.wav.notes.all_notes().any(|note| {
-                    note.channel_id
-                        .try_into_map::<KeyLayoutBeat>()
-                        .is_some_and(|map| matches!(map.key(), Key::Key(6 | 7)))
-                });
-                let is_dp = self.wav.notes.all_notes().any(|note| {
-                    note.channel_id
-                        .try_into_map::<KeyLayoutBeat>()
-                        .is_some_and(|map| map.side() == PlayerSide::Player2)
-                });
-                match (is_dp, is_7keys) {
-                    (true, true) => "beat-14k".into(),
-                    (true, false) => "beat-10k".into(),
-                    (false, true) => "beat-7k".into(),
-                    (false, false) => "beat-5k".into(),
+                let mut is_7keys = false;
+                let mut is_dp = false;
+                let mut has_p2_key2to5 = false;
+                let mut has_p2_key1_or_scratch = false;
+
+                for note in self.wav.notes.all_notes() {
+                    let Some(map) = note.channel_id.try_into_map::<KeyLayoutBeat>() else {
+                        continue;
+                    };
+                    if matches!(map.key(), Key::Key(6 | 7)) {
+                        is_7keys = true;
+                    }
+                    if map.side() == PlayerSide::Player2 {
+                        is_dp = true;
+                        match map.key() {
+                            Key::Key(1) | Key::Scratch(_) => has_p2_key1_or_scratch = true,
+                            Key::Key(2..=5) => has_p2_key2to5 = true,
+                            _ => {}
+                        }
+                    }
+                }
+
+                if has_p2_key2to5 && !has_p2_key1_or_scratch {
+                    "popn-9k".into()
+                } else {
+                    match (is_dp, is_7keys) {
+                        (true, true) => "beat-14k".into(),
+                        (true, false) => "beat-10k".into(),
+                        (false, true) => "beat-7k".into(),
+                        (false, false) => "beat-5k".into(),
+                    }
                 }
             },
             chart_name: Cow::Owned(String::new()),
@@ -211,10 +226,7 @@ impl Bms {
                 .sprite
                 .stage_file
                 .map(|path| Cow::Owned(path.display().to_string())),
-            title_image: self
-                .sprite
-                .back_bmp
-                .map(|path| Cow::Owned(path.display().to_string())),
+            title_image: None,
             banner_image: self
                 .sprite
                 .banner

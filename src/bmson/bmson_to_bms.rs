@@ -82,6 +82,7 @@ impl Bms {
         bms.metadata.play_level = Some(value.info.level as u8);
         let total = value.info.total;
         bms.judge.total = Some(StringValue::from_value(total));
+        bms.repr.ln_mode = value.info.ln_type;
         bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
         bms.sprite.stage_file = value
             .info
