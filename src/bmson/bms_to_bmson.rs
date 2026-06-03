@@ -85,9 +85,10 @@ impl Bms {
         let mut warnings = Vec::new();
         let converter = PulseConverter::new(&self);
         let judge_rank = FinF64::new(match self.judge.rank {
-            Some(JudgeLevel::OtherInt(4)) => VERY_EASY_WIDTH / NORMAL_WIDTH, // VeryEasy implementation of beatoraja.
+            Some(JudgeLevel::VeryEasy) => VERY_EASY_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::Easy) => EASY_WIDTH / NORMAL_WIDTH,
-            Some(JudgeLevel::Normal | JudgeLevel::OtherInt(_)) | None => 1.0,
+            Some(JudgeLevel::Normal) | None => 1.0,
+            Some(JudgeLevel::OtherInt(_)) => 1.0,
             Some(JudgeLevel::Hard) => HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
         })

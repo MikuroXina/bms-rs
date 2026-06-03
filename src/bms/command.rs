@@ -60,10 +60,7 @@ impl std::str::FromStr for PlayerMode {
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
 ///
-/// IIDX/LR2/beatoraja judge windows: <https://iidx.org/misc/iidx_lr2_beatoraja_diff>
-///
-/// Note: The difficulty `VeryEasy` is decided to be unimplemented.
-/// See [discussions in the PR](https://github.com/MikuroXina/bms-rs/pull/122).
+/// beatoraja judge windows: <https://iidx.org/misc/iidx_lr2_beatoraja_diff>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum JudgeLevel {
@@ -75,8 +72,9 @@ pub enum JudgeLevel {
     Normal,
     /// Rank 3, the easier rank.
     Easy,
-    /// Other integer value. Please See `JudgeLevel` for more details.
-    /// If used for `#EXRANK`, representing percentage.
+    /// Rank 4, the easiest rank (beatoraja/nanasi extension).
+    VeryEasy,
+    /// Other integer value. If used for `#EXRANK`, representing percentage.
     OtherInt(i64),
 }
 
@@ -87,6 +85,7 @@ impl From<i64> for JudgeLevel {
             1 => Self::Hard,
             2 => Self::Normal,
             3 => Self::Easy,
+            4 => Self::VeryEasy,
             val => Self::OtherInt(val),
         }
     }
@@ -106,6 +105,7 @@ impl std::fmt::Display for JudgeLevel {
             Self::Hard => write!(f, "1"),
             Self::Normal => write!(f, "2"),
             Self::Easy => write!(f, "3"),
+            Self::VeryEasy => write!(f, "4"),
             Self::OtherInt(value) => write!(f, "{value}"),
         }
     }
