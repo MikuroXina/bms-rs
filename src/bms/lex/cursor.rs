@@ -215,7 +215,7 @@ impl<'a> Cursor<'a> {
     /// Updates internal position tracking.
     fn skip_line(&mut self) {
         if let Some(nl_pos) = self.source[self.index..].find('\n') {
-            let consumed = &self.source[self.index..self.index + nl_pos + 1];
+            let consumed = &self.source[self.index..=self.index + nl_pos];
             self.line += consumed.chars().filter(|&c| c == '\n').count();
             self.col = 1;
             self.index += nl_pos + 1;
@@ -235,11 +235,7 @@ impl<'a> Cursor<'a> {
         if let Some(end) = self.source[self.index..].find("*/") {
             let consumed = &self.source[self.index..self.index + end + 2];
             self.line += consumed.chars().filter(|&c| c == '\n').count();
-            let last_line_len = consumed
-                .chars()
-                .rev()
-                .take_while(|&c| c != '\n')
-                .count();
+            let last_line_len = consumed.chars().rev().take_while(|&c| c != '\n').count();
             self.col = last_line_len + 1;
             self.index += end + 2;
         } else {
