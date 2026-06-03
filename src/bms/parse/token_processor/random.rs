@@ -76,6 +76,7 @@ enum ProcessState {
 }
 
 struct BranchBuffer<'t> {
+    is_fallback: bool,
     conditions: Vec<BigUint>,
     tokens: Vec<TokenWithRange<'t>>,
     nested_objects: Vec<RandomizedObjects>,
@@ -86,6 +87,7 @@ struct RandomScope<'t> {
     generating: Option<ControlFlowValue>,
     max_value: Option<BigUint>,
     branches: BTreeMap<BigUint, RandomizedBranch>,
+    fallback: Option<RandomizedBranch>,
     covered_values: BTreeSet<BigUint>,
     current_branch: Option<BranchBuffer<'t>>,
 }
@@ -113,6 +115,7 @@ impl<'t> Collector<'t> {
             generating: Some(generating),
             max_value,
             branches: BTreeMap::new(),
+            fallback: None,
             covered_values: BTreeSet::new(),
             current_branch: None,
         });
@@ -126,6 +129,7 @@ impl<'t> Collector<'t> {
         if let Some(scope) = self.current_scope_mut() {
             scope.covered_values.insert(condition.clone());
             scope.current_branch = Some(BranchBuffer {
+                is_fallback: false,
                 conditions: vec![condition],
                 tokens: Vec::new(),
                 nested_objects: Vec::new(),
@@ -206,11 +210,15 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             && let Some(buffer) = scope.current_branch.take()
         {
             let bms = self.process_branch_buffer(&buffer, prompter)?;
-            for cond in &buffer.conditions {
-                scope.branches.insert(
-                    cond.clone(),
-                    RandomizedBranch::new(cond.clone(), bms.clone()),
-                );
+            if buffer.is_fallback {
+                scope.fallback = Some(RandomizedBranch::new(None, bms));
+            } else {
+                for cond in &buffer.conditions {
+                    scope.branches.insert(
+                        cond.clone(),
+                        RandomizedBranch::new(Some(cond.clone()), bms.clone()),
+                    );
+                }
             }
         }
         Ok(())
@@ -442,21 +450,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
                 self.finish_current_branch(collector, prompter)?;
 
-                if let Some(scope) = collector.current_scope_mut()
-                    && let Some(max) = &scope.max_value
-                {
-                    let mut conditions = Vec::new();
-                    let mut current = BigUint::from(1u64);
-                    while current <= *max {
-                        if !scope.covered_values.contains(&current) {
-                            conditions.push(current.clone());
-                            scope.covered_values.insert(current.clone());
-                        }
-                        current += 1u64;
-                    }
-
+                if let Some(scope) = collector.current_scope_mut() {
                     scope.current_branch = Some(BranchBuffer {
-                        conditions,
+                        is_fallback: true,
+                        conditions: Vec::new(),
                         tokens: Vec::new(),
                         nested_objects: Vec::new(),
                     });
@@ -507,10 +504,14 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 self.finish_current_branch(collector, prompter)?;
 
                 if let Some(scope) = collector.stack.pop() {
+                    let mut branches: Vec<RandomizedBranch> = scope.branches.into_values().collect();
+                    if let Some(fallback) = scope.fallback {
+                        branches.push(fallback);
+                    }
                     let obj = RandomizedObjects {
                         line_number: scope.line_number,
                         generating: scope.generating,
-                        branches: scope.branches,
+                        branches,
                     };
                     collector.add_nested_object(obj);
                 }
@@ -652,10 +653,14 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 if let ProcessState::Random { .. } = top
                     && let Some(scope) = collector.stack.pop()
                 {
+                    let mut branches: Vec<RandomizedBranch> = scope.branches.into_values().collect();
+                    if let Some(fallback) = scope.fallback {
+                        branches.push(fallback);
+                    }
                     let obj = RandomizedObjects {
                         line_number: scope.line_number,
                         generating: scope.generating,
-                        branches: scope.branches,
+                        branches,
                     };
                     collector.add_nested_object(obj);
                 }
@@ -760,21 +765,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
             )),
         }
         .map(|()| {
-            if let Some(scope) = collector.current_scope_mut()
-                && let Some(max) = &scope.max_value
-            {
-                let mut conditions = Vec::new();
-                let mut current = BigUint::from(1u64);
-                while current <= *max {
-                    if !scope.covered_values.contains(&current) {
-                        conditions.push(current.clone());
-                        scope.covered_values.insert(current.clone());
-                    }
-                    current += 1u64;
-                }
-
+            if let Some(scope) = collector.current_scope_mut() {
                 scope.current_branch = Some(BranchBuffer {
-                    conditions,
+                    is_fallback: true,
+                    conditions: Vec::new(),
                     tokens: Vec::new(),
                     nested_objects: Vec::new(),
                 });
@@ -798,10 +792,14 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 self.finish_current_branch(collector, prompter)?;
 
                 if let Some(scope) = collector.stack.pop() {
+                    let mut branches: Vec<RandomizedBranch> = scope.branches.into_values().collect();
+                    if let Some(fallback) = scope.fallback {
+                        branches.push(fallback);
+                    }
                     let obj = RandomizedObjects {
                         line_number: scope.line_number,
                         generating: scope.generating,
-                        branches: scope.branches,
+                        branches,
                     };
                     collector.add_nested_object(obj);
                 }

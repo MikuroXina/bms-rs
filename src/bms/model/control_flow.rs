@@ -4,8 +4,6 @@
 //! Unlike the previous implementation which stored tokens, this model stores fully parsed `Bms` objects
 //! for each branch, allowing for recursive evaluation.
 
-use std::collections::BTreeMap;
-
 use num::BigUint;
 
 use crate::bms::model::Bms;
@@ -23,11 +21,16 @@ pub enum ControlFlowValue {
 }
 
 /// A branch in a randomized block.
+///
+/// `condition = Some(n)` means a conditional branch (`#IF n` / `#CASE n` / `#ELSEIF n`).
+/// `condition = None` means an unconditional fallback (`#ELSE` / `#DEF`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RandomizedBranch {
-    /// The condition value for this branch (e.g. `1` for `#IF 1` or `#CASE 1`).
-    pub condition: BigUint,
+    /// The condition value for this branch.
+    /// `Some(n)` = conditional branch (`#IF n` / `#CASE n` / `#ELSEIF n`).
+    /// `None` = unconditional fallback (`#ELSE` / `#DEF`).
+    pub condition: Option<BigUint>,
     /// The content of this branch, parsed as a BMS object.
     pub sub: Box<Bms>,
 }
@@ -35,17 +38,17 @@ pub struct RandomizedBranch {
 impl RandomizedBranch {
     /// Create a new randomized branch.
     #[must_use]
-    pub fn new(condition: BigUint, sub: Bms) -> Self {
+    pub fn new(condition: Option<BigUint>, sub: Bms) -> Self {
         Self {
             condition,
             sub: Box::new(sub),
         }
     }
 
-    /// Get the condition value.
+    /// Get the condition value, if this is a conditional branch.
     #[must_use]
-    pub const fn condition(&self) -> &BigUint {
-        &self.condition
+    pub const fn condition(&self) -> Option<&BigUint> {
+        self.condition.as_ref()
     }
 
     /// Get the sub-BMS object.
@@ -72,7 +75,8 @@ pub struct RandomizedObjects {
     /// The value or max value for this random block.
     pub generating: Option<ControlFlowValue>,
     /// The branches for this random block.
-    pub branches: BTreeMap<BigUint, RandomizedBranch>,
+    /// Conditional branches (with `Some(n)`) come first; fallback (`None`) last.
+    pub branches: Vec<RandomizedBranch>,
 }
 
 impl RandomizedObjects {
@@ -85,20 +89,19 @@ impl RandomizedObjects {
     /// Merge another `RandomizedObjects` into this one.
     ///
     /// The `generating` field of `other` overwrites `self` if present.
-    /// Branches from `other` are merged into `self`. If a branch exists in both,
-    /// their content `Bms` objects are unioned.
+    /// Branches from `other` are merged into `self`. If a branch with the same
+    /// condition exists in both, their content `Bms` objects are unioned.
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         let generating = other.generating.clone().or_else(|| self.generating.clone());
         let mut branches = self.branches.clone();
-        for (cond, branch) in &other.branches {
-            branches
-                .entry(cond.clone())
-                .and_modify(|e| {
-                    let merged_bms = e.sub.union(&branch.sub);
-                    *e.sub = merged_bms;
-                })
-                .or_insert_with(|| branch.clone());
+        for branch in &other.branches {
+            if let Some(existing) = branches.iter_mut().find(|b| b.condition == branch.condition) {
+                let merged_bms = existing.sub.union(&branch.sub);
+                *existing.sub = merged_bms;
+            } else {
+                branches.push(branch.clone());
+            }
         }
         Self {
             line_number: self.line_number,
@@ -112,13 +115,12 @@ impl RandomizedObjects {
         if other.generating.is_some() {
             self.generating.clone_from(&other.generating);
         }
-        for (cond, branch) in &other.branches {
-            self.branches
-                .entry(cond.clone())
-                .and_modify(|e| {
-                    e.sub.union_inplace(&branch.sub);
-                })
-                .or_insert_with(|| branch.clone());
+        for branch in &other.branches {
+            if let Some(existing) = self.branches.iter_mut().find(|b| b.condition == branch.condition) {
+                existing.sub.union_inplace(&branch.sub);
+            } else {
+                self.branches.push(branch.clone());
+            }
         }
     }
 
@@ -142,40 +144,44 @@ impl RandomizedObjects {
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
     #[must_use]
     pub fn branch(&self, condition: &BigUint) -> Option<&RandomizedBranch> {
-        self.branches.get(condition)
+        self.branches.iter().find(|b| b.condition.as_ref() == Some(condition))
     }
 
     /// Returns a mutable reference to the branch with the given condition value.
     ///
     /// The `condition` typically corresponds to `#IF n` or `#CASE n`.
     pub fn branch_mut(&mut self, condition: &BigUint) -> Option<&mut RandomizedBranch> {
-        self.branches.get_mut(condition)
+        self.branches.iter_mut().find(|b| b.condition.as_ref() == Some(condition))
     }
 
     /// Returns a mutable reference to the branch entry for `condition`.
     ///
     /// If the branch does not exist, a new one with an empty `Bms` is inserted and returned.
     pub fn branch_entry(&mut self, condition: BigUint) -> &mut RandomizedBranch {
-        self.branches
-            .entry(condition)
-            .or_insert_with_key(|cond| RandomizedBranch::new(cond.clone(), Bms::default()))
+        let idx = self.branches.iter().position(|b| b.condition.as_ref() == Some(&condition));
+        if let Some(idx) = idx {
+            &mut self.branches[idx]
+        } else {
+            self.branches.push(RandomizedBranch::new(Some(condition), Bms::default()));
+            self.branches.last_mut().unwrap()
+        }
     }
 
-    /// Returns an iterator over all branches in ascending condition order.
+    /// Returns an iterator over all branches in insertion order.
     pub fn branches(&self) -> impl Iterator<Item = &RandomizedBranch> {
-        self.branches.values()
+        self.branches.iter()
     }
 
-    /// Returns a mutable iterator over all branches in ascending condition order.
+    /// Returns a mutable iterator over all branches in insertion order.
     pub fn branches_mut(&mut self) -> impl Iterator<Item = &mut RandomizedBranch> {
-        self.branches.values_mut()
+        self.branches.iter_mut()
     }
 
     /// Removes branches whose `sub` content is an empty `Bms`.
     ///
     /// Useful for cleaning up placeholder branches created during parsing or editing.
     pub fn prune_branches(&mut self) {
-        self.branches.retain(|_, b| *b.sub != Bms::default());
+        self.branches.retain(|b| *b.sub != Bms::default());
     }
 
     /// Evaluate the random structure and return the selected branch's content.
@@ -191,14 +197,25 @@ impl RandomizedObjects {
             None => return Bms::default(),
         };
 
-        self.branches
-            .get(&val)
-            .map_or_else(Bms::default, |branch| (*branch.sub).clone())
+        for branch in &self.branches {
+            if branch.condition.as_ref() == Some(&val) {
+                return (*branch.sub).clone();
+            }
+        }
+
+        for branch in &self.branches {
+            if branch.condition.is_none() {
+                return (*branch.sub).clone();
+            }
+        }
+
+        Bms::default()
     }
 
-    /// Exports this randomized block as `#RANDOM/#SETRANDOM + #IF/#ELSEIF/#ENDIF` tokens.
+    /// Exports this randomized block as `#RANDOM/#SETRANDOM + #IF/#ELSEIF/#ELSE/#ENDIF` tokens.
     ///
-    /// Branch contents are exported via `Bms::unparse::<T>()` for each branch in condition order.
+    /// Conditional branches are sorted by condition value.
+    /// The fallback branch (`condition: None`) is emitted as `#ELSE` after all conditional branches.
     #[must_use]
     pub fn export_as_random<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
@@ -218,18 +235,30 @@ impl RandomizedObjects {
             }),
         }
 
-        let mut iter = self.branches.iter();
-        if let Some((cond, branch)) = iter.next() {
+        let mut conditional: Vec<&RandomizedBranch> = self.branches.iter().filter(|b| b.condition.is_some()).collect();
+        conditional.sort_by(|a, b| a.condition.cmp(&b.condition));
+        let fallback = self.branches.iter().find(|b| b.condition.is_none());
+
+        if let Some(branch) = conditional.first() {
+            let cond = branch.condition.as_ref().unwrap();
             tokens.push(Token::Header {
                 name: "IF".into(),
                 args: cond.to_string().into(),
             });
             tokens.extend(branch.sub.as_ref().unparse::<T>());
         }
-        for (cond, branch) in iter {
+        for branch in conditional.iter().skip(1) {
+            let cond = branch.condition.as_ref().unwrap();
             tokens.push(Token::Header {
                 name: "ELSEIF".into(),
                 args: cond.to_string().into(),
+            });
+            tokens.extend(branch.sub.as_ref().unparse::<T>());
+        }
+        if let Some(branch) = fallback {
+            tokens.push(Token::Header {
+                name: "ELSE".into(),
+                args: "".into(),
             });
             tokens.extend(branch.sub.as_ref().unparse::<T>());
         }
@@ -246,9 +275,10 @@ impl RandomizedObjects {
         tokens
     }
 
-    /// Exports this randomized block as `#SWITCH/#SETSWITCH + #CASE/#SKIP/#ENDSW` tokens.
+    /// Exports this randomized block as `#SWITCH/#SETSWITCH + #CASE/#SKIP/#DEF/#ENDSW` tokens.
     ///
-    /// Branch contents are exported via `Bms::unparse::<T>()` for each `#CASE` in condition order.
+    /// Conditional branches are sorted by condition value.
+    /// The fallback branch (`condition: None`) is emitted as `#DEF` after all conditional branches.
     #[must_use]
     pub fn export_as_switch<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
@@ -268,10 +298,27 @@ impl RandomizedObjects {
             }),
         }
 
-        for (cond, branch) in &self.branches {
+        let mut conditional: Vec<&RandomizedBranch> = self.branches.iter().filter(|b| b.condition.is_some()).collect();
+        conditional.sort_by(|a, b| a.condition.cmp(&b.condition));
+        let fallback = self.branches.iter().find(|b| b.condition.is_none());
+
+        for branch in conditional {
+            let cond = branch.condition.as_ref().unwrap();
             tokens.push(Token::Header {
                 name: "CASE".into(),
                 args: cond.to_string().into(),
+            });
+            tokens.extend(branch.sub.as_ref().unparse::<T>());
+            tokens.push(Token::Header {
+                name: "SKIP".into(),
+                args: "".into(),
+            });
+        }
+
+        if let Some(branch) = fallback {
+            tokens.push(Token::Header {
+                name: "DEF".into(),
+                args: "".into(),
             });
             tokens.extend(branch.sub.as_ref().unparse::<T>());
             tokens.push(Token::Header {

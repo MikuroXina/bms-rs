@@ -66,10 +66,9 @@ fn test_nested_random_structure() {
 
     // Branch 1
     let branch1 = random_obj
-        .branches
-        .get(&BigUint::from(1u64))
+        .branch(&BigUint::from(1u64))
         .expect("expected random branch 1");
-    assert_eq!(branch1.condition, BigUint::from(1u64));
+    assert_eq!(branch1.condition, Some(BigUint::from(1u64)));
     // Check content of branch 1 (should have note 112 and a nested random)
     assert_eq!(
         branch1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -96,8 +95,7 @@ fn test_nested_random_structure() {
 
     // Nested Branch 1
     let nested_branch1 = nested_random
-        .branches
-        .get(&BigUint::from(1u64))
+        .branch(&BigUint::from(1u64))
         .expect("expected nested random branch 1");
     assert_eq!(
         nested_branch1
@@ -116,8 +114,7 @@ fn test_nested_random_structure() {
 
     // Nested Branch 2
     let nested_branch2 = nested_random
-        .branches
-        .get(&BigUint::from(2u64))
+        .branch(&BigUint::from(2u64))
         .expect("expected nested random branch 2");
     assert_eq!(
         nested_branch2
@@ -135,8 +132,7 @@ fn test_nested_random_structure() {
 
     // Branch 2 of outer random
     let branch2 = random_obj
-        .branches
-        .get(&BigUint::from(2u64))
+        .branch(&BigUint::from(2u64))
         .expect("expected random branch 2");
     assert_eq!(
         branch2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -284,8 +280,7 @@ fn test_nested_switch_structure() {
 
     // Case 1
     let case1 = switch_obj
-        .branches
-        .get(&BigUint::from(1u64))
+        .branch(&BigUint::from(1u64))
         .expect("expected switch case 1");
     assert_eq!(case1.sub.randomized.len(), 1);
     assert_eq!(
@@ -312,8 +307,7 @@ fn test_nested_switch_structure() {
 
     // Nested Case 1
     let nested_case1 = nested_switch
-        .branches
-        .get(&BigUint::from(1u64))
+        .branch(&BigUint::from(1u64))
         .expect("expected nested case 1");
     assert_eq!(
         nested_case1
@@ -332,8 +326,7 @@ fn test_nested_switch_structure() {
 
     // Nested Case 2
     let nested_case2 = nested_switch
-        .branches
-        .get(&BigUint::from(2u64))
+        .branch(&BigUint::from(2u64))
         .expect("expected nested case 2");
     assert_eq!(
         nested_case2
@@ -351,8 +344,7 @@ fn test_nested_switch_structure() {
 
     // Case 2
     let case2 = switch_obj
-        .branches
-        .get(&BigUint::from(2u64))
+        .branch(&BigUint::from(2u64))
         .expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -649,8 +641,7 @@ fn test_switch_fallthrough_one_skip() {
     assert_eq!(sw.branches.len(), 2);
 
     let case1 = sw
-        .branches
-        .get(&BigUint::from(1u64))
+        .branch(&BigUint::from(1u64))
         .expect("expected switch case 1");
     assert_eq!(
         case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -663,8 +654,7 @@ fn test_switch_fallthrough_one_skip() {
     );
 
     let case2 = sw
-        .branches
-        .get(&BigUint::from(2u64))
+        .branch(&BigUint::from(2u64))
         .expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -755,23 +745,8 @@ fn test_switch_default_then_case_override() {
         .expect("expected exactly 1 randomized block");
     assert_eq!(sw.branches.len(), 2);
 
-    let case1 = sw
-        .branches
-        .get(&BigUint::from(1u64))
-        .expect("expected switch case 1");
-    assert_eq!(
-        case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![WavObj {
-            offset: ObjTime::new(1, 1, 4).unwrap(),
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
-                .to_channel_id(),
-            wav_id: ObjId::try_from("22", false).unwrap(),
-        }]
-    );
-
     let case2 = sw
-        .branches
-        .get(&BigUint::from(2u64))
+        .branch(&BigUint::from(2u64))
         .expect("expected switch case 2");
     assert_eq!(
         case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -780,6 +755,20 @@ fn test_switch_default_then_case_override() {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: ObjId::try_from("33", false).unwrap(),
+        }]
+    );
+
+    let def_branch = sw
+        .branches()
+        .find(|b| b.condition.is_none())
+        .expect("expected DEF branch");
+    assert_eq!(
+        def_branch.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("22", false).unwrap(),
         }]
     );
 
@@ -792,11 +781,11 @@ fn test_switch_default_then_case_override() {
         strings,
         vec![
             "#SWITCH 2",
-            "#CASE 1",
-            "#00112:00220000",
-            "#SKIP",
             "#CASE 2",
             "#00113:0033",
+            "#SKIP",
+            "#DEF",
+            "#00112:00220000",
             "#SKIP",
             "#ENDSW",
         ]
@@ -811,10 +800,10 @@ fn test_switch_default_then_case_override() {
         rnd_strings,
         vec![
             "#RANDOM 2",
-            "#IF 1",
-            "#00112:00220000",
-            "#ELSEIF 2",
+            "#IF 2",
             "#00113:0033",
+            "#ELSE",
+            "#00112:00220000",
             "#ENDIF",
             "#ENDRANDOM",
         ]
