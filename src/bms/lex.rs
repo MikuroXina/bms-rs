@@ -23,6 +23,39 @@ use self::{
 
 use super::prelude::read_channel;
 
+/// Strips inline comments from a line of BMS text.
+///
+/// Strips `;` line comments and `/* */` block comments from header argument strings.
+/// `//` is NOT stripped inline — it is handled at the cursor level for line-start comments
+/// (preserving URLs like `http://example.com`).
+fn strip_inline_comments(s: &str) -> Cow<'_, str> {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.char_indices().peekable();
+    let mut in_block_comment = false;
+
+    while let Some((_, c)) = chars.next() {
+        if in_block_comment {
+            if c == '*' && chars.peek().is_some_and(|&(_, c2)| c2 == '/') {
+                chars.next();
+                in_block_comment = false;
+            }
+        } else if c == ';' {
+            break;
+        } else if c == '/' && chars.peek().is_some_and(|&(_, c2)| c2 == '*') {
+            chars.next();
+            in_block_comment = true;
+        } else {
+            result.push(c);
+        }
+    }
+
+    if result.len() == s.len() {
+        Cow::Borrowed(s)
+    } else {
+        Cow::Owned(result)
+    }
+}
+
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -130,9 +163,10 @@ impl<'a> TokenStream<'a> {
                     Self::parse_message(line_head, &cursor)
                 } else {
                     let args = cursor.next_line_remaining();
+                    let args = strip_inline_comments(args.trim());
                     Ok(Token::Header {
                         name: command_body.to_owned().into(),
-                        args: args.trim().into(),
+                        args,
                     })
                 }
             } else {

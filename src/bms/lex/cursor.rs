@@ -63,28 +63,60 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the next token with range.
+    ///
+    /// Skips over line comments (`//` and `;`) and block comments (`/* */`) automatically.
     pub fn next_token_with_range(&mut self) -> Option<(std::ops::Range<usize>, &'a str)> {
-        let ret = self.peek_next_token_range();
-        if ret.is_empty() {
-            return None;
+        loop {
+            let ret = self.peek_next_token_range();
+            if ret.is_empty() {
+                return None;
+            }
+            let token_str = &self.source[ret.clone()];
+            let remaining = &self.source[ret.start..];
+
+            // Line comments: // or ; at the start of a line
+            if remaining.starts_with("//") || remaining.starts_with(';') {
+                // Advance cursor to the comment position first
+                let advanced_lines = self.source[self.index..ret.start]
+                    .chars()
+                    .filter(|&c| c == '\n')
+                    .count();
+                self.line += advanced_lines;
+                self.index = ret.start;
+                self.skip_line();
+                continue;
+            }
+
+            // Block comments: /* ... */
+            if remaining.starts_with("/*") {
+                let advanced_lines = self.source[self.index..ret.start]
+                    .chars()
+                    .filter(|&c| c == '\n')
+                    .count();
+                self.line += advanced_lines;
+                self.index = ret.start;
+                self.skip_block_comment();
+                continue;
+            }
+
+            // Not a comment – normal token
+            let advanced_lines = self.source[self.index..ret.end]
+                .chars()
+                .filter(|&c| c == '\n')
+                .count();
+            self.line += advanced_lines;
+            if advanced_lines != 0 {
+                self.col = 1;
+            }
+            self.col += self.source[self.index..ret.end]
+                .lines()
+                .last()
+                .unwrap_or("")
+                .chars()
+                .count();
+            self.index = ret.end;
+            return Some((ret, token_str));
         }
-        let token_str = &self.source[ret.clone()];
-        let advanced_lines = self.source[self.index..ret.end]
-            .chars()
-            .filter(|&c| c == '\n')
-            .count();
-        self.line += advanced_lines;
-        if advanced_lines != 0 {
-            self.col = 1;
-        }
-        self.col += self.source[self.index..ret.end]
-            .lines()
-            .last()
-            .unwrap_or("")
-            .chars()
-            .count();
-        self.index = ret.end;
-        Some((ret, token_str))
     }
 
     /// Move cursor, through and return the next token.
@@ -177,6 +209,46 @@ impl<'a> Cursor<'a> {
         self.index += remaining_end;
         // Return the entire line content (from line start to line end), trimmed.
         self.source[line_start_index..ret_line_end_index].trim()
+    }
+
+    /// Skip to the end of the current line (past the newline character, or to end of source).
+    /// Updates internal position tracking.
+    fn skip_line(&mut self) {
+        if let Some(nl_pos) = self.source[self.index..].find('\n') {
+            let consumed = &self.source[self.index..self.index + nl_pos + 1];
+            self.line += consumed.chars().filter(|&c| c == '\n').count();
+            self.col = 1;
+            self.index += nl_pos + 1;
+        } else {
+            let consumed = &self.source[self.index..];
+            self.line += consumed.chars().filter(|&c| c == '\n').count();
+            self.col = 1;
+            self.index = self.source.len();
+        }
+    }
+
+    /// Skip a block comment starting at current position (the cursor must be positioned at `/*`).
+    /// Advances past the `*/` terminator. If unterminated, skips to end of source.
+    fn skip_block_comment(&mut self) {
+        // Skip past the opening /*
+        self.index += 2;
+        if let Some(end) = self.source[self.index..].find("*/") {
+            let consumed = &self.source[self.index..self.index + end + 2];
+            self.line += consumed.chars().filter(|&c| c == '\n').count();
+            let last_line_len = consumed
+                .chars()
+                .rev()
+                .take_while(|&c| c != '\n')
+                .count();
+            self.col = last_line_len + 1;
+            self.index += end + 2;
+        } else {
+            // Unterminated block comment – skip to end
+            let consumed = &self.source[self.index..];
+            self.line += consumed.chars().filter(|&c| c == '\n').count();
+            self.col = 1;
+            self.index = self.source.len();
+        }
     }
 
     /// Returns the current byte index in the source string.
