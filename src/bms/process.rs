@@ -232,7 +232,7 @@ impl YMemo {
             y = FinF64::new(y.as_f64() + passed_sections as f64).unwrap_or(MAX_FIN_F64);
             y = (y + section_len_change.length).unwrap_or(MAX_FIN_F64);
             y_by_track.insert(track, y);
-            last_track = 0;
+            last_track = track.0;
         }
 
         let zero_length_tracks: std::collections::HashSet<Track> = bms
@@ -730,7 +730,7 @@ pub fn precompute_activate_times(
         .values()
         .map(|st| {
             let sy = y_memo.get_y(st.time);
-            (sy, st.duration)
+            (sy, convert_stop_duration_to_beats(st.duration))
         })
         .sorted_by_key(|(y, _)| *y)
         .collect();
