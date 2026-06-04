@@ -272,13 +272,23 @@ impl YMemo {
 
         let mut flow_events: BTreeMap<YCoordinate, Vec<FlowEvent>> = BTreeMap::new();
 
-        // BPM changes
+        // BPM changes (exBPM, channel 08)
         for change in bms.bpm.bpm_changes.values() {
             let event_y = get_event_y(change.time);
             flow_events
                 .entry(event_y)
                 .or_default()
                 .push(FlowEvent::Bpm(change.bpm));
+        }
+
+        // BPM changes (u8, channel 03)
+        for (time, &bpm_u8) in &bms.bpm.bpm_changes_u8 {
+            let event_y = get_event_y(*time);
+            let bpm = PositiveF64::new(bpm_u8 as f64).unwrap_or(DEFAULT_BPM);
+            flow_events
+                .entry(event_y)
+                .or_default()
+                .push(FlowEvent::Bpm(bpm));
         }
 
         // Scroll changes
@@ -481,6 +491,19 @@ impl AllEventsIndex {
         for change in bms.bpm.bpm_changes.values() {
             let y = get_event_y(change.time);
             let event = ChartEvent::BpmChange { bpm: change.bpm };
+            events_map.entry(y).or_default().push(PlayheadEvent::new(
+                id_gen.next_id(),
+                y,
+                event,
+                TimeSpan::ZERO,
+            ));
+        }
+
+        // BPM change events (u8, channel 03)
+        for (time, &bpm_u8) in &bms.bpm.bpm_changes_u8 {
+            let y = get_event_y(*time);
+            let bpm = PositiveF64::new(bpm_u8 as f64).unwrap_or(DEFAULT_BPM);
+            let event = ChartEvent::BpmChange { bpm };
             events_map.entry(y).or_default().push(PlayheadEvent::new(
                 id_gen.next_id(),
                 y,
@@ -721,6 +744,11 @@ pub fn precompute_activate_times(
             let y = y_memo.get_y(*obj_time);
             (y, change.bpm)
         })
+        .chain(bms.bpm.bpm_changes_u8.iter().map(|(obj_time, &bpm_u8)| {
+            let y = y_memo.get_y(*obj_time);
+            let bpm = PositiveF64::new(bpm_u8 as f64).unwrap_or(DEFAULT_BPM);
+            (y, bpm)
+        }))
         .collect();
     points.extend(bpm_changes.iter().map(|(y, _)| *y));
 
@@ -984,5 +1012,65 @@ mod tests {
             }
             _ => panic!("Expected PlayingError::InvalidBpm"),
         }
+    }
+
+    /// Test that BPM changes from channel 03 (u8) are converted to ChartEvent::BpmChange
+    /// and FlowEvent::Bpm in the resulting Chart.
+    #[test]
+    fn test_bpm_changes_u8_converted_to_chart_events() {
+        let mut bms = Bms::default();
+        bms.bpm.bpm_changes_u8
+            .insert(ObjTime::start_of(Track(1)), 150);
+        bms.bpm.bpm_changes_u8
+            .insert(ObjTime::start_of(Track(2)), 200);
+
+        let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
+            .expect("Parse should succeed with valid u8 BPM changes");
+
+        // Verify ChartEvent::BpmChange events
+        let bpm_values: Vec<PositiveF64> = chart
+            .events()
+            .as_events()
+            .iter()
+            .filter_map(|evp| {
+                if let ChartEvent::BpmChange { bpm } = evp.event() {
+                    Some(*bpm)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert!(
+            bpm_values.contains(&PositiveF64::new_const(150.0)),
+            "Should contain BPM 150 from channel 03, got: {bpm_values:?}"
+        );
+        assert!(
+            bpm_values.contains(&PositiveF64::new_const(200.0)),
+            "Should contain BPM 200 from channel 03, got: {bpm_values:?}"
+        );
+
+        // Verify FlowEvent::Bpm events (used by step_to engine)
+        let flow_bpm_values: Vec<PositiveF64> = chart
+            .flow_events()
+            .values()
+            .flatten()
+            .filter_map(|fe| {
+                if let FlowEvent::Bpm(bpm) = fe {
+                    Some(*bpm)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert!(
+            flow_bpm_values.contains(&PositiveF64::new_const(150.0)),
+            "Should contain FlowEvent::Bpm 150 from channel 03, got: {flow_bpm_values:?}"
+        );
+        assert!(
+            flow_bpm_values.contains(&PositiveF64::new_const(200.0)),
+            "Should contain FlowEvent::Bpm 200 from channel 03, got: {flow_bpm_values:?}"
+        );
     }
 }
