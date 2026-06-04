@@ -1014,14 +1014,16 @@ mod tests {
         }
     }
 
-    /// Test that BPM changes from channel 03 (u8) are converted to ChartEvent::BpmChange
-    /// and FlowEvent::Bpm in the resulting Chart.
+    /// Test that BPM changes from channel 03 (u8) are converted to `ChartEvent::BpmChange`
+    /// and `FlowEvent::Bpm` in the resulting Chart.
     #[test]
     fn test_bpm_changes_u8_converted_to_chart_events() {
         let mut bms = Bms::default();
-        bms.bpm.bpm_changes_u8
+        bms.bpm
+            .bpm_changes_u8
             .insert(ObjTime::start_of(Track(1)), 150);
-        bms.bpm.bpm_changes_u8
+        bms.bpm
+            .bpm_changes_u8
             .insert(ObjTime::start_of(Track(2)), 200);
 
         let chart = BmsProcessor::parse::<KeyLayoutBeat>(&bms)
