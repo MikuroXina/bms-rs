@@ -23,9 +23,7 @@ pub mod lex;
 pub mod model;
 pub mod parse;
 pub mod prelude;
-/// Fundamental BMS types shared across parsing and processing.
 pub mod types;
-// pub mod process; — 已移至 process::bms (Task 5)
 pub mod rng;
 pub mod unparse;
 
