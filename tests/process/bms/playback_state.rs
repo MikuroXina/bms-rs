@@ -11,7 +11,7 @@ const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
 
 #[test]
 fn test_bms_triggered_event_activate_time_equals_elapsed() {
-    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../files/bms/bemuse_ext.bms");
     let reaction_time = TimeSpan::MILLISECOND * 600;
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);

@@ -4,7 +4,7 @@ use bms_rs::parse::bms::prelude::*;
 
 #[test]
 fn test_lal() {
-    let source = include_str!("files/lilith_mx.bms");
+    let source = include_str!("../../files/bms/lilith_mx.bms");
     let BmsOutput { bms, warnings } = parse_bms(source, default_config());
     let bms = bms.unwrap();
     assert_eq!(warnings, vec![]);
@@ -39,7 +39,7 @@ fn test_lal() {
 
 #[test]
 fn test_nc() {
-    let source = include_str!("files/nc_mx.bme");
+    let source = include_str!("../../files/bms/nc_mx.bme");
     let BmsOutput { bms, warnings } = parse_bms(source, default_config());
     let bms = bms.unwrap();
     assert_eq!(warnings, vec![]);
@@ -80,7 +80,7 @@ fn test_nc() {
 
 #[test]
 fn test_j219() {
-    let source = include_str!("files/J219_7key.bms");
+    let source = include_str!("../../files/bms/J219_7key.bms");
     let BmsOutput { bms, warnings } = parse_bms(source, default_config());
     let bms = bms.unwrap();
     assert_eq!(warnings, vec![]);
@@ -115,7 +115,7 @@ fn test_j219() {
 
 #[test]
 fn test_blank() {
-    let source = include_str!("files/dive_withblank.bme");
+    let source = include_str!("../../files/bms/dive_withblank.bme");
     let LexOutput {
         tokens,
         lex_warnings: warnings,
@@ -146,7 +146,7 @@ fn test_blank() {
 
 #[test]
 fn test_bemuse_ext() {
-    let source = include_str!("files/bemuse_ext.bms");
+    let source = include_str!("../../files/bms/bemuse_ext.bms");
     let BmsOutput { bms, warnings } = parse_bms(source, default_config());
     let bms = bms.unwrap();
     assert_eq!(

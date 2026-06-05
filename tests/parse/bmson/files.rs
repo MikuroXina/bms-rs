@@ -8,7 +8,7 @@ use strict_num_extended::PositiveF64;
 
 #[test]
 fn test_bmson100_lostokens() {
-    let data = include_str!("files/lostokens.bmson");
+    let data = include_str!("../../files/bmson/lostokens.bmson");
     let bmson = serde_json::from_str::<Bmson>(data).expect("Failed to parse BMSON");
     // Basic fields assertion
     assert_eq!(bmson.info.title.as_ref(), "lostokens");
@@ -18,7 +18,7 @@ fn test_bmson100_lostokens() {
 
 #[test]
 fn test_bmson100_bemusic_story_48key() {
-    let data = include_str!("files/bemusicstory_483_48K_ANOTHER.bmson");
+    let data = include_str!("../../files/bmson/bemusicstory_483_48K_ANOTHER.bmson");
     let bmson = serde_json::from_str::<Bmson>(data).expect("Failed to parse BMSON");
     // Basic fields assertion
     assert_eq!(bmson.info.title.as_ref(), "BE-MUSiC⇒STORY");

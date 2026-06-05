@@ -19,7 +19,7 @@
 //! use num::BigUint;
 //! use bms_rs::parse::bms::{command::channel::mapper::KeyLayoutBeat, BmsWarning};
 //!
-//! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
+//! let source = std::fs::read_to_string("tests/files/bms/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
 //! let BmsOutput { bms, warnings, .. } = parse_bms(&source, default_config());
 //! #[cfg(not(feature = "rand"))]
@@ -43,7 +43,7 @@
 //! use bms_rs::parse::bms::command::channel::mapper::KeyLayoutBeat;
 //! use num::BigUint;
 //!
-//! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
+//! let source = std::fs::read_to_string("tests/files/bms/lilith_mx.bms").unwrap();
 //! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing.

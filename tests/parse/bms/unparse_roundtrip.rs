@@ -348,24 +348,24 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
 
 #[test]
 fn roundtrip_lilith_mx_file_bms_tokens_bms() {
-    let source = include_str!("files/lilith_mx.bms");
+    let source = include_str!("../../files/bms/lilith_mx.bms");
     roundtrip_source_bms_tokens_bms(source);
 }
 
 #[test]
 fn roundtrip_bemuse_ext_file_bms_tokens_bms() {
-    let source = include_str!("files/bemuse_ext.bms");
+    let source = include_str!("../../files/bms/bemuse_ext.bms");
     roundtrip_source_bms_tokens_bms(source);
 }
 
 #[test]
 fn roundtrip_j219_7key_file_bms_tokens_bms() {
-    let source = include_str!("files/J219_7key.bms");
+    let source = include_str!("../../files/bms/J219_7key.bms");
     roundtrip_source_bms_tokens_bms(source);
 }
 
 #[test]
 fn roundtrip_nc_mx_file_bms_tokens_bms() {
-    let source = include_str!("files/nc_mx.bme");
+    let source = include_str!("../../files/bms/nc_mx.bme");
     roundtrip_source_bms_tokens_bms(source);
 }

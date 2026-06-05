@@ -15,7 +15,7 @@ const TEST_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
 #[test]
 fn test_bemuse_ext_basic_visible_events_functionality() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../files/bms/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysUseOlder);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -92,7 +92,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 #[test]
 fn test_bms_visible_event_activate_time_within_reaction_window() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../files/bms/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -123,7 +123,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
 #[test]
 fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../../bms/files/lilith_mx.bms");
+    let bms_source = include_str!("../../files/bms/lilith_mx.bms");
     let config = default_config().prompter(AlwaysUseOlder);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -187,7 +187,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 #[test]
 fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../files/bms/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysUseOlder);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -294,7 +294,7 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
     use std::time::Duration;
 
     let reaction_time = TimeSpan::MILLISECOND * 600;
-    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../files/bms/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -383,7 +383,7 @@ fn test_bms_stop_timing_with_bpm_changes() {
 
 #[test]
 fn test_custom_visibility_range() {
-    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../files/bms/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysUseOlder);
     let bms = parse_bms_no_warnings(bms_source, config);
 
@@ -427,7 +427,7 @@ fn test_custom_visibility_range() {
 
 #[test]
 fn test_visibility_range_bound_types() {
-    let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
+    let bms_source = include_str!("../../files/bms/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysUseOlder);
     let bms = parse_bms_no_warnings(bms_source, config);
 
