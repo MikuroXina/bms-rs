@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 use num::BigUint;
 use pretty_assertions::assert_eq;
 

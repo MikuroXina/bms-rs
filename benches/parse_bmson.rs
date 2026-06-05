@@ -1,7 +1,7 @@
 //! Benchmark for `BMSON` file parsing and chart conversion.
 
-use bms_rs::bmson::Bmson;
-use bms_rs::chart::prelude::Process;
+use bms_rs::parse::bmson::Bmson;
+use bms_rs::process::prelude::Process;
 use criterion::{Criterion, Throughput};
 use std::{collections::BTreeMap, sync::LazyLock};
 

@@ -1,0 +1,83 @@
+//! Prelude module for the BMS crate.
+//!
+//! This module re-exports all public types from the BMS module for convenient access.
+//! You can use `use bms_rs::parse::bms::prelude::*;` to import all BMS types at once.
+
+// Re-export diagnostics from bms level
+#[cfg(feature = "diagnostics")]
+pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
+
+// Re-export types from bms module
+pub use super::{
+    BmsOutput, BmsWarning, ParseConfig,
+    command::{
+        JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
+        channel::{
+            Channel, NoteChannelId,
+            converter::{
+                KeyConverter, KeyMappingConvertFlip, KeyMappingConvertLaneRandomShuffle,
+                KeyMappingConvertLaneRotateShuffle, KeyMappingConvertMirror,
+                PlayerSideKeyConverter,
+            },
+            mapper::{
+                KeyLayout, KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
+                KeyLayoutPms, KeyLayoutPmsBmeType,
+            },
+            read_channel,
+        },
+        graphics::{PixelPoint, PixelSize, Rgb},
+        minor_command::{
+            ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+            WavCmdParam,
+        },
+        mixin::{SourceRangeMixin, SourceRangeMixinExt},
+        time::{ObjTime, Track},
+    },
+    default_config, default_config_with_rng,
+    lex::{
+        LexOutput, LexWarning, TokenRefStream, TokenStream,
+        cursor::Cursor,
+        token::{Token, TokenWithRange},
+    },
+    model::{
+        Bms,
+        bmp::{AtBgaDef, BgaDef, Bmp},
+        control_flow::{ControlFlowValue, RandomizedBranch, RandomizedObjects},
+        judge::ExRankDef,
+        notes::Notes,
+        obj::{
+            BgaArgbObj, BgaKeyboundObj, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj,
+            JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj, SectionLenChangeObj, SeekObj,
+            SpeedObj, StopObj, TextObj, WavObj,
+        },
+        wav::ExWavDef,
+    },
+    parse::{
+        ParseError, ParseErrorWithRange, ParseOutput, ParseWarning, ParseWarningWithRange,
+        check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
+        prompt::{
+            AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
+            DefDuplication, DuplicationWorkaround, Prompter,
+        },
+        token_processor::{
+            DefaultTokenRelaxer, NoopTokenModifier, SequentialTokenModifier, TokenModifier,
+            TokenProcessor,
+        },
+        validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
+    },
+    parse_bms,
+    rng::{Rng, RngMock},
+};
+
+// Re-export chart process trait
+pub use crate::process::Process;
+
+// Re-export chart event types (including BmsEvent)
+pub use crate::process::event::BmsEvent;
+
+// Re-export chart types
+pub use crate::process::types::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
+
+// Re-export related members when `rand` feature is enabled
+#[cfg(feature = "rand")]
+pub use super::rng::RandRng;

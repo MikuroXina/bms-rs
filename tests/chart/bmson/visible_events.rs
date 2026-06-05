@@ -2,8 +2,9 @@
 
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bmson::Bmson;
-use bms_rs::chart::prelude::*;
+use bms_rs::parse::bmson::Bmson;
+use bms_rs::play::*;
+use bms_rs::process::prelude::*;
 use strict_num_extended::{FinF64, PositiveF64};
 
 use super::assert_time_close;

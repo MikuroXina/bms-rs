@@ -2,8 +2,9 @@
 
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bmson::Bmson;
-use bms_rs::chart::prelude::*;
+use bms_rs::parse::bmson::Bmson;
+use bms_rs::play::*;
+use bms_rs::process::prelude::*;
 
 fn assert_playback_state_equal(state1: &PlaybackState, state2: &PlaybackState) {
     // Use approximate comparison to handle floating-point precision issues

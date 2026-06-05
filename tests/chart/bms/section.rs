@@ -1,9 +1,9 @@
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 use strict_num_extended::PositiveF64;
 
-use bms_rs::chart::prelude::*;
+use bms_rs::play::*;
 
 use super::parse_bms_no_warnings;
 

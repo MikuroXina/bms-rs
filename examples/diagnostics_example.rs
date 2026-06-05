@@ -4,7 +4,7 @@
 
 #![cfg(feature = "diagnostics")]
 
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 
 fn main() {
     // An example BMS file containing warnings

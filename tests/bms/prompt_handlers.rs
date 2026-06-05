@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use std::path::Path;

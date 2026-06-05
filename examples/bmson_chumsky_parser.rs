@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates how to build a custom JSON parser with chumsky,
 //! use it to parse BMSON data into a `serde_json::Value`, and then deserialize
-//! that value into the `bms_rs::bmson::Bmson` struct.
+//! that value into the `bms_rs::parse::bmson::Bmson` struct.
 //!
 //! The parser supports error recovery (missing commas, trailing commas) and
 //! provides detailed error diagnostics.
@@ -22,7 +22,7 @@ use serde_json::Value;
 /// Parse a BMSON file from JSON string using the chumsky parser.
 ///
 /// Returns the parsed `Bmson` value or an error message.
-fn parse_bmson(json: &str) -> Result<bms_rs::bmson::Bmson<'_>, String> {
+fn parse_bmson(json: &str) -> Result<bms_rs::parse::bmson::Bmson<'_>, String> {
     let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
 
     let had_output = value.is_some();

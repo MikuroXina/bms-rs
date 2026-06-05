@@ -1,8 +1,8 @@
 #![cfg(feature = "bmson")]
 
 use bms_rs::{
-    bms::{command::LnMode, model::Bms},
-    bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
+    parse::bms::{command::LnMode, model::Bms},
+    parse::bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
 };
 use std::borrow::Cow;
 
@@ -42,7 +42,7 @@ fn test_bmson_to_bms_conversion() {
         bpm_events: vec![],
         stop_events: vec![],
         sound_channels: vec![],
-        bga: bms_rs::bmson::Bga::default(),
+        bga: bms_rs::parse::bmson::Bga::default(),
         scroll_events: vec![],
         mine_channels: vec![],
         key_channels: vec![],
@@ -86,8 +86,8 @@ fn test_bmson_to_bms_conversion() {
 
 #[test]
 fn test_bmson_to_bms_with_notes() {
-    use bms_rs::bmson::pulse::PulseNumber;
-    use bms_rs::bmson::{Note, SoundChannel};
+    use bms_rs::parse::bmson::pulse::PulseNumber;
+    use bms_rs::parse::bmson::{Note, SoundChannel};
     use std::num::NonZeroU8;
 
     let bmson = Bmson {
@@ -136,7 +136,7 @@ fn test_bmson_to_bms_with_notes() {
                 },
             ],
         }],
-        bga: bms_rs::bmson::Bga::default(),
+        bga: bms_rs::parse::bmson::Bga::default(),
         scroll_events: vec![],
         mine_channels: vec![],
         key_channels: vec![],

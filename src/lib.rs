@@ -8,16 +8,16 @@
 //!
 //! ## Simple Usage
 //!
-//! For most use cases, you can use the [`bms::parse_bms`] function to parse a BMS file in one step:
+//! For most use cases, you can use the [`parse::bms::parse_bms`] function to parse a BMS file in one step:
 //!
 //! ```rust
 //! #[cfg(feature = "rand")]
-//! use bms_rs::bms::{BmsOutput, default_config, parse_bms};
+//! use bms_rs::parse::bms::{BmsOutput, default_config, parse_bms};
 //! #[cfg(not(feature = "rand"))]
-//! use bms_rs::bms::{BmsOutput, rng::RngMock, default_config_with_rng, parse_bms};
+//! use bms_rs::parse::bms::{BmsOutput, rng::RngMock, default_config_with_rng, parse_bms};
 //! #[cfg(not(feature = "rand"))]
 //! use num::BigUint;
-//! use bms_rs::bms::{command::channel::mapper::KeyLayoutBeat, BmsWarning};
+//! use bms_rs::parse::bms::{command::channel::mapper::KeyLayoutBeat, BmsWarning};
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
@@ -34,13 +34,13 @@
 //!
 //! For more control over the parsing process, you can use the individual steps:
 //!
-//! At first, you can get the tokens stream with [`bms::lex::TokenStream::parse_lex`]. Then pass it and the random generator to [`bms::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
+//! At first, you can get the tokens stream with [`parse::bms::lex::TokenStream::parse_lex`]. Then pass it and the random generator to [`parse::bms::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
 //! ```rust
 //! #[cfg(feature = "rand")]
 //! use rand::{rngs::StdRng, SeedableRng};
-//! use bms_rs::bms::prelude::*;
-//! use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
+//! use bms_rs::parse::bms::prelude::*;
+//! use bms_rs::parse::bms::command::channel::mapper::KeyLayoutBeat;
 //! use num::BigUint;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
@@ -68,15 +68,15 @@
 //!
 //! # Features
 //!
-//! - For supported commands, see [docs.rs#Token](https://docs.rs/bms-rs/latest/bms_rs/bms/lex/token/enum.Token.html).
+//! - For supported commands, see [docs.rs#Token](https://docs.rs/bms-rs/latest/bms_rs/parse/bms/lex/token/enum.Token.html).
 //!
-//! - For supported note channels, see [docs.rs#Channel](https://docs.rs/bms-rs/latest/bms_rs/bms/command/channel/enum.Channel.html).
+//! - For supported note channels, see [docs.rs#Channel](https://docs.rs/bms-rs/latest/bms_rs/parse/bms/command/channel/enum.Channel.html).
 //!
 //! ## Default Features
 //!
 //! - `bmson` feature enables the BMSON format support.
 //! - `serde` feature enables the `serde` support. It supports [`serde::Serialize`] for all the definications in this crate, and [`serde::Deserialize`] for all the result types.
-//! - `rand` feature enables the random number generator support. It supports [`bms::rng::RandRng`].
+//! - `rand` feature enables the random number generator support. It supports [`parse::bms::rng::RandRng`].
 //!
 //! ## Optional Features
 //!
@@ -138,8 +138,8 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub mod bms;
-pub mod bmson;
-pub mod chart;
+pub mod parse;
+pub mod process;
+pub mod play;
 pub mod diagnostics;
 pub(crate) mod util;

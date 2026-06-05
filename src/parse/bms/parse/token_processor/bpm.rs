@@ -1,0 +1,144 @@
+//! This module handles the tokens:
+//!
+//! - `#BPM n` - Initial BPM definition.
+//! - `#BPM[01-ZZ] n` / `#EXBPM[01-ZZ] n` - BPM change definition.
+//! - `#BASEBPM` - Reference speed for scroll speed. Obsolete.
+//! - `#xxx08:` - BPM change channel.
+
+use std::{cell::RefCell, rc::Rc};
+
+use super::{
+    super::prompt::{DefDuplication, Prompter},
+    ProcessContext, TokenProcessor, parse_hex_values, parse_obj_ids,
+};
+use crate::parse::bms::ParseErrorWithRange;
+use crate::{
+    parse::bms::{
+        command::string_value::StringValue,
+        model::bpm::BpmObjects,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
+    util::StrExtension,
+};
+use strict_num_extended::PositiveF64;
+
+/// It processes `#BPM` and `#BPMxx` definitions and objects on `BpmChange` and `BpmChangeU8` channels.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BpmProcessor {
+    case_sensitive_obj_id: Rc<RefCell<bool>>,
+}
+
+impl BpmProcessor {
+    pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
+        Self {
+            case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
+        }
+    }
+}
+
+impl TokenProcessor for BpmProcessor {
+    type Output = BpmObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        ctx: &mut ProcessContext<'_, '_, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
+        let mut objects = BpmObjects::default();
+        ctx.all_tokens(|token, prompter| match token.content() {
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => Ok(self
+                .on_message(
+                    *track,
+                    *channel,
+                    &message.as_ref().into_wrapper(token),
+                    prompter,
+                    &mut objects,
+                )
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
+            Token::NotACommand(_) => Ok(None),
+        })?;
+        Ok(objects)
+    }
+}
+
+impl BpmProcessor {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        prompter: &impl Prompter,
+        objects: &mut BpmObjects,
+    ) -> Result<()> {
+        if name.eq_ignore_ascii_case("BPM") {
+            let string_value: StringValue<PositiveF64> = StringValue::new(args);
+            objects.bpm = Some(string_value);
+        }
+        if let Some(id) = name
+            .strip_prefix_ignore_case("BPM")
+            .or_else(|| name.strip_prefix_ignore_case("EXBPM"))
+        {
+            let bpm_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
+            let string_value: StringValue<PositiveF64> = StringValue::new(args);
+            if let Some(older) = objects.bpm_defs.get_mut(&bpm_obj_id) {
+                prompter
+                    .handle_def_duplication(DefDuplication::BpmChange {
+                        id: bpm_obj_id,
+                        older,
+                        newer: &string_value,
+                    })
+                    .apply_def(older, string_value, bpm_obj_id)?;
+            } else {
+                objects.bpm_defs.insert(bpm_obj_id, string_value);
+            }
+        }
+        if name.eq_ignore_ascii_case("BASEBPM") {
+            let string_value: StringValue<PositiveF64> = StringValue::new(args);
+            objects.base_bpm = Some(string_value);
+        }
+        Ok(())
+    }
+
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: &SourceRangeMixin<&str>,
+        prompter: &impl Prompter,
+        objects: &mut BpmObjects,
+    ) -> Result<Vec<ParseWarningWithRange>> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
+        if channel == Channel::BpmChange {
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            warnings.extend(w);
+            for (time, obj) in pairs {
+                // Record used BPM change id for validity checks
+                objects.bpm_change_ids_used.insert(obj);
+                let string_value = objects
+                    .bpm_defs
+                    .get(&obj)
+                    .ok_or(ParseWarning::UndefinedObject(obj))?;
+                let Ok(&bpm) = string_value.value().as_ref() else {
+                    continue;
+                };
+                objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)?;
+            }
+        }
+        if channel == Channel::BpmChangeU8 {
+            let (pairs, w) = parse_hex_values(track, message);
+            warnings.extend(w);
+            for (time, value) in pairs {
+                objects.push_bpm_change_u8(time, value, prompter)?;
+            }
+        }
+        Ok(warnings)
+    }
+}

@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 
 #[test]
 fn test_prelude_imports() {

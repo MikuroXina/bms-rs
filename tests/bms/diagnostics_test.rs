@@ -3,7 +3,7 @@
 #![cfg(feature = "diagnostics")]
 
 use bms_rs::{
-    bms::{BmsOutput, BmsWarning, default_config, parse_bms},
+    parse::bms::{BmsOutput, BmsWarning, default_config, parse_bms},
     diagnostics::{SimpleSource, collect_bms_reports},
 };
 
@@ -60,7 +60,7 @@ fn test_empty_warnings() {
 
 #[test]
 fn test_unknown_command_warning() {
-    use bms_rs::bms::prelude::*;
+    use bms_rs::parse::bms::prelude::*;
 
     // Test BMS with unknown command
     let bms_source = "#TITLE Test\n#UNKNOWN_COMMAND value\n#ARTIST Composer\n";

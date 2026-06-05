@@ -7,8 +7,9 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use bms_rs::bms::prelude::*;
-use bms_rs::chart::prelude::*;
+use bms_rs::parse::bms::prelude::*;
+use bms_rs::process::prelude::*;
+use bms_rs::play::*;
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
 use kira::{
@@ -223,7 +224,7 @@ fn load_chart(path: &Path) -> Result<(Chart, BaseBpm), String> {
             // BMSON format
             #[cfg(feature = "bmson")]
             {
-                let bmson: bms_rs::bmson::Bmson<'_> =
+                let bmson: bms_rs::parse::bmson::Bmson<'_> =
                     serde_json::from_str(&content).map_err(|e| format!("JSON parse error: {e}"))?;
 
                 // First generate base BPM from BMSON

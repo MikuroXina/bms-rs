@@ -1,5 +1,5 @@
-use bms_rs::bms::command::channel::NoteChannelId;
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::command::channel::NoteChannelId;
+use bms_rs::parse::bms::prelude::*;
 use pretty_assertions::assert_eq;
 use std::borrow::Cow;
 

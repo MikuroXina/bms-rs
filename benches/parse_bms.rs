@@ -1,8 +1,8 @@
 //! Benchmark for `BMS` file parsing and chart conversion.
 
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
-use bms_rs::bms::{default_config, parse_bms};
-use bms_rs::chart::prelude::Process;
+use bms_rs::parse::bms::command::channel::mapper::KeyLayoutBeat;
+use bms_rs::parse::bms::{default_config, parse_bms};
+use bms_rs::process::prelude::Process;
 use criterion::{Criterion, Throughput};
 use std::{collections::BTreeMap, sync::LazyLock};
 
@@ -11,7 +11,7 @@ struct BmsFile {
     source: String,
 }
 
-type ParsedBmsCharts = BTreeMap<String, bms_rs::bms::model::Bms>;
+type ParsedBmsCharts = BTreeMap<String, bms_rs::parse::bms::model::Bms>;
 
 fn scan_bms_files() -> Vec<BmsFile> {
     let dir = "tests/bms/files";

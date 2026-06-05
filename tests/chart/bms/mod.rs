@@ -1,11 +1,11 @@
-//! Integration tests for `bms_rs::bms::process` (Process trait on Bms).
+//! Integration tests for `bms_rs::parse::bms::process` (Process trait on Bms).
 
 mod chart;
 mod playback_state;
 mod section;
 mod visible_events;
 
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 
 use super::{MICROSECOND_EPSILON, assert_time_close};
 

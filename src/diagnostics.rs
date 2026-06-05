@@ -14,7 +14,7 @@
 //! # #[cfg(feature = "diagnostics")]
 //! # {
 //! use bms_rs::{
-//!     bms::{BmsWarning, default_config, command::channel::mapper::KeyLayoutBeat, parse_bms},
+//!     parse::bms::{BmsWarning, default_config, command::channel::mapper::KeyLayoutBeat, parse_bms},
 //!     diagnostics::emit_bms_warnings,
 //! };
 //!
@@ -87,7 +87,7 @@ impl<'a> SimpleSource<'a> {
 /// # Usage Example
 ///
 /// ```rust
-/// use bms_rs::{diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings}, bms::BmsWarning};
+/// use bms_rs::{diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings}, parse::bms::BmsWarning};
 /// use ariadne::Source;
 ///
 /// // Assume there are warnings generated during BMS parsing
@@ -152,7 +152,7 @@ pub fn build_report<'a>(
 /// # Usage Example
 ///
 /// ```rust
-/// use bms_rs::{diagnostics::emit_bms_warnings, bms::BmsWarning};
+/// use bms_rs::{diagnostics::emit_bms_warnings, parse::bms::BmsWarning};
 ///
 /// // BMS source text
 /// let bms_source = "#TITLE My Song\n#ARTIST Composer\n#BPM 120\n";
@@ -172,7 +172,7 @@ pub fn build_report<'a>(
 pub fn emit_bms_warnings<'a>(
     name: &'a str,
     source: &'a str,
-    warnings: impl IntoIterator<Item = &'a crate::bms::BmsWarning>,
+    warnings: impl IntoIterator<Item = &'a crate::parse::bms::BmsWarning>,
 ) {
     let simple = SimpleSource::new(name, source);
     let ariadne_source = Source::from(source);
@@ -191,7 +191,7 @@ pub fn emit_bms_warnings<'a>(
 pub fn collect_bms_reports<'a>(
     name: &'a str,
     source: &'a str,
-    warnings: impl IntoIterator<Item = &'a crate::bms::BmsWarning>,
+    warnings: impl IntoIterator<Item = &'a crate::parse::bms::BmsWarning>,
 ) -> Vec<Report<'a, (String, std::ops::Range<usize>)>> {
     let simple = SimpleSource::new(name, source);
     warnings.into_iter().map(|w| w.to_report(&simple)).collect()

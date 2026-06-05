@@ -1,12 +1,13 @@
 use gametime::{TimeSpan, TimeStamp};
 
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 use strict_num_extended::PositiveF64;
 
 /// Default BPM value (120.0) for tests
 const DEFAULT_BPM_120: PositiveF64 = PositiveF64::new_const(120.0);
 
-use bms_rs::chart::prelude::*;
+use bms_rs::play::*;
+use bms_rs::process::prelude::*;
 
 use super::parse_bms_no_warnings;
 

@@ -1,6 +1,6 @@
 use strict_num_extended::{FinF64, PositiveF64};
 
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 
 #[test]
 fn test_lal() {

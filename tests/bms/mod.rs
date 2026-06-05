@@ -16,7 +16,7 @@ mod prompt_handlers;
 mod unparse_merge;
 mod unparse_roundtrip;
 
-use bms_rs::bms::prelude::*;
+use bms_rs::parse::bms::prelude::*;
 use pretty_assertions::assert_eq;
 
 /// Parses the BMS source with the given RNG and asserts that the resulting objects match expectations.
