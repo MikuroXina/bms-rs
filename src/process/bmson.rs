@@ -12,12 +12,12 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 use gametime::TimeSpan;
 
 use crate::parse::bmson::prelude::*;
+use crate::parse::types::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::process::event::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
 use crate::process::{
     AllEventsIndex, BmpId, Chart, ChartEventIdGenerator, ChartResources, DEFAULT_SPEED,
     MAX_FIN_F64, MAX_NON_NEGATIVE_F64, Process, WavId, calculate_cumulative_times,
 };
-use crate::parse::types::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::util::StrExtension;
 
 /// BMSON format parser (internal).

@@ -3,8 +3,8 @@
 #![cfg(feature = "diagnostics")]
 
 use bms_rs::{
-    parse::bms::{BmsOutput, BmsWarning, default_config, parse_bms},
     diagnostics::{SimpleSource, collect_bms_reports},
+    parse::bms::{BmsOutput, BmsWarning, default_config, parse_bms},
 };
 
 #[test]

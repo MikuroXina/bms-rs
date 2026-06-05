@@ -10,9 +10,9 @@ use std::borrow::Cow;
 
 use thiserror::Error;
 
-use crate::parse::bms::{command::mixin::SourceRangeMixin, prelude::Track};
 #[cfg(feature = "diagnostics")]
 use crate::diagnostics::{SimpleSource, ToAriadne};
+use crate::parse::bms::{command::mixin::SourceRangeMixin, prelude::Track};
 #[cfg(feature = "diagnostics")]
 use ariadne::{Color, Label, Report, ReportKind};
 

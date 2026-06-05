@@ -320,7 +320,10 @@ mod tests {
 
     use super::*;
     use crate::parse::bms::{
-        model::{notes::Notes, obj::{BgaObj, WavObj}},
+        model::{
+            notes::Notes,
+            obj::{BgaObj, WavObj},
+        },
         types::{ObjId, ObjTime},
     };
     use crate::parse::types::{BgaLayer, Key, NoteKind, PlayerSide};

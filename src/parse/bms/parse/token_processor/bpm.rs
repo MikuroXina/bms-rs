@@ -14,10 +14,10 @@ use super::{
 use crate::parse::bms::ParseErrorWithRange;
 use crate::{
     parse::bms::{
-        types::StringValue,
         model::bpm::BpmObjects,
         parse::{ParseWarning, Result},
         prelude::*,
+        types::StringValue,
     },
     util::StrExtension,
 };

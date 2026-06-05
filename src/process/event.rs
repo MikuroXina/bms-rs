@@ -1,7 +1,7 @@
 //! Chart event types
 
-use crate::process::{BmpId, ChartEventId, WavId};
 use crate::parse::types::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
+use crate::process::{BmpId, ChartEventId, WavId};
 use gametime::TimeSpan;
 use strict_num_extended::FinF64;
 use strict_num_extended::NonNegativeF64;

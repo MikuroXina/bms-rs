@@ -13,10 +13,10 @@ use super::{super::prompt::Prompter, ProcessContext, TokenProcessor};
 use crate::parse::bms::ParseErrorWithRange;
 use crate::{
     parse::bms::{
-        types::StringValue,
         model::video::Video,
         parse::{ParseWarning, Result},
         prelude::*,
+        types::StringValue,
     },
     util::StrExtension,
 };

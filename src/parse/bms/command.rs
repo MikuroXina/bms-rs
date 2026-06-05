@@ -6,12 +6,12 @@ use super::parse::ParseWarning;
 
 pub mod channel;
 pub mod graphics;
-pub mod mixin;
 /// Minor command types and utilities.
 ///
 /// This module contains types and utilities for minor BMS commands that are only available
 /// when the `minor-command` feature is enabled.
 pub mod minor_command;
+pub mod mixin;
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

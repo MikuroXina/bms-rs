@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bms_rs::parse::bms::prelude::*;
-use bms_rs::process::prelude::*;
 use bms_rs::play::*;
+use bms_rs::process::prelude::*;
 use clap::Parser;
 use gametime::{TimeSpan, TimeStamp};
 use kira::{

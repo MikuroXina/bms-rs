@@ -14,7 +14,7 @@ struct BmsFile {
 type ParsedBmsCharts = BTreeMap<String, bms_rs::parse::bms::model::Bms>;
 
 fn scan_bms_files() -> Vec<BmsFile> {
-    let dir = "tests/bms/files";
+    let dir = "tests/files/bms";
     let extensions = [".bms", ".bme"];
 
     std::fs::read_dir(dir)

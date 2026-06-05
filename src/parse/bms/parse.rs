@@ -22,11 +22,14 @@ use ariadne::{Color, Label, Report, ReportKind};
 
 use crate::parse::bms::{
     ParseConfig,
-    command::{channel::{Channel, mapper::KeyLayoutMapper}, mixin::SourceRangeMixin},
+    command::{
+        channel::{Channel, mapper::KeyLayoutMapper},
+        mixin::SourceRangeMixin,
+    },
     lex::token::TokenWithRange,
     model::Bms,
-    types::{ObjId, ObjTime, Track},
     rng::Rng,
+    types::{ObjId, ObjTime, Track},
 };
 
 use self::{

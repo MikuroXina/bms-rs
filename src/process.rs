@@ -797,8 +797,8 @@ mod tests {
 
     use super::AllEventsIndex;
     use super::ChartEventId;
-    use crate::process::event::{ChartEvent, PlayheadEvent, YCoordinate};
     use crate::parse::types::{Key, NoteKind, PlayerSide};
+    use crate::process::event::{ChartEvent, PlayheadEvent, YCoordinate};
     use gametime::TimeSpan;
     use strict_num_extended::NonNegativeF64;
 

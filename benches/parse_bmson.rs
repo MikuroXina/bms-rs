@@ -13,7 +13,7 @@ struct BmsonFile {
 type ParsedBmsonCharts = BTreeMap<String, Bmson<'static>>;
 
 fn scan_bmson_files() -> Vec<BmsonFile> {
-    let dir = "tests/bmson/files";
+    let dir = "tests/files/bmson";
     let extensions = [".bmson"];
 
     std::fs::read_dir(dir)

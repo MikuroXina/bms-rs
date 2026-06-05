@@ -26,8 +26,8 @@ pub mod wav;
 
 use std::fmt::Debug;
 
-use crate::parse::bms::types::ObjTime;
 use crate::parse::bms::prelude::*;
+use crate::parse::bms::types::ObjTime;
 
 use self::{
     bmp::BmpObjects, bpm::BpmObjects, control_flow::RandomizedObjects, judge::JudgeObjects,

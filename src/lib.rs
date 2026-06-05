@@ -138,8 +138,8 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub mod parse;
-pub mod process;
-pub mod play;
 pub mod diagnostics;
+pub mod parse;
+pub mod play;
+pub mod process;
 pub(crate) mod util;

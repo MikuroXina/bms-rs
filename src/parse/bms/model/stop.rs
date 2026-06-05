@@ -8,11 +8,7 @@ use crate::parse::bms::parse::{
     Result,
     prompt::{ChannelDuplication, Prompter},
 };
-use crate::parse::bms::{
-    command::channel::Channel,
-    prelude::*,
-    types::StringValue,
-};
+use crate::parse::bms::{command::channel::Channel, prelude::*, types::StringValue};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

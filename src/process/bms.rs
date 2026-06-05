@@ -10,9 +10,9 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use gametime::TimeSpan;
 
-use crate::parse::bms::types::StringValue;
 use crate::parse::bms::parse::check_playing::PlayingError;
 use crate::parse::bms::prelude::*;
+use crate::parse::bms::types::StringValue;
 use crate::process::event::{BmsEvent, ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
 use crate::process::{
     AllEventsIndex, BmpId, Chart, ChartEventIdGenerator, ChartResources, DEFAULT_BPM,

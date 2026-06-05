@@ -5,9 +5,9 @@ use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 use strict_num_extended::PositiveF64;
 
 use crate::parse::bms::{
-    types::StringValue,
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
+    types::StringValue,
 };
 
 const DEFAULT_BPM: PositiveF64 = PositiveF64::new_const(120.0);

@@ -2,9 +2,7 @@
 
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
-use crate::parse::bms::command::{
-    channel::{Channel, NoteChannelId},
-};
+use crate::parse::bms::command::channel::{Channel, NoteChannelId};
 use crate::parse::bms::types::{JudgeLevel, ObjId, ObjTime, Track};
 
 use crate::parse::bms::command::minor_command::SwBgaEvent;
