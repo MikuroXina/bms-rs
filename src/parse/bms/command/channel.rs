@@ -12,7 +12,7 @@ use thiserror::Error;
 use self::mapper::KeyLayoutMapper;
 
 // Import chart types for use in this module
-use crate::process::types::{Key, NoteKind, PlayerSide};
+use crate::parse::types::{Key, NoteKind, PlayerSide};
 
 pub mod converter;
 pub mod mapper;

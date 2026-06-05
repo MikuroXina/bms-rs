@@ -13,7 +13,7 @@ use crate::parse::bms::{
     model::{Bms, obj::WavObj},
     prelude::{KeyLayout, KeyLayoutBeat, KeyLayoutMapper},
 };
-use crate::process::types::{Key, NoteKind, PlayerSide};
+use crate::parse::types::{Key, NoteKind, PlayerSide};
 
 /// Missing-related validity entries.
 #[non_exhaustive]
@@ -326,7 +326,7 @@ mod tests {
             obj::{BgaObj, WavObj},
         },
     };
-    use crate::process::types::{BgaLayer, Key, NoteKind, PlayerSide};
+    use crate::parse::types::{BgaLayer, Key, NoteKind, PlayerSide};
 
     fn t(track: u64, num: u64, den: u64) -> ObjTime {
         ObjTime::new(track, num, den).expect("denominator should be non-zero")

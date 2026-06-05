@@ -66,8 +66,6 @@ pub mod event;
 
 pub mod prelude;
 
-pub mod types;
-
 pub(crate) mod bms;
 
 pub(crate) mod bmson;
@@ -81,7 +79,7 @@ use gametime::TimeSpan;
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use self::event::{ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
-use self::types::NoteKind;
+use crate::parse::types::NoteKind;
 
 /// Trait for types that can be processed into a `Chart`. It's intended that chart types implement this.
 ///
@@ -800,7 +798,7 @@ mod tests {
     use super::AllEventsIndex;
     use super::ChartEventId;
     use crate::process::event::{ChartEvent, PlayheadEvent, YCoordinate};
-    use crate::process::types::{Key, NoteKind, PlayerSide};
+    use crate::parse::types::{Key, NoteKind, PlayerSide};
     use gametime::TimeSpan;
     use strict_num_extended::NonNegativeF64;
 

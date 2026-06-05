@@ -14,7 +14,7 @@ use crate::{
         parse::{Result, prompt::ChannelDuplication},
         prelude::*,
     },
-    process::types::{Argb, BgaLayer},
+    parse::types::{Argb, BgaLayer},
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

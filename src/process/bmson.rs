@@ -17,7 +17,7 @@ use crate::process::{
     AllEventsIndex, BmpId, Chart, ChartEventIdGenerator, ChartResources, DEFAULT_SPEED,
     MAX_FIN_F64, MAX_NON_NEGATIVE_F64, Process, WavId, calculate_cumulative_times,
 };
-use crate::process::types::{BgaLayer, Key, NoteKind, PlayerSide};
+use crate::parse::types::{BgaLayer, Key, NoteKind, PlayerSide};
 use crate::util::StrExtension;
 
 /// BMSON format parser (internal).

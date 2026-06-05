@@ -34,7 +34,7 @@ use crate::{
         },
         prelude::*,
     },
-    process::types::{Argb, BgaLayer},
+    parse::types::{Argb, BgaLayer},
     util::StrExtension,
 };
 

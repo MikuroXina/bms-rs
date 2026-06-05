@@ -76,7 +76,7 @@ pub use crate::process::Process;
 pub use crate::process::event::BmsEvent;
 
 // Re-export chart types
-pub use crate::process::types::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
+pub use crate::parse::types::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]

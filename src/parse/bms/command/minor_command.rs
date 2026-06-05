@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::ObjId;
 use crate::parse::bms::command::time::ObjTime;
-use crate::process::types::Argb;
+use crate::parse::types::Argb;
 
 /// Pan value for `#EXWAV` sound effect.
 /// Range: \[-10000, 10000]. -10000 is leftmost, 10000 is rightmost.

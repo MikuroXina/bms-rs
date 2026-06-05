@@ -14,7 +14,7 @@ use crate::{
         BarLine, Bga, BgaEvent, BgaHeader, BgaId, Bmson, BmsonInfo, BpmEvent, KeyChannel, KeyEvent,
         MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent, pulse::PulseConverter,
     },
-    process::types::BgaLayer,
+    parse::types::BgaLayer,
 };
 
 use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};

@@ -7,7 +7,7 @@ use num::Integer;
 
 use crate::{
     parse::bms::prelude::*,
-    process::types::{Argb, BgaLayer},
+    parse::types::{Argb, BgaLayer},
 };
 
 impl Bms {

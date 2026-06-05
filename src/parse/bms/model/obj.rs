@@ -9,8 +9,8 @@ use crate::parse::bms::command::{
 };
 
 use crate::parse::bms::command::minor_command::SwBgaEvent;
-use crate::process::types::Argb;
-use crate::process::types::BgaLayer;
+use crate::parse::types::Argb;
+use crate::parse::types::BgaLayer;
 
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

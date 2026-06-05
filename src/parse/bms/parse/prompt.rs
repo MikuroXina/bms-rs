@@ -30,7 +30,7 @@ use crate::parse::bms::{
     command::minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
     model::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
 };
-use crate::process::types::Argb;
+use crate::parse::types::Argb;
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait Prompter {

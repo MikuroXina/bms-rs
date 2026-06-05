@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::{
     parse::bms::{command::string_value::StringValue, prelude::*},
     parse::bmson::{BgaId, Bmson, pulse::PulseNumber},
-    process::types::{Argb, BgaLayer},
+    parse::types::{Argb, BgaLayer},
 };
 
 /// Warnings that occur during conversion from `Bmson` to `Bms`.
