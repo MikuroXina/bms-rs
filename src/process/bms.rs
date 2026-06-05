@@ -10,7 +10,7 @@ use strict_num_extended::{FinF64, NonNegativeF64, PositiveF64};
 
 use gametime::TimeSpan;
 
-use crate::parse::bms::command::string_value::StringValue;
+use crate::parse::bms::types::StringValue;
 use crate::parse::bms::parse::check_playing::PlayingError;
 use crate::parse::bms::prelude::*;
 use crate::process::event::{BmsEvent, ChartEvent, FlowEvent, PlayheadEvent, YCoordinate};
@@ -858,7 +858,7 @@ impl BaseBpmGenerator<Bms> for crate::play::base_bpm::ManualBpmGenerator {
 mod tests {
     use super::*;
     use crate::parse::bms::command::channel::mapper::KeyLayoutBeat;
-    use crate::parse::bms::command::string_value::StringValue;
+    use crate::parse::bms::types::StringValue;
 
     /// Test that parsing fails when BPM value is invalid (non-numeric string)
     #[test]

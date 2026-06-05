@@ -9,8 +9,9 @@ use crate::parse::bms::parse::{
     prompt::{ChannelDuplication, Prompter},
 };
 use crate::parse::bms::{
-    command::{channel::Channel, string_value::StringValue},
+    command::channel::Channel,
     prelude::*,
+    types::StringValue,
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

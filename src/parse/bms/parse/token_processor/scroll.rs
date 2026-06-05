@@ -12,7 +12,7 @@ use super::{
 use crate::parse::bms::ParseErrorWithRange;
 use crate::{
     parse::bms::{
-        command::string_value::StringValue,
+        types::StringValue,
         model::scroll::ScrollObjects,
         parse::{ParseWarning, Result},
         prelude::*,

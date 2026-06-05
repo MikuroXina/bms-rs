@@ -6,7 +6,7 @@
 //!
 //! `parse` module provides definitions of BMS semantic objects and managers of BMS score data. The notes are serializable, but parsed result can't bring back into the BMS format text because of there are randomized syntax in BMS.
 //!
-//! `time` module provides definition of timing for notes as [`command::time::Track`] and [`command::time::ObjTime`].
+//! `time` module provides definition of timing for notes as [`types::Track`] and [`types::ObjTime`].
 //!
 //! In detail, our policies are:
 //!
@@ -23,6 +23,8 @@ pub mod lex;
 pub mod model;
 pub mod parse;
 pub mod prelude;
+/// Fundamental BMS types shared across parsing and processing.
+pub mod types;
 // pub mod process; — 已移至 process::bms (Task 5)
 pub mod rng;
 pub mod unparse;

@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use strict_num_extended::FinF64;
 
 use crate::parse::bms::{
-    command::string_value::StringValue,
+    types::StringValue,
     parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };

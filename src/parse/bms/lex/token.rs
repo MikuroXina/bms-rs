@@ -5,8 +5,8 @@ use std::borrow::Cow;
 use crate::parse::bms::command::{
     channel::{Channel, NoteChannelId},
     mixin::SourceRangeMixin,
-    time::Track,
 };
+use crate::parse::bms::types::Track;
 
 /// A token content of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

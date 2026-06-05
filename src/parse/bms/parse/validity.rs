@@ -9,9 +9,9 @@ use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
 use crate::parse::bms::{
-    command::{ObjId, time::ObjTime},
     model::{Bms, obj::WavObj},
     prelude::{KeyLayout, KeyLayoutBeat, KeyLayoutMapper},
+    types::{ObjId, ObjTime},
 };
 use crate::parse::types::{Key, NoteKind, PlayerSide};
 
@@ -320,11 +320,8 @@ mod tests {
 
     use super::*;
     use crate::parse::bms::{
-        command::{ObjId, time::ObjTime},
-        model::{
-            notes::Notes,
-            obj::{BgaObj, WavObj},
-        },
+        model::{notes::Notes, obj::{BgaObj, WavObj}},
+        types::{ObjId, ObjTime},
     };
     use crate::parse::types::{BgaLayer, Key, NoteKind, PlayerSide};
 

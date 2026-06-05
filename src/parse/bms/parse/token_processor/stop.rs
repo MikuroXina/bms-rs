@@ -13,10 +13,11 @@ use super::{
 use crate::parse::bms::ParseErrorWithRange;
 use crate::{
     parse::bms::{
-        command::{channel::Channel, string_value::StringValue},
+        command::channel::Channel,
         model::stop::StopObjects,
         parse::{ParseWarning, Result},
         prelude::*,
+        types::StringValue,
     },
     util::StrExtension,
 };

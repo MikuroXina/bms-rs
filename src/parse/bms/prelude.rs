@@ -11,7 +11,7 @@ pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
 pub use super::{
     BmsOutput, BmsWarning, ParseConfig,
     command::{
-        JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
+        LnMode, LnType, PlayerMode, PoorMode, Volume,
         channel::{
             Channel, NoteChannelId,
             converter::{
@@ -31,7 +31,6 @@ pub use super::{
             WavCmdParam,
         },
         mixin::{SourceRangeMixin, SourceRangeMixinExt},
-        time::{ObjTime, Track},
     },
     default_config, default_config_with_rng,
     lex::{
@@ -68,6 +67,9 @@ pub use super::{
     parse_bms,
     rng::{Rng, RngMock},
 };
+
+// Re-export shared types from the types submodule
+pub use super::types::{JudgeLevel, ObjId, ObjIdManager, ObjTime, StringValue, Track};
 
 // Re-export chart process trait
 pub use crate::process::Process;

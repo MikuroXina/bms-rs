@@ -144,7 +144,7 @@ pub enum BmsEvent {
     /// Judge level change event.
     JudgeLevelChange {
         /// New judge level.
-        level: crate::parse::bms::command::JudgeLevel,
+        level: crate::parse::bms::types::JudgeLevel,
     },
     /// Video seek event.
     VideoSeek {

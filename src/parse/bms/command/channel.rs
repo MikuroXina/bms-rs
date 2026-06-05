@@ -5,7 +5,7 @@
 //!
 //! For converting key/channel between different modes, please see `ModeKeyChannel` enum and `convert_key_channel_between` function.
 
-use super::{base62_to_byte, char_to_base62};
+use crate::parse::bms::types::{base62_to_byte, char_to_base62};
 use std::str::FromStr;
 use thiserror::Error;
 

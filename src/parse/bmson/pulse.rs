@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::parse::bms::command::time::{ObjTime, Track};
+use crate::parse::bms::types::{ObjTime, Track};
 use crate::parse::bmson::prelude::FinF64;
 
 /// Note position for the chart [`super::Bmson`].

@@ -9,7 +9,7 @@ use strict_num_extended::{FinF64, NonNegativeF64};
 use thiserror::Error;
 
 use crate::{
-    parse::bms::{command::string_value::StringValue, prelude::*},
+    parse::bms::{types::StringValue, prelude::*},
     parse::bmson::{BgaId, Bmson, pulse::PulseNumber},
     parse::types::{Argb, BgaLayer},
 };

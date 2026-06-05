@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::parse::bms::command::ObjId;
+use crate::parse::bms::types::ObjId;
 use crate::parse::bms::command::channel::mapper::KeyLayoutMapper;
 
 use crate::parse::bms::model::Bms;

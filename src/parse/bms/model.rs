@@ -26,7 +26,7 @@ pub mod wav;
 
 use std::fmt::Debug;
 
-use crate::parse::bms::command::time::ObjTime;
+use crate::parse::bms::types::ObjTime;
 use crate::parse::bms::prelude::*;
 
 use self::{

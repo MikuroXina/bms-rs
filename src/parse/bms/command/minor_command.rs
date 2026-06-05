@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use super::ObjId;
-use crate::parse::bms::command::time::ObjTime;
+use crate::parse::bms::types::{ObjId, ObjTime};
 use crate::parse::types::Argb;
 
 /// Pan value for `#EXWAV` sound effect.
