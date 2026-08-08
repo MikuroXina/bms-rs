@@ -124,6 +124,9 @@ impl<'a> ChartPlayer<'a> {
     pub fn update(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
         use std::ops::Bound::{Excluded, Included};
 
+        // `is_first` must be captured BEFORE `step_to` (which advances
+        // `last_poll_at` past `started_at` on the very first call).
+        let is_first = self.last_poll_at == self.started_at;
         let prev_y = self.playback_state.progressed_y;
         let speed = self.playback_state.current_speed;
         self.step_to(now, speed);
@@ -135,8 +138,21 @@ impl<'a> ChartPlayer<'a> {
         let visible_y_length = self.visible_window_y(self.playback_state.current_speed);
         let preload_end_y = cur_y + visible_y_length;
 
-        // Collect events triggered at current moment
-        let mut triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(&cur_y)));
+        // Collect events triggered at current moment.
+        //
+        // On the very first update the playhead starts at y=0, so a left-open
+        // range (`Excluded(prev_y)`) would drop events sitting exactly at y=0 —
+        // typically the BGM/keysounds on measure 1, beat 0 (e.g. `#00001`),
+        // making charts start silent. Include y=0 on the first update only and
+        // keep the left-open range afterwards so no event is ever re-triggered.
+        // Note: `Unbounded` would not work here — `events_in_y_range` treats an
+        // unbounded start as exclusive, which would exclude y=0 again.
+        let start_bound = if is_first {
+            std::ops::Bound::Included(&prev_y)
+        } else {
+            std::ops::Bound::Excluded(&prev_y)
+        };
+        let mut triggered_events = self.events_in_y_range((start_bound, Included(&cur_y)));
 
         self.update_preloaded_events(FinF64::new(preload_end_y.as_f64()).unwrap_or(MAX_FIN_F64));
 
@@ -1038,6 +1054,64 @@ mod tests {
         assert!(
             (player.playback_state().current_scroll.as_f64() - 1.5).abs() < f64::EPSILON,
             "Scroll change event should be applied"
+        );
+    }
+
+    /// The first update (playhead starts at y=0) must trigger events at y=0 —
+    /// e.g. BGM/keysounds on measure 1, beat 0 (`#00001`). Regression: an
+    /// exclusive lower bound would drop them and charts would start silent.
+    #[test]
+    fn test_first_update_triggers_y_zero_events() {
+        use std::collections::BTreeMap;
+
+        // Build a chart with a single BGM event at y=0
+        let mut by_y = BTreeMap::new();
+        by_y.insert(
+            YCoordinate::ZERO,
+            vec![PlayheadEvent::new(
+                crate::chart::process::ChartEventId(0),
+                YCoordinate::ZERO,
+                ChartEvent::Bgm {
+                    wav_id: Some(crate::chart::process::WavId(1)),
+                },
+                TimeSpan::ZERO,
+            )],
+        );
+
+        let chart = Chart::from_parts(
+            ChartResources::new(HashMap::new(), HashMap::new()),
+            AllEventsIndex::new(by_y),
+            BTreeMap::new(),
+            TEST_BPM_120,
+            PositiveF64::ONE,
+        );
+
+        let start_time = TimeStamp::now();
+        let mut player = ChartPlayer::start(
+            &chart,
+            VisibleRangePerBpm::new(&TEST_BPM_120, TimeSpan::SECOND),
+            start_time,
+        );
+
+        // 首次 update（从 y=0 起播一小段时间）
+        let now = start_time + TimeSpan::from_duration(Duration::from_millis(100));
+        let triggered = player.update(now);
+        assert!(
+            triggered
+                .iter()
+                .any(|e| matches!(e.event, ChartEvent::Bgm { .. })),
+            "first update should trigger the y=0 BGM event, got {} events",
+            triggered.len()
+        );
+
+        // The second update (playhead has advanced) must not re-trigger it
+        let now2 = start_time + TimeSpan::from_duration(Duration::from_millis(200));
+        let triggered2 = player.update(now2);
+        assert!(
+            !triggered2
+                .iter()
+                .any(|e| matches!(e.event, ChartEvent::Bgm { .. })),
+            "the y=0 event must not be re-triggered"
         );
     }
 }
