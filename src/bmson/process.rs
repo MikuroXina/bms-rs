@@ -13,7 +13,7 @@ use crate::bmson::prelude::*;
 use crate::chart::event::{ChartEvent, FlowEvent, PlayheadEvent};
 use crate::chart::prelude::{TimeSpan, YCoordinate};
 use crate::chart::process::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Process, WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Process, StopDurationUnit, WavId,
     calculate_cumulative_times,
 };
 use crate::chart::types::{BgaLayer, Key, NoteKind, PlayerSide};
@@ -251,7 +251,14 @@ impl AllEventsIndex {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect();
 
-        let cum_map = calculate_cumulative_times(&points, init_bpm, &bpm_changes, &stop_list);
+        // BMSON: stop duration is pulse-converted "measures" (relative time, × 240 / BPM).
+        let cum_map = calculate_cumulative_times(
+            &points,
+            init_bpm,
+            &bpm_changes,
+            &stop_list,
+            StopDurationUnit::Measures,
+        );
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let to_time_span =
             |secs: f64| TimeSpan::from_duration(std::time::Duration::from_secs_f64(secs));
@@ -384,8 +391,11 @@ impl AllEventsIndex {
         }
         for stop in &bmson.stop_events {
             let y = pulses_to_y(stop.y.0);
+            // Unify Stop duration as "beats" (matching BMS `ChartEvent::Stop` semantics,
+            // for playhead freeze × 60/BPM): bmson duration is pulses → measures
+            // (pulses_to_y) → beats (×4).
             let event = ChartEvent::Stop {
-                duration: NonNegativeF64::new(stop.duration as f64)
+                duration: NonNegativeF64::new(pulses_to_y(stop.duration).as_f64() * 4.0)
                     .expect("duration should be non-negative"),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0.0));

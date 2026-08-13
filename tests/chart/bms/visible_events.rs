@@ -327,60 +327,6 @@ fn test_bms_multi_flow_events_same_y_all_triggered() {
 }
 
 #[test]
-fn test_bms_stop_duration_conversion_from_192nd_note_to_beats() {
-    const EXPECTED_BEATS_4: FinF64 = FinF64::new_const(4.0);
-
-    let duration_192nd = FinF64::try_from(192.0).unwrap();
-    let expected_beats = EXPECTED_BEATS_4;
-
-    let converted_beats = (duration_192nd / FinF64::try_from(48.0).unwrap()).unwrap();
-
-    assert_eq!(
-        converted_beats, expected_beats,
-        "192nd-note duration should be converted to beats: 192/48 = 4 beats"
-    );
-
-    let duration_96 = FinF64::try_from(96.0).unwrap();
-    let expected_2_beats = FinF64::TWO;
-    let converted_2_beats = (duration_96 / FinF64::try_from(48.0).unwrap()).unwrap();
-    assert_eq!(
-        converted_2_beats, expected_2_beats,
-        "96 192nd-notes should equal 2 beats"
-    );
-
-    let duration_48 = FinF64::try_from(48.0).unwrap();
-    let expected_1_beat = FinF64::ONE;
-    let converted_1_beat = (duration_48 / FinF64::try_from(48.0).unwrap()).unwrap();
-    assert_eq!(
-        converted_1_beat, expected_1_beat,
-        "48 192nd-notes should equal 1 beat"
-    );
-}
-
-#[test]
-fn test_bms_stop_timing_with_bpm_changes() {
-    const EXPECTED_BEATS_4: FinF64 = FinF64::new_const(4.0);
-
-    let duration_192nd = FinF64::try_from(192.0).unwrap();
-    let beats_at_120 = (duration_192nd / FinF64::try_from(48.0).unwrap()).unwrap();
-    assert_eq!(beats_at_120, EXPECTED_BEATS_4);
-
-    let beats_at_180 = (duration_192nd / FinF64::try_from(48.0).unwrap()).unwrap();
-    assert_eq!(beats_at_180, EXPECTED_BEATS_4);
-
-    assert_eq!(
-        beats_at_120, beats_at_180,
-        "STOP duration conversion should be independent of BPM"
-    );
-
-    let duration_96 = FinF64::try_from(96.0).unwrap();
-    let beats_96_at_120 = (duration_96 / FinF64::try_from(48.0).unwrap()).unwrap();
-    let beats_96_at_180 = (duration_96 / FinF64::try_from(48.0).unwrap()).unwrap();
-    assert_eq!(beats_96_at_120, beats_96_at_180);
-    assert_eq!(beats_96_at_120, FinF64::TWO);
-}
-
-#[test]
 fn test_custom_visibility_range() {
     let bms_source = include_str!("../../bms/files/bemuse_ext.bms");
     let config = default_config().prompter(AlwaysUseOlder);

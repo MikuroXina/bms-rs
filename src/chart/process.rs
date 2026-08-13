@@ -539,7 +539,18 @@ impl ChartResources {
     }
 }
 
-/// Computes cumulative time (in seconds) at each Y coordinate point.
+/// STOP duration unit (decides how `calculate_cumulative_times` converts STOP values to seconds).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StopDurationUnit {
+    /// BMS: `#STOPxx` value = 192nd-note units (1 value = 1/48 beat; in 4/4 time a
+    /// 192nd note = 1/192 whole note = 1/48 beat). Beat → sec = × 60 / BPM.
+    /// Matches beatoraja (jbms-parser: `stop_ms = 1250 × value / bpm`).
+    Beats,
+    /// BMSON: stop duration is pulse-converted "measures" (relative time, × 240 / BPM).
+    Measures,
+}
+
+/// Compute cumulative time (in seconds) at each Y coordinate point.
 ///
 /// This function calculates the exact time when the playhead reaches each Y coordinate,
 /// accounting for BPM changes and stops. The algorithm:
@@ -553,7 +564,9 @@ impl ChartResources {
 /// * `points` - Sorted set of Y coordinates to compute times for (must include `YCoordinate::ZERO`)
 /// * `init_bpm` - Initial BPM value
 /// * `bpm_changes` - Iterator of (Y coordinate, BPM) pairs, sorted by Y
-/// * `stops` - Iterator of (Y coordinate, stop duration in beats) pairs, sorted by Y
+/// * `stops` - Iterator of (Y coordinate, stop duration) pairs, sorted by Y
+///   (unit determined by `stop_unit`)
+/// * `stop_unit` - STOP duration unit (beats or measures), decides the seconds conversion
 ///
 /// # Returns
 ///
@@ -563,6 +576,7 @@ pub fn calculate_cumulative_times<'a, P, B, S>(
     init_bpm: PositiveF64,
     bpm_changes: B,
     stops: S,
+    stop_unit: StopDurationUnit,
 ) -> BTreeMap<YCoordinate, f64>
 where
     P: IntoIterator<Item = &'a YCoordinate> + Clone,
@@ -594,6 +608,7 @@ where
 
         let delta_y = curr - prev;
         let delta_secs = delta_y.as_f64() * 240.0 / cur_bpm.as_f64();
+
         total_secs = (total_secs + delta_secs).min(f64::MAX);
 
         while let Some((sy, dur)) = stops.get(stop_idx) {
@@ -601,11 +616,24 @@ where
                 break;
             }
             if sy > &prev {
-                let bpm_at_stop = bpm_map
-                    .range(..=sy)
-                    .next_back()
-                    .map_or(init_bpm, |(_, b)| *b);
-                let dur_secs = dur.as_f64() * 240.0 / bpm_at_stop.as_f64();
+                // BMS (beats): sec = beat × 60 / BPM (1 beat = 60/BPM s);
+                // BMSON (measures): sec = measure × 240 / BPM (1 measure = 240/BPM s).
+                let dur_secs = match stop_unit {
+                    StopDurationUnit::Beats => {
+                        let bpm_at_stop = bpm_map
+                            .range(..=sy)
+                            .next_back()
+                            .map_or(init_bpm, |(_, b)| *b);
+                        dur.as_f64() * 60.0 / bpm_at_stop.as_f64()
+                    }
+                    StopDurationUnit::Measures => {
+                        let bpm_at_stop = bpm_map
+                            .range(..=sy)
+                            .next_back()
+                            .map_or(init_bpm, |(_, b)| *b);
+                        dur.as_f64() * 240.0 / bpm_at_stop.as_f64()
+                    }
+                };
                 total_secs = (total_secs + dur_secs).min(f64::MAX);
             }
             stop_idx += 1;

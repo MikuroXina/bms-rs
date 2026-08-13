@@ -231,7 +231,10 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let start_time = TimeStamp::now();
     let mut processor = ChartPlayer::start(&chart, visible_range_per_bpm, start_time);
 
-    let t = start_time + TimeSpan::MILLISECOND * 2400;
+    // Playhead includes STOP freezes (beatoraja semantics): 0.5s at y=0.5, 0.5s at y=1.0.
+    // After freezes, at t=3.4s y≈1.2 — the note (y=1.25) hasn't passed and is visible
+    // (without freezes, the old baseline expected t=2.4s: note at y=1.2, about to arrive).
+    let t = start_time + TimeSpan::MILLISECOND * 3400;
     let _ = processor.update(t);
 
     let mut found = false;

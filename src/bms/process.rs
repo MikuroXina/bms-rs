@@ -14,7 +14,7 @@ use crate::bms::prelude::*;
 use crate::chart::event::{BmsEvent, ChartEvent, FlowEvent, PlayheadEvent};
 use crate::chart::prelude::{TimeSpan, YCoordinate};
 use crate::chart::process::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Process, WavId,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, ChartResources, Process, StopDurationUnit, WavId,
     calculate_cumulative_times,
 };
 use crate::chart::{Chart, DEFAULT_BPM, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGATIVE_F64};
@@ -27,13 +27,10 @@ use crate::chart::{Chart, DEFAULT_BPM, DEFAULT_SPEED, MAX_FIN_F64, MAX_NON_NEGAT
 /// Users should use [`Bms::process`](Process) via the [`Process`] trait instead.
 struct BmsProcessor;
 
-/// Convert STOP duration from 192nd-note units to beats (measure units).
+/// Convert STOP duration from 192nd-note units to beats.
 ///
-/// In 4/4 time signature:
-/// - 192nd-note represents 1/192 of a whole note
-/// - One measure (4/4) = 4 beats = 192/48 beats
-/// - Therefore: 1 unit of 192nd-note = 1/48 beat
-/// - Formula: beats = `192nd_note_value` / 48
+/// `#STOPxx` value unit = 192nd note (1 value = 1/192 whole note = 1/48 beat, 4/4 time).
+/// Matches beatoraja (`stop_ms = 1250 × value / bpm` ⇔ beat × 60 / bpm).
 #[must_use]
 fn convert_stop_duration_to_beats(duration_192nd: NonNegativeF64) -> NonNegativeF64 {
     NonNegativeF64::new(duration_192nd.as_f64() / 48.0).unwrap_or(NonNegativeF64::ZERO)
@@ -214,8 +211,13 @@ impl<L: KeyLayoutMapper> Process<L> for Bms {
 /// section length changes and speed modifications.
 #[derive(Debug)]
 pub struct YMemo {
-    /// Y coordinates memoization by track, which modified its length
+    /// Length offset accumulated by track that modified its length:
+    /// `offset(track) = Σ_{i ≤ track}(len_i − 1.0)` (self-inclusive).
+    /// measure n starts at n (index, default 1.0/measure) + `offset(previous track)`.
     y_by_track: BTreeMap<Track, FinF64>,
+    /// Section length of each track that modified its length (default 1.0),
+    /// used to scale the intra-track fraction (`fraction × track_len`).
+    section_lengths: BTreeMap<Track, FinF64>,
     speed_changes: BTreeMap<ObjTime, SpeedObj>,
     zero_length_tracks: std::collections::HashSet<Track>,
     /// Flow events that affect playback speed/scroll, organized by Y coordinate
@@ -225,14 +227,19 @@ pub struct YMemo {
 impl YMemo {
     fn new(bms: &Bms) -> Self {
         let mut y_by_track: BTreeMap<Track, FinF64> = BTreeMap::new();
-        let mut last_track = 0;
-        let mut y = FinF64::ZERO;
+        let mut section_lengths: BTreeMap<Track, FinF64> = BTreeMap::new();
+        let mut offset = 0.0;
         for (&track, section_len_change) in &bms.section_len.section_len_changes {
-            let passed_sections = (track.0 - last_track).saturating_sub(1);
-            y = FinF64::new(y.as_f64() + passed_sections as f64).unwrap_or(MAX_FIN_F64);
-            y = (y + section_len_change.length).unwrap_or(MAX_FIN_F64);
-            y_by_track.insert(track, y);
-            last_track = track.0;
+            // BMS: measure n starts at n + Σ_{i<n}(len_i − 1.0).
+            // Accumulate the self-inclusive offset: get_y/get_event_y query the
+            // "previous" track via range(..track), so in-table tracks get an offset
+            // excluding themselves, while out-of-table tracks get the last in-table one.
+            offset += section_len_change.length.as_f64() - 1.0;
+            y_by_track.insert(track, FinF64::new(offset).unwrap_or(MAX_FIN_F64));
+            section_lengths.insert(
+                track,
+                FinF64::new(section_len_change.length.as_f64()).unwrap_or(MAX_FIN_F64),
+            );
         }
 
         let zero_length_tracks: std::collections::HashSet<Track> = bms
@@ -245,19 +252,25 @@ impl YMemo {
 
         // Populate flow events by Y coordinate
         let get_event_y = |time: ObjTime| -> YCoordinate {
-            let section_y =
-                if let Some((&track_last, track_y)) = y_by_track.range(..=&time.track()).last() {
-                    let passed_sections = (time.track().0 - track_last.0).saturating_sub(1);
-                    FinF64::new(passed_sections as f64 + track_y.as_f64()).unwrap_or(MAX_FIN_F64)
-                } else {
-                    FinF64::new(time.track().0 as f64).unwrap_or(MAX_FIN_F64)
-                };
+            // measure start = index + previous track's length offset (range(..track) excludes self)
+            let section_y = FinF64::new(
+                time.track().0 as f64
+                    + y_by_track
+                        .range(..time.track())
+                        .last()
+                        .map_or(0.0, |(_, &off)| off.as_f64()),
+            )
+            .unwrap_or(MAX_FIN_F64);
             let fraction = if time.denominator().get() > 0 {
                 FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
                     .unwrap_or(FinF64::ZERO)
             } else {
                 FinF64::ZERO
             };
+            // Data spreads evenly within the track: y delta = fraction × track length (default 1.0)
+            let track_len = section_lengths
+                .get(&time.track())
+                .map_or(1.0, |len| len.as_f64());
             let factor = bms
                 .speed
                 .speed_factor_changes
@@ -265,8 +278,10 @@ impl YMemo {
                 .last()
                 .map_or_else(|| DEFAULT_SPEED, |(_, obj)| obj.factor);
             YCoordinate::new(
-                NonNegativeF64::new((section_y.as_f64() + fraction.as_f64()) * factor.as_f64())
-                    .unwrap_or(MAX_NON_NEGATIVE_F64),
+                NonNegativeF64::new(
+                    (section_y.as_f64() + fraction.as_f64() * track_len) * factor.as_f64(),
+                )
+                .unwrap_or(MAX_NON_NEGATIVE_F64),
             )
         };
 
@@ -282,7 +297,13 @@ impl YMemo {
         }
 
         // BPM changes (u8, channel 03)
+        // Value 0 = no event (BMS convention), skip — otherwise u8 0 would emit a
+        // BPM 0 → default 120 change, polluting later sections with 120 BPM
+        // ([Clue]Random's #11503 has many zero fraction slots).
         for (time, &bpm_u8) in &bms.bpm.bpm_changes_u8 {
+            if bpm_u8 == 0 {
+                continue;
+            }
             let event_y = get_event_y(*time);
             let bpm = PositiveF64::new(bpm_u8 as f64).unwrap_or(DEFAULT_BPM);
             flow_events
@@ -311,6 +332,7 @@ impl YMemo {
 
         Self {
             y_by_track,
+            section_lengths,
             speed_changes: bms.speed.speed_factor_changes.clone(),
             zero_length_tracks,
             flow_events,
@@ -323,42 +345,51 @@ impl YMemo {
             return self.get_section_start_y(time.track());
         }
 
-        let section_y = {
-            let track = time.track();
-            if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last() {
-                let passed_sections = (track.0 - last_track.0).saturating_sub(1);
-                FinF64::new(passed_sections as f64 + last_y.as_f64()).unwrap_or(MAX_FIN_F64)
-            } else {
-                // there is no sections modified its length until
-                FinF64::new(track.0 as f64).unwrap_or(MAX_FIN_F64)
-            }
-        };
+        // measure start = index + previous track's length offset (range(..track) excludes self)
+        let section_y = FinF64::new(
+            time.track().0 as f64
+                + self
+                    .y_by_track
+                    .range(..time.track())
+                    .last()
+                    .map_or(0.0, |(_, &off)| off.as_f64()),
+        )
+        .unwrap_or(MAX_FIN_F64);
         let fraction = if time.denominator().get() > 0 {
             FinF64::new(time.numerator() as f64 / time.denominator().get() as f64)
                 .unwrap_or(FinF64::ZERO)
         } else {
             FinF64::ZERO
         };
+        // Data spreads evenly within the track: y delta = fraction × track length (default 1.0)
+        let track_len = self
+            .section_lengths
+            .get(&time.track())
+            .map_or(1.0, |len| len.as_f64());
         let factor = self
             .speed_changes
             .range(..=time)
             .last()
             .map_or_else(|| DEFAULT_SPEED, |(_, obj)| obj.factor);
         YCoordinate::new(
-            NonNegativeF64::new((section_y.as_f64() + fraction.as_f64()) * factor.as_f64())
-                .unwrap_or(MAX_NON_NEGATIVE_F64),
+            NonNegativeF64::new(
+                (section_y.as_f64() + fraction.as_f64() * track_len) * factor.as_f64(),
+            )
+            .unwrap_or(MAX_NON_NEGATIVE_F64),
         )
     }
 
     // Gets the Y coordinate at the start of a track/section (without fraction)
     fn get_section_start_y(&self, track: Track) -> YCoordinate {
-        let section_y = if let Some((&last_track, last_y)) = self.y_by_track.range(..=&track).last()
-        {
-            let passed_sections = track.0 - last_track.0;
-            FinF64::new(passed_sections as f64 + last_y.as_f64()).unwrap_or(MAX_FIN_F64)
-        } else {
-            FinF64::new(track.0 as f64).unwrap_or(MAX_FIN_F64)
-        };
+        let section_y = FinF64::new(
+            track.0 as f64
+                + self
+                    .y_by_track
+                    .range(..track)
+                    .last()
+                    .map_or(0.0, |(_, &off)| off.as_f64()),
+        )
+        .unwrap_or(MAX_FIN_F64);
         let factor = self
             .speed_changes
             .range(..=ObjTime::start_of(track))
@@ -541,6 +572,7 @@ impl AllEventsIndex {
         }
 
         // Stop events
+        // `#STOPxx` value unit = 192nd note (1 value = 1/48 beat), matching `ChartEvent::Stop`.
         for stop in bms.stop.stops.values() {
             let y = get_event_y(stop.time);
             let event = ChartEvent::Stop {
@@ -744,11 +776,20 @@ pub fn precompute_activate_times(
             let y = y_memo.get_y(*obj_time);
             (y, change.bpm)
         })
-        .chain(bms.bpm.bpm_changes_u8.iter().map(|(obj_time, &bpm_u8)| {
-            let y = y_memo.get_y(*obj_time);
-            let bpm = PositiveF64::new(bpm_u8 as f64).unwrap_or(DEFAULT_BPM);
-            (y, bpm)
-        }))
+        .chain(
+            bms.bpm
+                .bpm_changes_u8
+                .iter()
+                .filter_map(|(obj_time, &bpm_u8)| {
+                    // Value 0 = no event (same as flow_events), avoids junk BPM changes polluting the timeline
+                    if bpm_u8 == 0 {
+                        return None;
+                    }
+                    let y = y_memo.get_y(*obj_time);
+                    let bpm = PositiveF64::new(bpm_u8 as f64).unwrap_or(DEFAULT_BPM);
+                    Some((y, bpm))
+                }),
+        )
         .collect();
     points.extend(bpm_changes.iter().map(|(y, _)| *y));
 
@@ -758,12 +799,19 @@ pub fn precompute_activate_times(
         .values()
         .map(|st| {
             let sy = y_memo.get_y(st.time);
+            // 192nd note → beats (1 value = 1/48 beat, matching `ChartEvent::Stop`)
             (sy, convert_stop_duration_to_beats(st.duration))
         })
         .sorted_by_key(|(y, _)| *y)
         .collect();
 
-    let cum_map = calculate_cumulative_times(&points, init_bpm_value, &bpm_changes, &stop_list);
+    let cum_map = calculate_cumulative_times(
+        &points,
+        init_bpm_value,
+        &bpm_changes,
+        &stop_list,
+        StopDurationUnit::Beats,
+    );
 
     let new_map: std::collections::BTreeMap<YCoordinate, Vec<PlayheadEvent>> = all_events
         .as_by_y()

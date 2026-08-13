@@ -37,6 +37,11 @@ pub struct ChartPlayer<'a> {
     // Flow event processing tracking
     processed_flow_y: BTreeSet<YCoordinate>,
 
+    // STOP scroll support: all stop-event Y coordinates + per-frame remaining freeze
+    stop_ys: BTreeSet<YCoordinate>,
+    processed_stop_y: BTreeSet<YCoordinate>,
+    remaining_stop: f64,
+
     // Playback state (always initialized after construction)
     playback_state: PlaybackState,
 }
@@ -71,7 +76,7 @@ impl<'a> ChartPlayer<'a> {
     /// let mut player = ChartPlayer::start(&chart, visible_range, start_time);
     /// ```
     #[must_use]
-    pub const fn start(
+    pub fn start(
         chart: &'a Chart,
         visible_range_per_bpm: VisibleRangePerBpm,
         start_time: TimeStamp,
@@ -79,6 +84,26 @@ impl<'a> ChartPlayer<'a> {
         // Chart reference is stored, not cloned
         let init_bpm = chart.init_bpm;
         let init_speed = chart.init_speed;
+
+        // Collect all STOP event Y coordinates once (playhead freezes there).
+        // A STOP at y=0 freezes the playhead from the very start
+        // (`next_flow_event_y_after` excludes the current y, so a starting STOP
+        // is never handled by later iteration — initialize it here).
+        let mut stop_ys = BTreeSet::new();
+        let mut processed_stop_y = BTreeSet::new();
+        let mut remaining_stop = 0.0;
+        for e in chart.events().events_in_y_range((
+            std::ops::Bound::Included(YCoordinate::ZERO),
+            std::ops::Bound::Unbounded,
+        )) {
+            if let ChartEvent::Stop { duration } = e.event() {
+                if *e.position() == YCoordinate::ZERO {
+                    remaining_stop += duration.as_f64() * 60.0 / init_bpm.as_f64();
+                    processed_stop_y.insert(YCoordinate::ZERO);
+                }
+                stop_ys.insert(*e.position());
+            }
+        }
 
         Self {
             chart,
@@ -90,6 +115,9 @@ impl<'a> ChartPlayer<'a> {
             velocity_dirty: true,
             preloaded_events: Vec::new(),
             processed_flow_y: BTreeSet::new(),
+            stop_ys,
+            processed_stop_y,
+            remaining_stop,
             playback_state: PlaybackState::new(
                 init_bpm,
                 init_speed,
@@ -122,8 +150,11 @@ impl<'a> ChartPlayer<'a> {
     /// speed changes that occur during the time slice, updating the internal
     /// `playback_state` accordingly.
     pub fn update(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
-        use std::ops::Bound::{Excluded, Included};
+        use std::ops::Bound::Included;
 
+        // `is_first` must be captured BEFORE `step_to` (which advances
+        // `last_poll_at` past `started_at` on the very first call).
+        let is_first = self.last_poll_at == self.started_at;
         let prev_y = self.playback_state.progressed_y;
         let speed = self.playback_state.current_speed;
         self.step_to(now, speed);
@@ -135,8 +166,21 @@ impl<'a> ChartPlayer<'a> {
         let visible_y_length = self.visible_window_y(self.playback_state.current_speed);
         let preload_end_y = cur_y + visible_y_length;
 
-        // Collect events triggered at current moment
-        let mut triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(&cur_y)));
+        // Collect events triggered at current moment.
+        //
+        // On the very first update the playhead starts at y=0, so a left-open
+        // range (`Excluded(prev_y)`) would drop events sitting exactly at y=0 —
+        // typically the BGM/keysounds on measure 1, beat 0 (e.g. `#00001`),
+        // making charts start silent. Include y=0 on the first update only and
+        // keep the left-open range afterwards so no event is ever re-triggered.
+        // Note: `Unbounded` would not work here — `events_in_y_range` treats an
+        // unbounded start as exclusive, which would exclude y=0 again.
+        let start_bound = if is_first {
+            std::ops::Bound::Included(&prev_y)
+        } else {
+            std::ops::Bound::Excluded(&prev_y)
+        };
+        let mut triggered_events = self.events_in_y_range((start_bound, Included(&cur_y)));
 
         self.update_preloaded_events(FinF64::new(preload_end_y.as_f64()).unwrap_or(MAX_FIN_F64));
 
@@ -380,15 +424,27 @@ impl<'a> ChartPlayer<'a> {
             .and_then(|(y, events)| events.first().cloned().map(|evt| (*y, evt)))
     }
 
-    /// Get the next flow event Y position after the given Y (exclusive).
+    /// Get the next flow event Y position after the given Y (exclusive),
+    /// also considering unprocessed STOP scroll positions.
     #[must_use]
     fn next_flow_event_y_after(&self, y_from_exclusive: YCoordinate) -> Option<YCoordinate> {
         use std::ops::Bound::{Excluded, Unbounded};
-        self.chart
+        let flow = self
+            .chart
             .flow_events()
             .range((Excluded(&y_from_exclusive), Unbounded))
             .find(|(y, _)| !self.processed_flow_y.contains(y))
-            .map(|(y, _)| *y)
+            .map(|(y, _)| *y);
+        let stop = self
+            .stop_ys
+            .range((Excluded(y_from_exclusive), Unbounded))
+            .next()
+            .copied()
+            .filter(|y| !self.processed_stop_y.contains(y));
+        match (flow, stop) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        }
     }
 
     /// Apply all flow events at the given Y position.
@@ -404,6 +460,31 @@ impl<'a> ChartPlayer<'a> {
             }
             self.processed_flow_y.insert(y);
         }
+    }
+
+    /// Accumulate STOP freeze duration at the given Y position (once per Y).
+    /// `ChartEvent::Stop` duration unit = beats (1 value = 1/48 beat); beat → sec = × 60 / current BPM,
+    /// matching beatoraja (STOP scales with BPM: [Clue]Random at BPM 99132,
+    /// value 750 = 9.5ms → the "note flash" effect).
+    fn apply_stop_at(&mut self, y: YCoordinate) {
+        use std::ops::Bound::Included;
+
+        if !self.stop_ys.contains(&y) || self.processed_stop_y.contains(&y) {
+            return;
+        }
+        self.processed_stop_y.insert(y);
+        let bpm = self.playback_state.current_bpm.as_f64();
+        let stop_secs: f64 = self
+            .chart
+            .events()
+            .events_in_y_range((Included(y), Included(y)))
+            .into_iter()
+            .filter_map(|e| match e.event() {
+                ChartEvent::Stop { duration } => Some(duration.as_f64() * 60.0 / bpm),
+                _ => None,
+            })
+            .sum();
+        self.remaining_stop += stop_secs;
     }
 
     /// Apply a flow event to this player.
@@ -439,6 +520,18 @@ impl<'a> ChartPlayer<'a> {
 
         // Advance in segments until time slice is used up
         loop {
+            // Consume remaining STOP freeze first (playhead stays put while time passes)
+            if self.remaining_stop > 0.0 {
+                let remain = remaining_time.as_secs_f64();
+                if remain <= self.remaining_stop {
+                    self.remaining_stop -= remain;
+                    break;
+                }
+                remaining_time -=
+                    TimeSpan::from_duration(Duration::from_secs_f64(self.remaining_stop));
+                self.remaining_stop = 0.0;
+            }
+
             let cur_y_now = cur_y;
             let next_event_y = self.next_flow_event_y_after(cur_y_now);
 
@@ -480,6 +573,7 @@ impl<'a> ChartPlayer<'a> {
                 // Defense: avoid infinite loop if event position doesn't advance
                 // Apply all events at this Y position
                 self.apply_flow_events_at(event_y);
+                self.apply_stop_at(event_y);
                 cur_vel = self.calculate_velocity(speed);
                 cur_y = cur_y_now;
                 continue;
@@ -502,6 +596,7 @@ impl<'a> ChartPlayer<'a> {
                     remaining_time -= time_to_event;
                     // Apply all events at this Y position
                     self.apply_flow_events_at(event_y);
+                    self.apply_stop_at(event_y);
                     cur_vel = self.calculate_velocity(speed);
                     continue;
                 }
